@@ -1,5 +1,6 @@
 # Dependências do Node.js
 node_modules/
+dist/
 
 # Variáveis de ambiente (Segurança)
 .env
