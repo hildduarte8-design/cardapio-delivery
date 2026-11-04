@@ -9,89 +9,90 @@
 </head>
 <body class="bg-gray-100 text-gray-800 antialiased pb-32">
 
-  <!-- Cabeçalho -->
-  <header class="bg-red-600 text-white p-4 sticky top-0 z-10 shadow-md">
-    <div class="max-w-md mx-auto flex justify-between items-center">
-      <div>
-        <h1 class="font-bold text-xl">Nosso Delivery</h1>
-        <p class="text-xs text-red-100">Teófilo Otoni</p>
+  <div id="app-container">
+    <!-- Cabeçalho -->
+    <header class="bg-red-600 text-white p-4 sticky top-0 z-10 shadow-md">
+      <div class="max-w-md mx-auto flex justify-between items-center">
+        <div>
+          <h1 id="rest-nome" class="font-bold text-xl">Carregando...</h1>
+          <p class="text-xs text-red-100">Cardápio Digital Aberto</p>
+        </div>
+        <span class="bg-red-700 text-xs px-2 py-1 rounded-full border border-red-400">PWA</span>
       </div>
-      <span class="bg-red-700 text-xs px-2 py-1 rounded-full border border-red-400">PWA</span>
-    </div>
-  </header>
+    </header>
 
-  <main class="max-w-md mx-auto p-4 space-y-6">
-
-    <!-- Aviso de configuração -->
-    <div id="aviso-config" class="hidden bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
-      Configure SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar.
-    </div>
-
-    <!-- Bairro / taxa -->
-    <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-      <label for="select-bairro" class="block text-sm font-semibold mb-2">Seu bairro:</label>
-      <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500">
-        <option value="">Carregando bairros...</option>
-      </select>
-      <div class="mt-2 text-xs text-gray-500 flex justify-between">
-        <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
-        <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
+    <main class="max-w-md mx-auto p-4 space-y-6">
+      
+      <!-- Aviso de configuração -->
+      <div id="aviso-config" class="hidden bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
+        Configure SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar.
       </div>
-    </section>
 
-    <!-- Produtos -->
-    <section>
-      <h2 class="font-bold text-lg mb-3">Cardápio</h2>
-      <div id="lista-produtos" class="space-y-3">
-        <p class="text-sm text-gray-500">Carregando produtos...</p>
-      </div>
-    </section>
+      <!-- Bairro / taxa -->
+      <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+        <label for="select-bairro" class="block text-sm font-semibold mb-2">Seu bairro:</label>
+        <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500">
+          <option value="">Carregando bairros...</option>
+        </select>
+        <div class="mt-2 text-xs text-gray-500 flex justify-between">
+          <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
+          <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
+        </div>
+      </section>
 
-    <!-- Carrinho -->
-    <section id="secao-carrinho" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hidden">
-      <h2 class="font-bold text-lg mb-3">Seu pedido</h2>
-      <div id="lista-carrinho" class="space-y-2"></div>
-    </section>
+      <!-- Produtos -->
+      <section>
+        <h2 class="font-bold text-lg mb-3">Cardápio</h2>
+        <div id="lista-produtos" class="space-y-3">
+          <p class="text-sm text-gray-500">Carregando produtos...</p>
+        </div>
+      </section>
 
-    <!-- Dados do cliente -->
-    <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
-      <h2 class="font-bold text-lg">Seus dados</h2>
-      <div>
-        <label for="cli-nome" class="block text-sm font-semibold mb-1">Nome</label>
-        <input id="cli-nome" type="text" autocomplete="name" maxlength="80"
-          class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-      </div>
-      <div>
-        <label for="cli-fone" class="block text-sm font-semibold mb-1">WhatsApp (com DDD)</label>
-        <input id="cli-fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16"
-          class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-      </div>
-      <div>
-        <label for="cli-endereco" class="block text-sm font-semibold mb-1">Endereço (rua, número, complemento)</label>
-        <textarea id="cli-endereco" rows="2" maxlength="200"
-          class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500"></textarea>
-      </div>
-    </section>
-  </main>
+      <!-- Carrinho -->
+      <section id="secao-carrinho" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hidden">
+        <h2 class="font-bold text-lg mb-3">Seu pedido</h2>
+        <div id="lista-carrinho" class="space-y-2"></div>
+      </section>
 
-  <!-- Barra fixa do total -->
-  <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
-    <div class="max-w-md mx-auto flex justify-between items-center">
-      <div>
-        <p class="text-xs text-gray-500">Total com entrega (<span id="qtd-itens">0</span> itens)</p>
-        <p id="total-carrinho" class="text-xl font-bold text-gray-900">R$ 0,00</p>
+      <!-- Dados do cliente -->
+      <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
+        <h2 class="font-bold text-lg">Seus dados</h2>
+        <div>
+          <label for="cli-nome" class="block text-sm font-semibold mb-1">Nome</label>
+          <input id="cli-nome" type="text" autocomplete="name" maxlength="80"
+            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+        </div>
+        <div>
+          <label for="cli-fone" class="block text-sm font-semibold mb-1">WhatsApp (com DDD)</label>
+          <input id="cli-fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16"
+            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+        </div>
+        <div>
+          <label for="cli-endereco" class="block text-sm font-semibold mb-1">Endereço (rua, número, complemento)</label>
+          <textarea id="cli-endereco" rows="2" maxlength="200"
+            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500"></textarea>
+        </div>
+      </section>
+    </main>
+
+    <!-- Barra fixa do total -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
+      <div class="max-w-md mx-auto flex justify-between items-center">
+        <div>
+          <p class="text-xs text-gray-500">Total com entrega (<span id="qtd-itens">0</span> itens)</p>
+          <p id="total-carrinho" class="text-xl font-bold text-gray-900">R$ 0,00</p>
+        </div>
+        <button id="btn-enviar"
+          class="bg-green-600 text-white font-bold px-6 py-3 rounded-xl shadow hover:bg-green-700 transition disabled:opacity-60">
+          Enviar Pedido
+        </button>
       </div>
-      <button id="btn-enviar"
-        class="bg-green-600 text-white font-bold px-6 py-3 rounded-xl shadow hover:bg-green-700 transition disabled:opacity-60">
-        Enviar Pedido
-      </button>
     </div>
   </div>
 
   <script>
     // ====== CONFIGURAÇÃO (substitua pelas suas chaves) ======
-    // A anon key pode ficar no frontend, desde que o RLS esteja ativado nas tabelas.
-    const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';;
+    const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_raTvDULM2YDmTngVIOM11g_CZe6jZWj';
     // ========================================================
 
@@ -100,28 +101,47 @@
 
     const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
+    let restauranteInfo = null;
     let produtos = [];
     let carrinho = []; // { id, nome, preco, qtd }
     let taxaAtual = 0;
 
     const $ = (id) => document.getElementById(id);
-
-    // Escapa texto vindo do banco antes de colocar no HTML
-    function esc(texto) {
-      return String(texto ?? '').replace(/[&<>"']/g, (c) => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[c]));
-    }
+    const esc = (texto) => String(texto ?? '').replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
 
     // ---------- Inicialização ----------
     async function init() {
-      restaurarDadosCliente();
       if (!configurado) {
         $('aviso-config').classList.remove('hidden');
         $('select-bairro').innerHTML = '<option value="">Configuração pendente</option>';
         $('lista-produtos').innerHTML = '';
         return;
       }
+
+      // 1. Identificar o Restaurante pela URL (ex: ?r=imperial). Se não tiver, usa 'imperial' como padrão no MVP.
+      const urlParams = new URLSearchParams(window.location.search);
+      const slug = urlParams.get('r') || 'imperial';
+
+      const { data: restData, error: restError } = await supabaseClient
+        .from('restaurantes')
+        .select('*')
+        .eq('slug', slug)
+        .eq('ativo', true)
+        .single();
+
+      if (restError || !restData) {
+        $('app-container').innerHTML = '<p class="text-center p-8 mt-10 text-red-600 font-bold">Restaurante não encontrado ou indisponível no momento.</p>';
+        return;
+      }
+
+      restauranteInfo = restData;
+      $('rest-nome').innerText = restData.nome;
+      document.title = `Cardápio - ${restData.nome}`;
+
+      // 2. Carregar produtos e bairros atrelados ao restaurante
+      restaurarDadosCliente();
       await Promise.all([carregarBairros(), carregarProdutos()]);
     }
 
@@ -129,10 +149,13 @@
     async function carregarBairros() {
       const select = $('select-bairro');
       const { data, error } = await supabaseClient
-        .from('bairros').select('*').eq('ativo', true).order('nome');
+        .from('bairros')
+        .select('*')
+        .eq('restaurante_id', restauranteInfo.id)
+        .eq('ativo', true)
+        .order('nome');
 
       if (error || !data || data.length === 0) {
-        console.error(error);
         select.innerHTML = '<option value="">Nenhum bairro disponível</option>';
         return;
       }
@@ -147,8 +170,7 @@
       if (option && option.value) {
         taxaAtual = parseFloat(option.dataset.taxa) || 0;
         $('val-taxa').innerText = brl.format(taxaAtual);
-        $('val-tempo').innerText = option.dataset.tempo && option.dataset.tempo !== 'null'
-          ? option.dataset.tempo : '40 min';
+        $('val-tempo').innerText = option.dataset.tempo && option.dataset.tempo !== 'null' ? option.dataset.tempo : '40 min';
       } else {
         taxaAtual = 0;
         $('val-taxa').innerText = brl.format(0);
@@ -160,10 +182,15 @@
     // ---------- Produtos ----------
     async function carregarProdutos() {
       const container = $('lista-produtos');
-      const { data, error } = await supabaseClient.from('produtos').select('*').eq('disponivel', true);
+      const { data, error } = await supabaseClient
+        .from('produtos')
+        .select('*')
+        .eq('restaurante_id', restauranteInfo.id)
+        .eq('disponivel', true)
+        .order('categoria')
+        .order('nome');
 
       if (error || !data || data.length === 0) {
-        console.error(error);
         container.innerHTML = '<p class="text-sm text-gray-500">Nenhum produto disponível no momento.</p>';
         return;
       }
@@ -188,11 +215,8 @@
       const produto = produtos.find((p) => String(p.id) === String(id));
       if (!produto) return;
       const existente = carrinho.find((i) => String(i.id) === String(id));
-      if (existente) {
-        existente.qtd += 1;
-      } else {
-        carrinho.push({ id: produto.id, nome: produto.nome, preco: parseFloat(produto.preco) || 0, qtd: 1 });
-      }
+      if (existente) existente.qtd += 1;
+      else carrinho.push({ id: produto.id, nome: produto.nome, preco: parseFloat(produto.preco) || 0, qtd: 1 });
       renderCarrinho();
     }
 
@@ -206,9 +230,8 @@
 
     function renderCarrinho() {
       const secao = $('secao-carrinho');
-      const lista = $('lista-carrinho');
       secao.classList.toggle('hidden', carrinho.length === 0);
-      lista.innerHTML = carrinho.map((i) => `
+      $('lista-carrinho').innerHTML = carrinho.map((i) => `
         <div class="flex items-center justify-between text-sm">
           <div class="flex-1 pr-2">
             <p class="font-semibold">${esc(i.nome)}</p>
@@ -224,9 +247,7 @@
       atualizarTotal();
     }
 
-    function calcularSubtotal() {
-      return carrinho.reduce((soma, i) => soma + i.preco * i.qtd, 0);
-    }
+    function calcularSubtotal() { return carrinho.reduce((soma, i) => soma + i.preco * i.qtd, 0); }
 
     function atualizarTotal() {
       const qtd = carrinho.reduce((soma, i) => soma + i.qtd, 0);
@@ -241,7 +262,7 @@
         localStorage.setItem('cliente', JSON.stringify({
           nome: $('cli-nome').value, fone: $('cli-fone').value, endereco: $('cli-endereco').value
         }));
-      } catch (e) { /* storage indisponível, segue sem salvar */ }
+      } catch (e) { }
     }
 
     function restaurarDadosCliente() {
@@ -251,7 +272,7 @@
         $('cli-nome').value = salvo.nome || '';
         $('cli-fone').value = salvo.fone || '';
         $('cli-endereco').value = salvo.endereco || '';
-      } catch (e) { /* ignora */ }
+      } catch (e) { }
     }
 
     // ---------- Envio do pedido ----------
@@ -276,6 +297,7 @@
       botao.innerText = 'Enviando...';
 
       const { error } = await supabaseClient.from('pedidos').insert([{
+        restaurante_id: restauranteInfo.id, // Vínculo com o restaurante atual
         cliente_nome: nome,
         cliente_phone: fone,
         endereco_completo: endereco,
@@ -293,14 +315,17 @@
 
       if (error) {
         console.error(error);
-        alert('Erro ao enviar pedido. Tente novamente.');
-        return;
+        return alert('Erro ao enviar pedido. Tente novamente.');
       }
 
       salvarDadosCliente();
       alert('Pedido enviado com sucesso! Aguarde o contato da cozinha.');
       carrinho = [];
       renderCarrinho();
+      
+      // Reseta a seleção de bairro e a taxa para o próximo pedido
+      select.value = '';
+      atualizarTaxa();
     }
 
     // ---------- Eventos ----------
