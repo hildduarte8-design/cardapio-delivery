@@ -20,6 +20,11 @@ declare
   v_subtotal numeric := 0;
   v_taxa     numeric;
 begin
+  -- pedidos do backend (service_role: bot de WhatsApp, frete por GPS) calculam os próprios valores
+  if coalesce(auth.jwt() ->> 'role', '') = 'service_role' then
+    return NEW;
+  end if;
+
   -- itens precisa ser uma lista de 1 a 50 linhas
   begin
     v_itens := NEW.itens::text::jsonb;
@@ -89,3 +94,11 @@ drop trigger if exists trg_validar_pedido on pedidos;
 create trigger trg_validar_pedido
   before insert on pedidos
   for each row execute function public.validar_pedido();
+
+
+-- Remove o trigger de recálculo silencioso (trigger-pedidos.sql), que mascara o PRECO_DESATUALIZADO:
+drop trigger if exists pedidos_recalcular_trg on pedidos;
+drop function if exists public.pedidos_recalcular();
+
+-- O cardápio já envia restaurante_id; remove o padrão de transição (pedido sem restaurante deixa de cair no Imperial):
+alter table pedidos alter column restaurante_id drop default;
