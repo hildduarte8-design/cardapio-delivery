@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
-  <title>Painel do Cardápio</title>
+  <title>Painel do Restaurante</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -12,25 +12,12 @@
 
   <!-- Login -->
   <div id="tela-login" class="max-w-sm mx-auto mt-10 p-6 bg-white rounded-2xl shadow-md border">
-    <h1 class="text-xl font-bold mb-4 text-center">Painel do Cardápio</h1>
-    <div id="aviso-config" class="hidden mb-3 bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
-      Configure SUPABASE_URL e SUPABASE_ANON_KEY no código.
-    </div>
+    <h1 class="text-xl font-bold mb-4 text-center">Painel do Restaurante</h1>
+    <p id="aviso-config" class="hidden mb-3 bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Configure SUPABASE_URL e SUPABASE_ANON_KEY no código.</p>
     <form id="form-login" class="space-y-4">
-      <div>
-        <label for="login-email" class="block text-sm font-semibold mb-1">E-mail</label>
-        <input id="login-email" type="email" required autocomplete="username"
-          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-      </div>
-      <div>
-        <label for="login-senha" class="block text-sm font-semibold mb-1">Senha</label>
-        <input id="login-senha" type="password" required autocomplete="current-password"
-          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-      </div>
-      <button type="submit" id="btn-login"
-        class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition disabled:opacity-60">
-        Entrar
-      </button>
+      <input id="login-email" type="email" required autocomplete="username" placeholder="E-mail" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+      <input id="login-senha" type="password" required autocomplete="current-password" placeholder="Senha" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+      <button id="btn-login" class="w-full bg-red-600 text-white font-bold py-3 rounded-xl disabled:opacity-60">Entrar</button>
     </form>
   </div>
 
@@ -38,284 +25,278 @@
   <div id="tela-admin" class="hidden max-w-md mx-auto p-4 pb-24 space-y-4">
     <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
       <div class="min-w-0">
-        <h1 class="font-bold text-lg">Cardápio</h1>
-        <p id="user-email" class="text-xs text-gray-500 truncate"></p>
+        <h1 id="rest-nome" class="font-bold text-lg truncate"></h1>
+        <p id="rest-link" class="text-xs text-gray-500 truncate"></p>
       </div>
-      <button id="btn-sair" class="text-xs font-semibold text-red-600 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50">
-        Sair
-      </button>
+      <button id="btn-sair" class="text-xs font-semibold text-red-600 border border-red-200 px-3 py-2 rounded-lg">Sair</button>
     </header>
 
-    <!-- Novo produto -->
-    <section class="bg-white rounded-xl shadow-sm border">
-      <button id="btn-toggle-form" class="w-full text-left p-4 font-bold text-sm flex justify-between items-center">
-        <span>+ Novo produto</span><span id="seta-form" class="text-gray-400">▼</span>
-      </button>
-      <form id="form-produto" class="hidden px-4 pb-4 space-y-3">
-        <input id="p-nome" type="text" required maxlength="80" placeholder="Nome (ex: Pastel de Carne)"
-          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-        <div class="grid grid-cols-2 gap-3">
-          <input id="p-categoria" type="text" list="lista-categorias" maxlength="40" placeholder="Categoria"
-            class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-          <input id="p-preco" type="number" step="0.01" min="0.01" inputmode="decimal" required placeholder="Preço"
-            class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-        </div>
-        <datalist id="lista-categorias"></datalist>
-        <input id="p-descricao" type="text" maxlength="200" placeholder="Descrição (opcional)"
-          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
-        <button type="submit" id="btn-cadastrar"
-          class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition text-sm disabled:opacity-60">
-          Cadastrar
-        </button>
-      </form>
-    </section>
+    <p id="sem-acesso" class="hidden bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Este usuário não está vinculado a nenhum restaurante.</p>
 
-    <!-- Lista -->
-    <section class="space-y-3">
-      <div id="lista-admin" class="space-y-3">
-        <p class="text-sm text-gray-500">Carregando...</p>
-      </div>
-    </section>
+    <nav id="abas" class="grid grid-cols-2 gap-2">
+      <button data-aba="produtos" class="py-2 rounded-lg text-sm font-bold border">Produtos</button>
+      <button data-aba="entrega" class="py-2 rounded-lg text-sm font-bold border">Entrega</button>
+    </nav>
+
+    <!-- Aba Produtos -->
+    <div id="aba-produtos" class="space-y-4">
+      <section class="bg-white rounded-xl shadow-sm border">
+        <button id="btn-toggle-form" class="w-full text-left p-4 font-bold text-sm flex justify-between"><span>+ Novo produto</span><span id="seta-form" class="text-gray-400">▼</span></button>
+        <form id="form-produto" class="hidden px-4 pb-4 space-y-3">
+          <input id="p-nome" required maxlength="80" placeholder="Nome" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+          <div class="grid grid-cols-2 gap-3">
+            <input id="p-categoria" list="lista-categorias" maxlength="40" placeholder="Categoria" class="p-3 border rounded-lg bg-gray-50 text-sm" />
+            <input id="p-preco" type="number" step="0.01" min="0.01" inputmode="decimal" required placeholder="Preço" class="p-3 border rounded-lg bg-gray-50 text-sm" />
+          </div>
+          <datalist id="lista-categorias"></datalist>
+          <input id="p-descricao" maxlength="200" placeholder="Descrição (opcional)" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+          <button id="btn-cadastrar" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg text-sm disabled:opacity-60">Cadastrar</button>
+        </form>
+      </section>
+      <div id="lista-produtos" class="space-y-3"></div>
+    </div>
+
+    <!-- Aba Entrega -->
+    <div id="aba-entrega" class="hidden space-y-4">
+      <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
+        <h2 class="font-bold text-sm">Dados do restaurante</h2>
+        <input id="r-nome" maxlength="80" placeholder="Nome" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+        <input id="r-whatsapp" inputmode="numeric" maxlength="16" placeholder="WhatsApp com DDD" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+        <div class="grid grid-cols-2 gap-3">
+          <label class="text-xs font-semibold">Taxa base (R$)<input id="r-taxa-base" type="number" step="0.01" min="0" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
+          <label class="text-xs font-semibold">Valor por km (R$)<input id="r-valor-km" type="number" step="0.01" min="0" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
+          <label class="text-xs font-semibold">Latitude da loja<input id="r-lat" type="number" step="any" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
+          <label class="text-xs font-semibold">Longitude da loja<input id="r-lon" type="number" step="any" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
+        </div>
+        <button id="btn-salvar-rest" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg text-sm disabled:opacity-60">Salvar dados</button>
+      </section>
+
+      <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
+        <h2 class="font-bold text-sm">Bairros atendidos</h2>
+        <form id="form-bairro" class="grid grid-cols-5 gap-2">
+          <input id="b-nome" required maxlength="60" placeholder="Novo bairro" class="col-span-5 p-3 border rounded-lg bg-gray-50 text-sm" />
+          <input id="b-taxa" type="number" step="0.01" min="0" required inputmode="decimal" placeholder="Taxa" class="col-span-2 p-3 border rounded-lg bg-gray-50 text-sm" />
+          <input id="b-tempo" maxlength="20" placeholder="40-50 min" class="col-span-2 p-3 border rounded-lg bg-gray-50 text-sm" />
+          <button class="p-3 bg-green-600 text-white font-bold rounded-lg text-sm">+</button>
+        </form>
+        <div id="lista-bairros" class="space-y-2"></div>
+      </section>
+    </div>
   </div>
 
-  <!-- Aviso rápido -->
   <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"></div>
 
   <script>
-    // ====== CONFIGURAÇÃO ======
-    // Use a URL e a chave PÚBLICA (publishable/anon) do projeto do novo micro-SaaS.
-    // Nunca coloque a service_role aqui.
+    // ====== CONFIGURAÇÃO (somente a chave pública; nunca a service_role) ======
     const SUPABASE_URL = 'SUA_PROJECT_URL_AQUI';
     const SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI';
-    // ==========================
+    // =========================================================================
 
     const configurado = !SUPABASE_URL.includes('SUA_') && !SUPABASE_ANON_KEY.includes('SUA_');
     const sb = configurado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
     const $ = (id) => document.getElementById(id);
     const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-    let produtos = [];
+    let rest = null, produtos = [], bairros = [], toastTimer;
 
-    function esc(texto) {
-      return String(texto ?? '').replace(/[&<>"']/g, (c) => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-      }[c]));
-    }
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
 
-    let toastTimer;
     function aviso(msg) {
-      const t = $('toast');
-      t.innerText = msg;
-      t.classList.remove('hidden');
-      clearTimeout(toastTimer);
-      toastTimer = setTimeout(() => t.classList.add('hidden'), 2500);
+      const t = $('toast'); t.innerText = msg; t.classList.remove('hidden');
+      clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2500);
     }
-
-    // Sessão expirada: volta pro login
-    function tratarErro(error, mensagemPadrao) {
+    function tratarErro(error, padrao) {
       console.error(error);
       if (error && /jwt|token|expired/i.test(error.message || '')) {
-        aviso('Sessão expirada. Entre de novo.');
-        sb.auth.signOut().then(checarSessao);
-        return;
+        aviso('Sessão expirada. Entre de novo.'); sb.auth.signOut().then(checarSessao); return;
       }
-      aviso(mensagemPadrao + (error && error.message ? ' (' + error.message + ')' : ''));
+      aviso(padrao + (error && error.message ? ' (' + error.message + ')' : ''));
+    }
+    // update que detecta falha silenciosa do RLS (0 linhas alteradas)
+    async function atualizar(tabela, id, campos, msgOk) {
+      const { data, error } = await sb.from(tabela).update(campos).eq('id', id).select();
+      if (error || !data || !data.length) { tratarErro(error, 'Não foi possível salvar.'); return null; }
+      aviso(msgOk); return data[0];
     }
 
     // ---------- Sessão ----------
     async function checarSessao() {
-      if (!configurado) {
-        $('aviso-config').classList.remove('hidden');
-        return;
-      }
+      if (!configurado) { $('aviso-config').classList.remove('hidden'); return; }
       const { data: { session } } = await sb.auth.getSession();
-      if (session) {
-        $('tela-login').classList.add('hidden');
-        $('tela-admin').classList.remove('hidden');
-        $('user-email').innerText = session.user.email;
-        carregarProdutos();
-      } else {
-        $('tela-login').classList.remove('hidden');
-        $('tela-admin').classList.add('hidden');
+      $('tela-login').classList.toggle('hidden', !!session);
+      $('tela-admin').classList.toggle('hidden', !session);
+      if (session) iniciarPainel();
+    }
+
+    async function iniciarPainel() {
+      const { data, error } = await sb.from('restaurante_usuarios').select('restaurantes(*)').limit(1);
+      if (error || !data || !data.length || !data[0].restaurantes) {
+        $('sem-acesso').classList.remove('hidden'); $('abas').classList.add('hidden');
+        $('aba-produtos').classList.add('hidden'); return;
       }
+      rest = data[0].restaurantes;
+      $('rest-nome').innerText = rest.nome;
+      $('rest-link').innerText = 'Cardápio: index.html?r=' + rest.slug;
+      preencherRestaurante(); mostrarAba('produtos');
+      carregarProdutos(); carregarBairros();
     }
 
     $('form-login').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      if (!configurado) return;
-      const botao = $('btn-login');
-      botao.disabled = true;
-      botao.innerText = 'Entrando...';
-      const { error } = await sb.auth.signInWithPassword({
-        email: $('login-email').value.trim(),
-        password: $('login-senha').value
+      e.preventDefault(); if (!configurado) return;
+      const b = $('btn-login'); b.disabled = true; b.innerText = 'Entrando...';
+      const { error } = await sb.auth.signInWithPassword({ email: $('login-email').value.trim(), password: $('login-senha').value });
+      b.disabled = false; b.innerText = 'Entrar';
+      if (error) return alert('E-mail ou senha incorretos.');
+      $('login-senha').value = ''; checarSessao();
+    });
+    $('btn-sair').addEventListener('click', async () => { await sb.auth.signOut(); rest = null; checarSessao(); });
+
+    function mostrarAba(nome) {
+      ['produtos', 'entrega'].forEach((a) => {
+        $('aba-' + a).classList.toggle('hidden', a !== nome);
+        const btn = document.querySelector(`[data-aba="${a}"]`);
+        btn.className = 'py-2 rounded-lg text-sm font-bold border ' + (a === nome ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700');
       });
-      botao.disabled = false;
-      botao.innerText = 'Entrar';
-      if (error) {
-        alert('E-mail ou senha incorretos.');
-        return;
-      }
-      $('login-senha').value = '';
-      checarSessao();
-    });
-
-    $('btn-sair').addEventListener('click', async () => {
-      await sb.auth.signOut();
-      produtos = [];
-      checarSessao();
-    });
-
-    // ---------- Lista ----------
-    async function carregarProdutos() {
-      const { data, error } = await sb.from('produtos').select('*')
-        .order('categoria', { ascending: true })
-        .order('nome', { ascending: true });
-
-      if (error) {
-        tratarErro(error, 'Erro ao carregar produtos.');
-        $('lista-admin').innerHTML = '<p class="text-sm text-red-600">Não foi possível carregar os produtos.</p>';
-        return;
-      }
-      produtos = data || [];
-      renderLista();
     }
+    $('abas').addEventListener('click', (e) => { const b = e.target.closest('[data-aba]'); if (b) mostrarAba(b.dataset.aba); });
 
-    function renderLista() {
-      const container = $('lista-admin');
-
-      // Sugestões de categoria no formulário
-      const categorias = [...new Set(produtos.map((p) => p.categoria).filter(Boolean))];
-      $('lista-categorias').innerHTML = categorias.map((c) => `<option value="${esc(c)}"></option>`).join('');
-
-      if (produtos.length === 0) {
-        container.innerHTML = '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
-        return;
-      }
-
-      container.innerHTML = produtos.map((p) => `
+    // ---------- Produtos ----------
+    async function carregarProdutos() {
+      const { data, error } = await sb.from('produtos').select('*').eq('restaurante_id', rest.id)
+        .order('categoria').order('nome');
+      if (error) { tratarErro(error, 'Erro ao carregar produtos.'); return; }
+      produtos = data || []; renderProdutos();
+    }
+    function renderProdutos() {
+      $('lista-categorias').innerHTML = [...new Set(produtos.map((p) => p.categoria).filter(Boolean))]
+        .map((c) => `<option value="${esc(c)}"></option>`).join('');
+      $('lista-produtos').innerHTML = produtos.length ? produtos.map((p) => `
         <div class="p-3 border rounded-xl ${p.disponivel ? 'bg-white' : 'bg-gray-50 border-gray-300'}">
           <div class="flex justify-between items-start gap-2">
             <div class="min-w-0 ${p.disponivel ? '' : 'opacity-60'}">
               <h3 class="font-bold text-sm">${esc(p.nome)}</h3>
               <p class="text-xs text-gray-500">${esc(p.categoria || 'Geral')}${p.descricao ? ' • ' + esc(p.descricao) : ''}</p>
             </div>
-            <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${p.disponivel ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
-              ${p.disponivel ? 'Ativo' : 'Pausado'}
-            </span>
+            <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${p.disponivel ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${p.disponivel ? 'Ativo' : 'Pausado'}</span>
           </div>
           <div class="flex items-center gap-2 mt-3">
-            <label class="flex items-center border rounded-lg px-2 bg-gray-50">
-              <span class="text-xs text-gray-500">R$</span>
-              <input data-preco="${esc(p.id)}" type="number" step="0.01" min="0.01" inputmode="decimal"
-                value="${Number(p.preco).toFixed(2)}" aria-label="Preço de ${esc(p.nome)}"
-                class="w-20 p-2 bg-transparent text-sm font-semibold outline-none" />
-            </label>
-            <button data-toggle="${esc(p.id)}"
-              class="flex-1 px-3 py-2 text-xs font-bold rounded-lg border ${p.disponivel
-                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                : 'bg-green-50 text-green-700 border-green-200'}">
-              ${p.disponivel ? 'Pausar' : 'Ativar'}
-            </button>
-            <button data-del="${esc(p.id)}"
-              class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">
-              Excluir
-            </button>
+            <label class="flex items-center border rounded-lg px-2 bg-gray-50"><span class="text-xs text-gray-500">R$</span>
+              <input data-preco="${esc(p.id)}" type="number" step="0.01" min="0.01" inputmode="decimal" value="${Number(p.preco).toFixed(2)}" aria-label="Preço de ${esc(p.nome)}" class="w-20 p-2 bg-transparent text-sm font-semibold outline-none" /></label>
+            <button data-toggle="${esc(p.id)}" class="flex-1 px-3 py-2 text-xs font-bold rounded-lg border ${p.disponivel ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'}">${p.disponivel ? 'Pausar' : 'Ativar'}</button>
+            <button data-del="${esc(p.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">Excluir</button>
           </div>
-        </div>
-      `).join('');
+        </div>`).join('') : '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
     }
+    const achar = (lista, id) => lista.find((x) => String(x.id) === String(id));
 
-    function acharProduto(id) {
-      return produtos.find((p) => String(p.id) === String(id));
-    }
-
-    // ---------- Ações ----------
-    async function alternarDisponibilidade(id) {
-      const p = acharProduto(id);
-      if (!p) return;
-      const { data, error } = await sb.from('produtos')
-        .update({ disponivel: !p.disponivel }).eq('id', id).select();
-      if (error || !data || data.length === 0) return tratarErro(error, 'Não foi possível atualizar.');
-      p.disponivel = !p.disponivel;
-      aviso(p.disponivel ? 'Item ativado' : 'Item pausado');
-      renderLista();
-    }
-
-    async function salvarPreco(input) {
-      const id = input.dataset.preco;
-      const p = acharProduto(id);
-      if (!p) return;
-      const novo = parseFloat(input.value);
-      if (!(novo > 0) || novo > 10000) {
-        aviso('Preço inválido');
-        input.value = Number(p.preco).toFixed(2);
-        return;
+    $('lista-produtos').addEventListener('click', async (e) => {
+      const t = e.target.closest('[data-toggle]'), d = e.target.closest('[data-del]');
+      if (t) {
+        const p = achar(produtos, t.dataset.toggle); if (!p) return;
+        const r = await atualizar('produtos', p.id, { disponivel: !p.disponivel }, p.disponivel ? 'Item pausado' : 'Item ativado');
+        if (r) { p.disponivel = r.disponivel; renderProdutos(); }
       }
+      if (d) {
+        const p = achar(produtos, d.dataset.del); if (!p || !confirm('Excluir "' + p.nome + '"?')) return;
+        const { data, error } = await sb.from('produtos').delete().eq('id', p.id).select();
+        if (error || !data || !data.length) return tratarErro(error, 'Não foi possível excluir.');
+        produtos = produtos.filter((x) => x !== p); aviso('Item excluído'); renderProdutos();
+      }
+    });
+    $('lista-produtos').addEventListener('change', async (e) => {
+      if (!e.target.matches('[data-preco]')) return;
+      const p = achar(produtos, e.target.dataset.preco), novo = num(e.target.value);
+      if (!p) return;
+      if (!(novo > 0) || novo > 10000) { aviso('Preço inválido'); e.target.value = Number(p.preco).toFixed(2); return; }
       if (novo === Number(p.preco)) return;
-      const { data, error } = await sb.from('produtos')
-        .update({ preco: novo }).eq('id', id).select();
-      if (error || !data || data.length === 0) {
-        input.value = Number(p.preco).toFixed(2);
-        return tratarErro(error, 'Não foi possível salvar o preço.');
-      }
-      p.preco = novo;
-      input.value = novo.toFixed(2);
-      aviso('Preço atualizado: ' + brl.format(novo));
-    }
-
-    async function excluirProduto(id) {
-      const p = acharProduto(id);
-      if (!p) return;
-      if (!confirm('Excluir "' + p.nome + '" do cardápio?')) return;
-      const { data, error } = await sb.from('produtos').delete().eq('id', id).select();
-      if (error || !data || data.length === 0) return tratarErro(error, 'Não foi possível excluir.');
-      produtos = produtos.filter((x) => String(x.id) !== String(id));
-      aviso('Item excluído');
-      renderLista();
-    }
+      const r = await atualizar('produtos', p.id, { preco: novo }, 'Preço atualizado: ' + brl.format(novo));
+      if (r) p.preco = r.preco; else e.target.value = Number(p.preco).toFixed(2);
+    });
 
     $('form-produto').addEventListener('submit', async (e) => {
       e.preventDefault();
-      const nome = $('p-nome').value.trim();
-      const preco = parseFloat($('p-preco').value);
+      const nome = $('p-nome').value.trim(), preco = num($('p-preco').value);
       if (nome.length < 2) return aviso('Informe o nome');
       if (!(preco > 0) || preco > 10000) return aviso('Preço inválido');
-
-      const botao = $('btn-cadastrar');
-      botao.disabled = true;
+      const b = $('btn-cadastrar'); b.disabled = true;
       const { error } = await sb.from('produtos').insert([{
-        nome,
-        categoria: $('p-categoria').value.trim() || 'Geral',
-        preco,
-        descricao: $('p-descricao').value.trim() || null,
-        disponivel: true
+        restaurante_id: rest.id, nome, preco, disponivel: true,
+        categoria: $('p-categoria').value.trim() || 'Geral', descricao: $('p-descricao').value.trim() || null
       }]);
-      botao.disabled = false;
-
+      b.disabled = false;
       if (error) return tratarErro(error, 'Erro ao cadastrar.');
-      $('form-produto').reset();
-      aviso('Produto cadastrado');
-      carregarProdutos();
+      $('form-produto').reset(); aviso('Produto cadastrado'); carregarProdutos();
     });
-
-    // ---------- Eventos da lista ----------
-    $('lista-admin').addEventListener('click', (e) => {
-      const toggle = e.target.closest('[data-toggle]');
-      const del = e.target.closest('[data-del]');
-      if (toggle) alternarDisponibilidade(toggle.dataset.toggle);
-      if (del) excluirProduto(del.dataset.del);
-    });
-
-    // 'change' dispara ao sair do campo ou apertar Enter
-    $('lista-admin').addEventListener('change', (e) => {
-      if (e.target.matches('[data-preco]')) salvarPreco(e.target);
-    });
-
     $('btn-toggle-form').addEventListener('click', () => {
-      const form = $('form-produto');
-      form.classList.toggle('hidden');
-      $('seta-form').innerText = form.classList.contains('hidden') ? '▼' : '▲';
+      const f = $('form-produto'); f.classList.toggle('hidden');
+      $('seta-form').innerText = f.classList.contains('hidden') ? '▼' : '▲';
+    });
+
+    // ---------- Entrega: restaurante ----------
+    function preencherRestaurante() {
+      $('r-nome').value = rest.nome || ''; $('r-whatsapp').value = rest.whatsapp || '';
+      $('r-taxa-base').value = rest.taxa_base ?? ''; $('r-valor-km').value = rest.valor_km ?? '';
+      $('r-lat').value = rest.loja_lat ?? ''; $('r-lon').value = rest.loja_lon ?? '';
+    }
+    $('btn-salvar-rest').addEventListener('click', async () => {
+      const nome = $('r-nome').value.trim(), taxa_base = num($('r-taxa-base').value), valor_km = num($('r-valor-km').value);
+      const lat = num($('r-lat').value), lon = num($('r-lon').value);
+      if (nome.length < 2) return aviso('Informe o nome');
+      if (!(taxa_base >= 0) || !(valor_km >= 0)) return aviso('Taxa base e valor por km são obrigatórios');
+      if ((lat !== null && Math.abs(lat) > 90) || (lon !== null && Math.abs(lon) > 180)) return aviso('Coordenadas inválidas');
+      const b = $('btn-salvar-rest'); b.disabled = true;
+      const r = await atualizar('restaurantes', rest.id, {
+        nome, taxa_base, valor_km, loja_lat: lat, loja_lon: lon,
+        whatsapp: $('r-whatsapp').value.replace(/\D/g, '') || null
+      }, 'Dados salvos');
+      b.disabled = false;
+      if (r) { rest = r; $('rest-nome').innerText = rest.nome; }
+    });
+
+    // ---------- Entrega: bairros ----------
+    async function carregarBairros() {
+      const { data, error } = await sb.from('bairros').select('*').eq('restaurante_id', rest.id).order('nome');
+      if (error) { tratarErro(error, 'Erro ao carregar bairros.'); return; }
+      bairros = data || []; renderBairros();
+    }
+    function renderBairros() {
+      $('lista-bairros').innerHTML = bairros.length ? bairros.map((b) => `
+        <div class="flex items-center gap-2 p-2 border rounded-lg ${b.ativo ? 'bg-white' : 'bg-gray-50 opacity-60'}">
+          <span class="flex-1 min-w-0 text-sm font-semibold truncate">${esc(b.nome)}</span>
+          <input data-btaxa="${esc(b.id)}" type="number" step="0.01" min="0" inputmode="decimal" value="${Number(b.taxa ?? 0).toFixed(2)}" aria-label="Taxa de ${esc(b.nome)}" class="w-20 p-2 border rounded-lg bg-gray-50 text-sm" />
+          <input data-btempo="${esc(b.id)}" maxlength="20" value="${esc(b.tempo_estimado || '')}" aria-label="Tempo de ${esc(b.nome)}" class="w-24 p-2 border rounded-lg bg-gray-50 text-xs" />
+          <button data-bativo="${esc(b.id)}" class="px-2 py-2 text-xs font-bold rounded-lg border ${b.ativo ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'}">${b.ativo ? 'Pausar' : 'Ativar'}</button>
+        </div>`).join('') : '<p class="text-sm text-gray-500">Nenhum bairro cadastrado.</p>';
+    }
+    $('lista-bairros').addEventListener('change', async (e) => {
+      const el = e.target, id = el.dataset.btaxa || el.dataset.btempo, b = achar(bairros, id);
+      if (!b) return;
+      if (el.matches('[data-btaxa]')) {
+        const v = num(el.value);
+        if (!(v >= 0) || v > 1000) { aviso('Taxa inválida'); el.value = Number(b.taxa).toFixed(2); return; }
+        const r = await atualizar('bairros', b.id, { taxa: v }, 'Taxa de ' + b.nome + ': ' + brl.format(v));
+        if (r) b.taxa = r.taxa; else el.value = Number(b.taxa).toFixed(2);
+      } else if (el.matches('[data-btempo]')) {
+        const r = await atualizar('bairros', b.id, { tempo_estimado: el.value.trim() || null }, 'Tempo atualizado');
+        if (r) b.tempo_estimado = r.tempo_estimado; else el.value = b.tempo_estimado || '';
+      }
+    });
+    $('lista-bairros').addEventListener('click', async (e) => {
+      const t = e.target.closest('[data-bativo]'); if (!t) return;
+      const b = achar(bairros, t.dataset.bativo); if (!b) return;
+      const r = await atualizar('bairros', b.id, { ativo: !b.ativo }, b.ativo ? 'Bairro pausado' : 'Bairro ativado');
+      if (r) { b.ativo = r.ativo; renderBairros(); }
+    });
+    $('form-bairro').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nome = $('b-nome').value.trim(), taxa = num($('b-taxa').value);
+      if (nome.length < 2) return aviso('Informe o bairro');
+      if (!(taxa >= 0) || taxa > 1000) return aviso('Taxa inválida');
+      const { error } = await sb.from('bairros').insert([{
+        restaurante_id: rest.id, nome, taxa, tempo_estimado: $('b-tempo').value.trim() || null, ativo: true
+      }]);
+      if (error) return tratarErro(error, /duplicate|unique/i.test(error.message || '') ? 'Esse bairro já existe.' : 'Erro ao cadastrar.');
+      $('form-bairro').reset(); aviso('Bairro cadastrado'); carregarBairros();
     });
 
     checarSessao();
