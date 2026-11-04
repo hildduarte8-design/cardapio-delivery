@@ -320,7 +320,7 @@
       if (error) {
         console.error(error);
         const msg = error.message || '';
-        if (/indispon|inválido|outro restaurante|Bairro não atendido/i.test(msg)) {
+        if (/indispon|inválido|outro restaurante|Bairro não atendido|PRECO_DESATUALIZADO|BAIRRO_INVALIDO|PEDIDO_INVALIDO/i.test(msg)) {
           // Cardápio ou bairro mudou desde que a página abriu: recarrega e pede conferência.
           carrinho = [];
           renderCarrinho();
