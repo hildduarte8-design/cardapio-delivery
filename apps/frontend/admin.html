@@ -33,9 +33,10 @@
 
     <p id="sem-acesso" class="hidden bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Este usuário não está vinculado a nenhum restaurante.</p>
 
-    <nav id="abas" class="grid grid-cols-2 gap-2">
+    <nav id="abas" class="grid grid-cols-3 gap-2">
       <button data-aba="produtos" class="py-2 rounded-lg text-sm font-bold border">Produtos</button>
       <button data-aba="entrega" class="py-2 rounded-lg text-sm font-bold border">Entrega</button>
+      <button data-aba="config" class="py-2 rounded-lg text-sm font-bold border">Conta</button>
     </nav>
 
     <!-- Aba Produtos -->
@@ -82,12 +83,31 @@
         <div id="lista-bairros" class="space-y-2"></div>
       </section>
     </div>
+
+    <!-- Aba Conta / Configurações -->
+    <div id="aba-config" class="hidden space-y-4">
+      <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
+        <h2 class="font-bold text-sm">Segurança & Acesso</h2>
+        <p class="text-xs text-gray-500">Altere a sua senha de login do painel.</p>
+        <form id="form-senha" class="space-y-3">
+          <div>
+            <label for="nova-senha" class="block text-xs font-semibold mb-1">Nova Senha</label>
+            <input id="nova-senha" type="password" required minlength="6" placeholder="Digite no mínimo 6 caracteres" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+          </div>
+          <div>
+            <label for="confirma-senha" class="block text-xs font-semibold mb-1">Confirmar Nova Senha</label>
+            <input id="confirma-senha" type="password" required minlength="6" placeholder="Repita a nova senha" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
+          </div>
+          <button id="btn-alterar-senha" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg text-sm disabled:opacity-60">Alterar Senha</button>
+        </form>
+      </section>
+    </div>
   </div>
 
   <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"></div>
 
   <script>
-    // ====== CONFIGURAÇÃO (somente a chave pública; nunca a service_role) ======
+    // ====== CONFIGURAÇÃO (substitua pela sua chave anon pública completa) ======
     const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_raTvDULM2YDmTngVIOM11g_CZe6jZWj';
     // =========================================================================
@@ -112,7 +132,6 @@
       }
       aviso(padrao + (error && error.message ? ' (' + error.message + ')' : ''));
     }
-    // update que detecta falha silenciosa do RLS (0 linhas alteradas)
     async function atualizar(tabela, id, campos, msgOk) {
       const { data, error } = await sb.from(tabela).update(campos).eq('id', id).select();
       if (error || !data || !data.length) { tratarErro(error, 'Não foi possível salvar.'); return null; }
@@ -152,10 +171,12 @@
     $('btn-sair').addEventListener('click', async () => { await sb.auth.signOut(); rest = null; checarSessao(); });
 
     function mostrarAba(nome) {
-      ['produtos', 'entrega'].forEach((a) => {
+      ['produtos', 'entrega', 'config'].forEach((a) => {
         $('aba-' + a).classList.toggle('hidden', a !== nome);
         const btn = document.querySelector(`[data-aba="${a}"]`);
-        btn.className = 'py-2 rounded-lg text-sm font-bold border ' + (a === nome ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700');
+        if (btn) {
+          btn.className = 'py-2 rounded-lg text-sm font-bold border ' + (a === nome ? 'bg-red-600 text-white border-red-600' : 'bg-white text-gray-700');
+        }
       });
     }
     $('abas').addEventListener('click', (e) => { const b = e.target.closest('[data-aba]'); if (b) mostrarAba(b.dataset.aba); });
@@ -297,6 +318,29 @@
       }]);
       if (error) return tratarErro(error, /duplicate|unique/i.test(error.message || '') ? 'Esse bairro já existe.' : 'Erro ao cadastrar.');
       $('form-bairro').reset(); aviso('Bairro cadastrado'); carregarBairros();
+    });
+
+    // ---------- Configurações / Troca de Senha ----------
+    $('form-senha').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const novaSenha = $('nova-senha').value;
+      const confirmaSenha = $('confirma-senha').value;
+
+      if (novaSenha.length < 6) return aviso('A nova senha deve ter no mínimo 6 caracteres.');
+      if (novaSenha !== confirmaSenha) return aviso('As senhas digitadas não coincidem.');
+
+      const b = $('btn-alterar-senha');
+      b.disabled = true;
+      b.innerText = 'Alterando...';
+
+      const { error } = await sb.auth.updateUser({ password: novaSenha });
+      b.disabled = false;
+      b.innerText = 'Alterar Senha';
+
+      if (error) return tratarErro(error, 'Erro ao alterar a senha.');
+
+      $('form-senha').reset();
+      aviso('Senha alterada com sucesso!');
     });
 
     checarSessao();
