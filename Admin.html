@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Painel do Cardápio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased min-h-screen">
+
+  <!-- Login -->
+  <div id="tela-login" class="max-w-sm mx-auto mt-10 p-6 bg-white rounded-2xl shadow-md border">
+    <h1 class="text-xl font-bold mb-4 text-center">Painel do Cardápio</h1>
+    <div id="aviso-config" class="hidden mb-3 bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
+      Configure SUPABASE_URL e SUPABASE_ANON_KEY no código.
+    </div>
+    <form id="form-login" class="space-y-4">
+      <div>
+        <label for="login-email" class="block text-sm font-semibold mb-1">E-mail</label>
+        <input id="login-email" type="email" required autocomplete="username"
+          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+      </div>
+      <div>
+        <label for="login-senha" class="block text-sm font-semibold mb-1">Senha</label>
+        <input id="login-senha" type="password" required autocomplete="current-password"
+          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+      </div>
+      <button type="submit" id="btn-login"
+        class="w-full bg-red-600 text-white font-bold py-3 rounded-xl hover:bg-red-700 transition disabled:opacity-60">
+        Entrar
+      </button>
+    </form>
+  </div>
+
+  <!-- Painel -->
+  <div id="tela-admin" class="hidden max-w-md mx-auto p-4 pb-24 space-y-4">
+    <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
+      <div class="min-w-0">
+        <h1 class="font-bold text-lg">Cardápio</h1>
+        <p id="user-email" class="text-xs text-gray-500 truncate"></p>
+      </div>
+      <button id="btn-sair" class="text-xs font-semibold text-red-600 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50">
+        Sair
+      </button>
+    </header>
+
+    <!-- Novo produto -->
+    <section class="bg-white rounded-xl shadow-sm border">
+      <button id="btn-toggle-form" class="w-full text-left p-4 font-bold text-sm flex justify-between items-center">
+        <span>+ Novo produto</span><span id="seta-form" class="text-gray-400">▼</span>
+      </button>
+      <form id="form-produto" class="hidden px-4 pb-4 space-y-3">
+        <input id="p-nome" type="text" required maxlength="80" placeholder="Nome (ex: Pastel de Carne)"
+          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+        <div class="grid grid-cols-2 gap-3">
+          <input id="p-categoria" type="text" list="lista-categorias" maxlength="40" placeholder="Categoria"
+            class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+          <input id="p-preco" type="number" step="0.01" min="0.01" inputmode="decimal" required placeholder="Preço"
+            class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+        </div>
+        <datalist id="lista-categorias"></datalist>
+        <input id="p-descricao" type="text" maxlength="200" placeholder="Descrição (opcional)"
+          class="w-full p-3 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+        <button type="submit" id="btn-cadastrar"
+          class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition text-sm disabled:opacity-60">
+          Cadastrar
+        </button>
+      </form>
+    </section>
+
+    <!-- Lista -->
+    <section class="space-y-3">
+      <div id="lista-admin" class="space-y-3">
+        <p class="text-sm text-gray-500">Carregando...</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Aviso rápido -->
+  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"></div>
+
+  <script>
+    // ====== CONFIGURAÇÃO ======
+    // Use a URL e a chave PÚBLICA (publishable/anon) do projeto do novo micro-SaaS.
+    // Nunca coloque a service_role aqui.
+    const SUPABASE_URL = 'SUA_PROJECT_URL_AQUI';
+    const SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI';
+    // ==========================
+
+    const configurado = !SUPABASE_URL.includes('SUA_') && !SUPABASE_ANON_KEY.includes('SUA_');
+    const sb = configurado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+
+    const $ = (id) => document.getElementById(id);
+    const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+    let produtos = [];
+
+    function esc(texto) {
+      return String(texto ?? '').replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    let toastTimer;
+    function aviso(msg) {
+      const t = $('toast');
+      t.innerText = msg;
+      t.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.add('hidden'), 2500);
+    }
+
+    // Sessão expirada: volta pro login
+    function tratarErro(error, mensagemPadrao) {
+      console.error(error);
+      if (error && /jwt|token|expired/i.test(error.message || '')) {
+        aviso('Sessão expirada. Entre de novo.');
+        sb.auth.signOut().then(checarSessao);
+        return;
+      }
+      aviso(mensagemPadrao + (error && error.message ? ' (' + error.message + ')' : ''));
+    }
+
+    // ---------- Sessão ----------
+    async function checarSessao() {
+      if (!configurado) {
+        $('aviso-config').classList.remove('hidden');
+        return;
+      }
+      const { data: { session } } = await sb.auth.getSession();
+      if (session) {
+        $('tela-login').classList.add('hidden');
+        $('tela-admin').classList.remove('hidden');
+        $('user-email').innerText = session.user.email;
+        carregarProdutos();
+      } else {
+        $('tela-login').classList.remove('hidden');
+        $('tela-admin').classList.add('hidden');
+      }
+    }
+
+    $('form-login').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!configurado) return;
+      const botao = $('btn-login');
+      botao.disabled = true;
+      botao.innerText = 'Entrando...';
+      const { error } = await sb.auth.signInWithPassword({
+        email: $('login-email').value.trim(),
+        password: $('login-senha').value
+      });
+      botao.disabled = false;
+      botao.innerText = 'Entrar';
+      if (error) {
+        alert('E-mail ou senha incorretos.');
+        return;
+      }
+      $('login-senha').value = '';
+      checarSessao();
+    });
+
+    $('btn-sair').addEventListener('click', async () => {
+      await sb.auth.signOut();
+      produtos = [];
+      checarSessao();
+    });
+
+    // ---------- Lista ----------
+    async function carregarProdutos() {
+      const { data, error } = await sb.from('produtos').select('*')
+        .order('categoria', { ascending: true })
+        .order('nome', { ascending: true });
+
+      if (error) {
+        tratarErro(error, 'Erro ao carregar produtos.');
+        $('lista-admin').innerHTML = '<p class="text-sm text-red-600">Não foi possível carregar os produtos.</p>';
+        return;
+      }
+      produtos = data || [];
+      renderLista();
+    }
+
+    function renderLista() {
+      const container = $('lista-admin');
+
+      // Sugestões de categoria no formulário
+      const categorias = [...new Set(produtos.map((p) => p.categoria).filter(Boolean))];
+      $('lista-categorias').innerHTML = categorias.map((c) => `<option value="${esc(c)}"></option>`).join('');
+
+      if (produtos.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
+        return;
+      }
+
+      container.innerHTML = produtos.map((p) => `
+        <div class="p-3 border rounded-xl ${p.disponivel ? 'bg-white' : 'bg-gray-50 border-gray-300'}">
+          <div class="flex justify-between items-start gap-2">
+            <div class="min-w-0 ${p.disponivel ? '' : 'opacity-60'}">
+              <h3 class="font-bold text-sm">${esc(p.nome)}</h3>
+              <p class="text-xs text-gray-500">${esc(p.categoria || 'Geral')}${p.descricao ? ' • ' + esc(p.descricao) : ''}</p>
+            </div>
+            <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${p.disponivel ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">
+              ${p.disponivel ? 'Ativo' : 'Pausado'}
+            </span>
+          </div>
+          <div class="flex items-center gap-2 mt-3">
+            <label class="flex items-center border rounded-lg px-2 bg-gray-50">
+              <span class="text-xs text-gray-500">R$</span>
+              <input data-preco="${esc(p.id)}" type="number" step="0.01" min="0.01" inputmode="decimal"
+                value="${Number(p.preco).toFixed(2)}" aria-label="Preço de ${esc(p.nome)}"
+                class="w-20 p-2 bg-transparent text-sm font-semibold outline-none" />
+            </label>
+            <button data-toggle="${esc(p.id)}"
+              class="flex-1 px-3 py-2 text-xs font-bold rounded-lg border ${p.disponivel
+                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                : 'bg-green-50 text-green-700 border-green-200'}">
+              ${p.disponivel ? 'Pausar' : 'Ativar'}
+            </button>
+            <button data-del="${esc(p.id)}"
+              class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">
+              Excluir
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function acharProduto(id) {
+      return produtos.find((p) => String(p.id) === String(id));
+    }
+
+    // ---------- Ações ----------
+    async function alternarDisponibilidade(id) {
+      const p = acharProduto(id);
+      if (!p) return;
+      const { data, error } = await sb.from('produtos')
+        .update({ disponivel: !p.disponivel }).eq('id', id).select();
+      if (error || !data || data.length === 0) return tratarErro(error, 'Não foi possível atualizar.');
+      p.disponivel = !p.disponivel;
+      aviso(p.disponivel ? 'Item ativado' : 'Item pausado');
+      renderLista();
+    }
+
+    async function salvarPreco(input) {
+      const id = input.dataset.preco;
+      const p = acharProduto(id);
+      if (!p) return;
+      const novo = parseFloat(input.value);
+      if (!(novo > 0) || novo > 10000) {
+        aviso('Preço inválido');
+        input.value = Number(p.preco).toFixed(2);
+        return;
+      }
+      if (novo === Number(p.preco)) return;
+      const { data, error } = await sb.from('produtos')
+        .update({ preco: novo }).eq('id', id).select();
+      if (error || !data || data.length === 0) {
+        input.value = Number(p.preco).toFixed(2);
+        return tratarErro(error, 'Não foi possível salvar o preço.');
+      }
+      p.preco = novo;
+      input.value = novo.toFixed(2);
+      aviso('Preço atualizado: ' + brl.format(novo));
+    }
+
+    async function excluirProduto(id) {
+      const p = acharProduto(id);
+      if (!p) return;
+      if (!confirm('Excluir "' + p.nome + '" do cardápio?')) return;
+      const { data, error } = await sb.from('produtos').delete().eq('id', id).select();
+      if (error || !data || data.length === 0) return tratarErro(error, 'Não foi possível excluir.');
+      produtos = produtos.filter((x) => String(x.id) !== String(id));
+      aviso('Item excluído');
+      renderLista();
+    }
+
+    $('form-produto').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const nome = $('p-nome').value.trim();
+      const preco = parseFloat($('p-preco').value);
+      if (nome.length < 2) return aviso('Informe o nome');
+      if (!(preco > 0) || preco > 10000) return aviso('Preço inválido');
+
+      const botao = $('btn-cadastrar');
+      botao.disabled = true;
+      const { error } = await sb.from('produtos').insert([{
+        nome,
+        categoria: $('p-categoria').value.trim() || 'Geral',
+        preco,
+        descricao: $('p-descricao').value.trim() || null,
+        disponivel: true
+      }]);
+      botao.disabled = false;
+
+      if (error) return tratarErro(error, 'Erro ao cadastrar.');
+      $('form-produto').reset();
+      aviso('Produto cadastrado');
+      carregarProdutos();
+    });
+
+    // ---------- Eventos da lista ----------
+    $('lista-admin').addEventListener('click', (e) => {
+      const toggle = e.target.closest('[data-toggle]');
+      const del = e.target.closest('[data-del]');
+      if (toggle) alternarDisponibilidade(toggle.dataset.toggle);
+      if (del) excluirProduto(del.dataset.del);
+    });
+
+    // 'change' dispara ao sair do campo ou apertar Enter
+    $('lista-admin').addEventListener('change', (e) => {
+      if (e.target.matches('[data-preco]')) salvarPreco(e.target);
+    });
+
+    $('btn-toggle-form').addEventListener('click', () => {
+      const form = $('form-produto');
+      form.classList.toggle('hidden');
+      $('seta-form').innerText = form.classList.contains('hidden') ? '▼' : '▲';
+    });
+
+    checarSessao();
+  </script>
+</body>
+</html>
