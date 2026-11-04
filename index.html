@@ -10,25 +10,18 @@
 <body class="bg-gray-100 text-gray-800 antialiased pb-32">
 
   <div id="app-container">
-    <!-- Cabeçalho -->
     <header class="bg-red-600 text-white p-4 sticky top-0 z-10 shadow-md">
-      <div class="max-w-md mx-auto flex justify-between items-center">
-        <div>
-          <h1 id="rest-nome" class="font-bold text-xl">Carregando...</h1>
-          <p class="text-xs text-red-100">Cardápio Digital Aberto</p>
-        </div>
-        <span class="bg-red-700 text-xs px-2 py-1 rounded-full border border-red-400">PWA</span>
+      <div class="max-w-md mx-auto">
+        <h1 id="rest-nome" class="font-bold text-xl">Carregando...</h1>
+        <p class="text-xs text-red-100">Cardápio digital</p>
       </div>
     </header>
 
     <main class="max-w-md mx-auto p-4 space-y-6">
-      
-      <!-- Aviso de configuração -->
       <div id="aviso-config" class="hidden bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
         Configure SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar.
       </div>
 
-      <!-- Bairro / taxa -->
       <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <label for="select-bairro" class="block text-sm font-semibold mb-2">Seu bairro:</label>
         <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500">
@@ -40,7 +33,6 @@
         </div>
       </section>
 
-      <!-- Produtos -->
       <section>
         <h2 class="font-bold text-lg mb-3">Cardápio</h2>
         <div id="lista-produtos" class="space-y-3">
@@ -48,13 +40,11 @@
         </div>
       </section>
 
-      <!-- Carrinho -->
       <section id="secao-carrinho" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hidden">
         <h2 class="font-bold text-lg mb-3">Seu pedido</h2>
         <div id="lista-carrinho" class="space-y-2"></div>
       </section>
 
-      <!-- Dados do cliente -->
       <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
         <h2 class="font-bold text-lg">Seus dados</h2>
         <div>
@@ -75,7 +65,6 @@
       </section>
     </main>
 
-    <!-- Barra fixa do total -->
     <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
       <div class="max-w-md mx-auto flex justify-between items-center">
         <div>
@@ -91,14 +80,16 @@
   </div>
 
   <script>
-    // ====== CONFIGURAÇÃO (substitua pelas suas chaves) ======
-    const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_raTvDULM2YDmTngVIOM11g_CZe6jZWj';
-    // ========================================================
+    // ====== CONFIGURAÇÃO (mantenha as chaves reais do seu repositório ao colar este arquivo) ======
+    const SUPABASE_URL = 'SUA_PROJECT_URL_AQUI';
+    const SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI';
+    // Restaurante usado quando o link não tem ?r=. Ao vender para outros donos, troque por null
+    // (aí o link sem ?r= mostra "Link inválido").
+    const SLUG_PADRAO = 'imperial';
+    // ===============================================================================================
 
     const configurado = !SUPABASE_URL.includes('SUA_') && !SUPABASE_ANON_KEY.includes('SUA_');
     const supabaseClient = configurado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-
     const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
     let restauranteInfo = null;
@@ -107,7 +98,7 @@
     let taxaAtual = 0;
 
     const $ = (id) => document.getElementById(id);
-    const esc = (texto) => String(texto ?? '').replace(/[&<>"']/g, (c) => ({
+    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
 
@@ -120,27 +111,20 @@
         return;
       }
 
-      // 1. Identificar o Restaurante pela URL (ex: ?r=imperial). Se não tiver, usa 'imperial' como padrão no MVP.
-      const urlParams = new URLSearchParams(window.location.search);
-      const slug = urlParams.get('r') || 'imperial';
+      const slug = (new URLSearchParams(window.location.search).get('r') || SLUG_PADRAO || '').toLowerCase();
+      const { data, error } = slug
+        ? await supabaseClient.from('restaurantes').select('id, slug, nome, ativo').eq('slug', slug).eq('ativo', true).maybeSingle()
+        : { data: null, error: null };
 
-      const { data: restData, error: restError } = await supabaseClient
-        .from('restaurantes')
-        .select('*')
-        .eq('slug', slug)
-        .eq('ativo', true)
-        .single();
-
-      if (restError || !restData) {
+      if (error || !data) {
         $('app-container').innerHTML = '<p class="text-center p-8 mt-10 text-red-600 font-bold">Restaurante não encontrado ou indisponível no momento.</p>';
         return;
       }
 
-      restauranteInfo = restData;
-      $('rest-nome').innerText = restData.nome;
-      document.title = `Cardápio - ${restData.nome}`;
+      restauranteInfo = data;
+      $('rest-nome').innerText = data.nome;
+      document.title = 'Cardápio - ' + data.nome;
 
-      // 2. Carregar produtos e bairros atrelados ao restaurante
       restaurarDadosCliente();
       await Promise.all([carregarBairros(), carregarProdutos()]);
     }
@@ -148,21 +132,15 @@
     // ---------- Bairros ----------
     async function carregarBairros() {
       const select = $('select-bairro');
-      const { data, error } = await supabaseClient
-        .from('bairros')
-        .select('*')
-        .eq('restaurante_id', restauranteInfo.id)
-        .eq('ativo', true)
-        .order('nome');
+      const { data, error } = await supabaseClient.from('bairros').select('id, nome, taxa, tempo_estimado')
+        .eq('restaurante_id', restauranteInfo.id).eq('ativo', true).order('nome');
 
       if (error || !data || data.length === 0) {
         select.innerHTML = '<option value="">Nenhum bairro disponível</option>';
         return;
       }
       select.innerHTML = '<option value="">Selecione seu bairro...</option>' +
-        data.map((b) =>
-          `<option value="${esc(b.id)}" data-taxa="${esc(b.taxa)}" data-tempo="${esc(b.tempo_estimado)}">${esc(b.nome)}</option>`
-        ).join('');
+        data.map((b) => `<option value="${esc(b.id)}" data-taxa="${esc(b.taxa)}" data-tempo="${esc(b.tempo_estimado)}">${esc(b.nome)}</option>`).join('');
     }
 
     function atualizarTaxa() {
@@ -179,35 +157,40 @@
       atualizarTotal();
     }
 
-    // ---------- Produtos ----------
+    // ---------- Produtos (agrupados por categoria) ----------
     async function carregarProdutos() {
       const container = $('lista-produtos');
-      const { data, error } = await supabaseClient
-        .from('produtos')
-        .select('*')
-        .eq('restaurante_id', restauranteInfo.id)
-        .eq('disponivel', true)
-        .order('categoria')
-        .order('nome');
+      const { data, error } = await supabaseClient.from('produtos').select('id, nome, descricao, preco, categoria')
+        .eq('restaurante_id', restauranteInfo.id).eq('disponivel', true).order('categoria').order('nome');
 
       if (error || !data || data.length === 0) {
+        produtos = [];
         container.innerHTML = '<p class="text-sm text-gray-500">Nenhum produto disponível no momento.</p>';
         return;
       }
       produtos = data;
-      container.innerHTML = produtos.map((p) => `
-        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-3">
-          <div>
-            <h3 class="font-bold text-gray-800">${esc(p.nome)}</h3>
-            <p class="text-xs text-gray-500">${esc(p.descricao)}</p>
-            <p class="text-sm font-semibold text-red-600 mt-1">${brl.format(parseFloat(p.preco) || 0)}</p>
-          </div>
-          <button data-add="${esc(p.id)}"
-            class="shrink-0 bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded-lg border border-red-200 text-sm hover:bg-red-100">
-            + Adicionar
-          </button>
-        </div>
-      `).join('');
+
+      let html = '', categoriaAtual = null;
+      for (const p of produtos) {
+        const cat = p.categoria || 'Geral';
+        if (cat !== categoriaAtual) {
+          categoriaAtual = cat;
+          html += `<h3 class="pt-2 text-sm font-bold uppercase tracking-wide text-gray-500">${esc(cat)}</h3>`;
+        }
+        html += `
+          <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-3">
+            <div>
+              <h4 class="font-bold text-gray-800">${esc(p.nome)}</h4>
+              <p class="text-xs text-gray-500">${esc(p.descricao)}</p>
+              <p class="text-sm font-semibold text-red-600 mt-1">${brl.format(parseFloat(p.preco) || 0)}</p>
+            </div>
+            <button data-add="${esc(p.id)}"
+              class="shrink-0 bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded-lg border border-red-200 text-sm hover:bg-red-100">
+              + Adicionar
+            </button>
+          </div>`;
+      }
+      container.innerHTML = html;
     }
 
     // ---------- Carrinho ----------
@@ -229,8 +212,7 @@
     }
 
     function renderCarrinho() {
-      const secao = $('secao-carrinho');
-      secao.classList.toggle('hidden', carrinho.length === 0);
+      $('secao-carrinho').classList.toggle('hidden', carrinho.length === 0);
       $('lista-carrinho').innerHTML = carrinho.map((i) => `
         <div class="flex items-center justify-between text-sm">
           <div class="flex-1 pr-2">
@@ -242,18 +224,16 @@
             <span class="w-5 text-center">${i.qtd}</span>
             <button data-mais="${esc(i.id)}" class="w-7 h-7 rounded-full bg-gray-100 font-bold">+</button>
           </div>
-        </div>
-      `).join('');
+        </div>`).join('');
       atualizarTotal();
     }
 
-    function calcularSubtotal() { return carrinho.reduce((soma, i) => soma + i.preco * i.qtd, 0); }
+    const calcularSubtotal = () => carrinho.reduce((soma, i) => soma + i.preco * i.qtd, 0);
 
     function atualizarTotal() {
       const qtd = carrinho.reduce((soma, i) => soma + i.qtd, 0);
-      const total = calcularSubtotal() + (carrinho.length ? taxaAtual : 0);
       $('qtd-itens').innerText = qtd;
-      $('total-carrinho').innerText = brl.format(total);
+      $('total-carrinho').innerText = brl.format(calcularSubtotal() + (carrinho.length ? taxaAtual : 0));
     }
 
     // ---------- Dados do cliente ----------
@@ -262,7 +242,7 @@
         localStorage.setItem('cliente', JSON.stringify({
           nome: $('cli-nome').value, fone: $('cli-fone').value, endereco: $('cli-endereco').value
         }));
-      } catch (e) { }
+      } catch (e) { /* storage indisponível */ }
     }
 
     function restaurarDadosCliente() {
@@ -272,7 +252,7 @@
         $('cli-nome').value = salvo.nome || '';
         $('cli-fone').value = salvo.fone || '';
         $('cli-endereco').value = salvo.endereco || '';
-      } catch (e) { }
+      } catch (e) { /* ignora */ }
     }
 
     // ---------- Envio do pedido ----------
@@ -289,23 +269,21 @@
       if (endereco.length < 5) return alert('Informe seu endereço de entrega.');
 
       const subtotal = calcularSubtotal();
-      const total = subtotal + taxaAtual;
-      const bairroNome = select.options[select.selectedIndex].text;
-
       const botao = $('btn-enviar');
       botao.disabled = true;
       botao.innerText = 'Enviando...';
 
+      // O banco recalcula preços e taxa; os valores abaixo são só informativos.
       const { error } = await supabaseClient.from('pedidos').insert([{
-        restaurante_id: restauranteInfo.id, // Vínculo com o restaurante atual
+        restaurante_id: restauranteInfo.id,
         cliente_nome: nome,
         cliente_phone: fone,
         endereco_completo: endereco,
-        bairro: bairroNome,
-        itens: carrinho,
+        bairro: select.options[select.selectedIndex].text,
+        itens: carrinho.map((i) => ({ id: i.id, nome: i.nome, preco: i.preco, qtd: i.qtd })),
         subtotal: subtotal,
         taxa_entrega: taxaAtual,
-        total: total,
+        total: subtotal + taxaAtual,
         forma_pagamento: 'Pix',
         status: 'pendente_pagamento'
       }]);
@@ -315,6 +293,16 @@
 
       if (error) {
         console.error(error);
+        const msg = error.message || '';
+        if (/indispon|inválido|outro restaurante|Bairro não atendido/i.test(msg)) {
+          // Cardápio ou bairro mudou desde que a página abriu: recarrega e pede conferência.
+          carrinho = [];
+          renderCarrinho();
+          await Promise.all([carregarBairros(), carregarProdutos()]);
+          select.value = '';
+          atualizarTaxa();
+          return alert('O cardápio foi atualizado. Confira os itens e o bairro e envie de novo.');
+        }
         return alert('Erro ao enviar pedido. Tente novamente.');
       }
 
@@ -322,8 +310,6 @@
       alert('Pedido enviado com sucesso! Aguarde o contato da cozinha.');
       carrinho = [];
       renderCarrinho();
-      
-      // Reseta a seleção de bairro e a taxa para o próximo pedido
       select.value = '';
       atualizarTaxa();
     }
