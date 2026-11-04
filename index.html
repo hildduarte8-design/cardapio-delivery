@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cardápio Digital</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Supabase JS CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 antialiased pb-24">
+
+  <!-- Cabeçalho da Loja -->
+  <header class="bg-red-600 text-white p-4 sticky top-0 z-10 shadow-md">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <div>
+        <h1 class="font-bold text-xl">Nosso Delivery</h1>
+        <p class="text-xs text-red-100">Teófilo Otoni • Aberto agora</p>
+      </div>
+      <span class="bg-red-700 text-xs px-2 py-1 rounded-full border border-red-400">PWA Ready</span>
+    </div>
+  </header>
+
+  <main class="max-w-md mx-auto p-4 space-y-6">
+    <!-- Seleção de Bairro / Taxa -->
+    <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+      <label class="block text-sm font-semibold mb-2">Selecione seu Bairro para Entrega:</label>
+      <select id="select-bairro" onchange="atualizarTaxa()" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500">
+        <option value="">Carregando bairros...</option>
+      </select>
+      <div id="info-taxa" class="mt-2 text-xs text-gray-500 flex justify-between">
+        <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
+        <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
+      </div>
+    </section>
+
+    <!-- Lista de Produtos -->
+    <section>
+      <h2 class="font-bold text-lg mb-3">Cardápio</h2>
+      <div id="lista-produtos" class="space-y-3">
+        <p class="text-sm text-gray-500">Carregando produtos do banco...</p>
+      </div>
+    </section>
+  </main>
+
+  <!-- Barra Fixa do Carrinho (Rodapé) -->
+  <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
+    <div class="max-w-md mx-auto flex justify-between items-center">
+      <div>
+        <p class="text-xs text-gray-500">Total com entrega</p>
+        <p id="total-carrinho" class="text-xl font-bold text-gray-900">R$ 0,00</p>
+      </div>
+      <button onclick="finalizarPedido()" class="bg-green-600 text-white font-bold px-6 py-3 rounded-xl shadow hover:bg-green-700 transition">
+        Enviar Pedido
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Configuração do Supabase (Substitua pelas suas chaves!)
+    const SUPABASE_URL = 'SUA_PROJECT_URL_AQUI';
+    const SUPABASE_ANON_KEY = 'SUA_ANON_KEY_AQUI';
+
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let carrinho = [];
+    let taxaAtual = 0;
+
+    // Inicialização ao carregar a página
+    async function init() {
+      await carregarBairros();
+      await carregarProdutos();
+    }
+
+    // Busca os bairros cadastrados no Supabase
+    async function carregarBairros() {
+      const { data, error } = await supabaseClient.from('bairros').select('*').eq('ativo', true).order('nome');
+      const select = document.getElementById('select-bairro');
+      if (error || !data.length) {
+        select.innerHTML = '<option value="">Nenhum bairro cadastrado</option>';
+        return;
+      }
+      select.innerHTML = '<option value="">Selecione seu bairro...</option>' + 
+        data.map(b => `<option value="${b.id}" data-taxa="${b.taxa}" data-tempo="${b.tempo_estimado}">${b.nome}</option>`).join('');
+    }
+
+    // Atualiza a taxa ao selecionar o bairro
+    function atualizarTaxa() {
+      const select = document.getElementById('select-bairro');
+      const option = select.options[select.selectedIndex];
+      if (option.value) {
+        taxaAtual = parseFloat(option.dataset.taxa || 0);
+        document.getElementById('val-taxa').innerText = `R$ ${taxaAtual.toFixed(2)}`;
+        document.getElementById('val-tempo').innerText = option.dataset.tempo || '40 min';
+      } else {
+        taxaAtual = 0;
+        document.getElementById('val-taxa').innerText = 'R$ 0,00';
+        document.getElementById('val-tempo').innerText = '-- min';
+      }
+      atualizarTotal();
+    }
+
+    // Busca os produtos no Supabase
+    async function carregarProdutos() {
+      const { data, error } = await supabaseClient.from('produtos').select('*').eq('disponivel', true);
+      const container = document.getElementById('lista-produtos');
+      if (error || !data || data.length === 0) {
+        container.innerHTML = '<p class="text-sm text-gray-500">Nenhum produto disponível no momento.</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(p => `
+        <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+          <div>
+            <h3 class="font-bold text-gray-800">${p.nome}</h3>
+            <p class="text-xs text-gray-500">${p.descricao || ''}</p>
+            <p class="text-sm font-semibold text-red-600 mt-1">R$ ${parseFloat(p.preco).toFixed(2)}</p>
+          </div>
+          <button onclick="adicionarCarrinho('${p.id}', '${p.nome}', ${p.preco})" class="bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded-lg border border-red-200 text-sm hover:bg-red-100">
+            + Adicionar
+          </button>
+        </div>
+      `).join('');
+    }
+
+    // Adiciona item ao carrinho
+    function adicionarCarrinho(id, nome, preco) {
+      carrinho.push({ id, nome, preco });
+      atualizarTotal();
+    }
+
+    // Atualiza o valor total acumulado
+    function atualizarTotal() {
+      const subtotal = carrinho.reduce((sum, item) => sum + item.preco, 0);
+      const total = subtotal + taxaAtual;
+      document.getElementById('total-carrinho').innerText = `R$ ${total.toFixed(2)}`;
+    }
+
+    // Registra o pedido no Supabase
+    async function finalizarPedido() {
+      const select = document.getElementById('select-bairro');
+      if (!select.value) {
+        alert('Por favor, selecione seu bairro antes de enviar o pedido.');
+        return;
+      }
+      if (carrinho.length === 0) {
+        alert('Seu carrinho está vazio.');
+        return;
+      }
+
+      const bairroNome = select.options[select.selectedIndex].text;
+      const subtotal = carrinho.reduce((sum, item) => sum + item.preco, 0);
+      const total = subtotal + taxaAtual;
+
+      const { data, error } = await supabaseClient.from('pedidos').insert([{
+        cliente_nome: 'Cliente Web',
+        cliente_phone: '33999999999',
+        endereco_completo: 'Endereço a confirmar',
+        bairro: bairroNome,
+        itens: carrinho,
+        subtotal: subtotal,
+        taxa_entrega: taxaAtual,
+        total: total,
+        forma_pagamento: 'Pix',
+        status: 'pendente_pagamento'
+      }]);
+
+      if (error) {
+        alert('Erro ao enviar pedido. Tente novamente.');
+        console.error(error);
+      } else {
+        alert('Pedido enviado com sucesso! Aguarde o contato da cozinha.');
+        carrinho = [];
+        atualizarTotal();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
