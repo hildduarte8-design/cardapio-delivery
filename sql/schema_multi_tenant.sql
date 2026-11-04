@@ -1,4 +1,4 @@
-# Guarda o script SQL que rodamos no Supabase
+-- Guarda o script SQL que rodamos no Supabase
 -- =====================================================
 -- MIGRAÇÃO MULTI-RESTAURANTE (SaaS)
 -- =====================================================
