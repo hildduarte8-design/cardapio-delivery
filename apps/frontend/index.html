@@ -4,16 +4,19 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cardápio Digital</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="styles.css" />
+  <link id="link-manifest" rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <meta name="theme-color" content="#0F172A" />
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 antialiased pb-32">
 
   <div id="app-container">
-    <header class="bg-red-600 text-white p-4 sticky top-0 z-10 shadow-md">
+    <header class="bg-slate-900 text-white p-4 sticky top-0 z-10 shadow-md">
       <div class="max-w-md mx-auto">
         <h1 id="rest-nome" class="font-bold text-xl">Carregando...</h1>
-        <p class="text-xs text-red-100">Cardápio digital</p>
+        <p class="text-xs text-orange-300">Cardápio digital</p>
       </div>
     </header>
 
@@ -24,7 +27,7 @@
 
       <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
         <label for="select-bairro" class="block text-sm font-semibold mb-2">Seu bairro:</label>
-        <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500">
+        <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500">
           <option value="">Carregando bairros...</option>
         </select>
         <div class="mt-2 text-xs text-gray-500 flex justify-between">
@@ -50,17 +53,17 @@
         <div>
           <label for="cli-nome" class="block text-sm font-semibold mb-1">Nome</label>
           <input id="cli-nome" type="text" autocomplete="name" maxlength="80"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <div>
           <label for="cli-fone" class="block text-sm font-semibold mb-1">WhatsApp (com DDD)</label>
           <input id="cli-fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500" />
+            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500" />
         </div>
         <div>
           <label for="cli-endereco" class="block text-sm font-semibold mb-1">Endereço (rua, número, complemento)</label>
           <textarea id="cli-endereco" rows="2" maxlength="200"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-red-500"></textarea>
+            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500"></textarea>
         </div>
       </section>
     </main>
@@ -124,9 +127,32 @@
       restauranteInfo = data;
       $('rest-nome').innerText = data.nome;
       document.title = 'Cardápio - ' + data.nome;
+      ajustarManifest(data);
 
       restaurarDadosCliente();
       await Promise.all([carregarBairros(), carregarProdutos()]);
+    }
+
+    // ---------- PWA ----------
+    // Manifest por restaurante: o app instalado abre no cardápio certo (?r=slug)
+    function ajustarManifest(r) {
+      try {
+        const base = new URL('.', location.href).href;
+        const manifest = {
+          name: r.nome, short_name: r.nome.slice(0, 12),
+          start_url: base + '?r=' + encodeURIComponent(r.slug), scope: base,
+          display: 'standalone', background_color: '#0F172A', theme_color: '#0F172A',
+          icons: [
+            { src: base + 'icon-192.png', sizes: '192x192', type: 'image/png' },
+            { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png' }
+          ]
+        };
+        const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+        $('link-manifest').href = URL.createObjectURL(blob);
+      } catch (e) { /* mantém o manifest.json padrão */ }
+    }
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
     }
 
     // ---------- Bairros ----------
@@ -182,10 +208,10 @@
             <div>
               <h4 class="font-bold text-gray-800">${esc(p.nome)}</h4>
               <p class="text-xs text-gray-500">${esc(p.descricao)}</p>
-              <p class="text-sm font-semibold text-red-600 mt-1">${brl.format(parseFloat(p.preco) || 0)}</p>
+              <p class="text-sm font-semibold text-orange-600 mt-1">${brl.format(parseFloat(p.preco) || 0)}</p>
             </div>
             <button data-add="${esc(p.id)}"
-              class="shrink-0 bg-red-50 text-red-600 font-bold px-3 py-1.5 rounded-lg border border-red-200 text-sm hover:bg-red-100">
+              class="shrink-0 bg-orange-50 text-orange-600 font-bold px-3 py-1.5 rounded-lg border border-orange-200 text-sm hover:bg-orange-100">
               + Adicionar
             </button>
           </div>`;
