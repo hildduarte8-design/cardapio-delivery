@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import process from 'node:process';
 import { supabaseAdmin } from './src/config/supabase.js';
 import { calcularDistanciaKm } from './src/services/frete.js';
+import { criarPedido } from './src/controllers/pedidosController.js';
 
 dotenv.config();
 
@@ -181,7 +182,10 @@ app.post('/api/frete/cotar', async (req, res) => {
   }
 });
 
-// Rota coringa para tratar endpoints inexistentes
+// Endpoint Seguro de Criação de Pedidos (Zero-Trust)
+app.post('/api/pedidos', criarPedido);
+
+// Rota coringa para tratar endpoints inexistentes (404)
 app.use((_req, res) => {
   res.status(404).json({ erro: 'Recurso não encontrado no servidor.' });
 });
