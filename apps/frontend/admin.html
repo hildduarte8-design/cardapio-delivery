@@ -34,11 +34,22 @@
 
     <p id="sem-acesso" class="hidden bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Este usuário não está vinculado a nenhum restaurante.</p>
 
-    <nav id="abas" class="grid grid-cols-3 gap-2">
-      <button data-aba="produtos" class="py-2 rounded-lg text-sm font-bold border">Produtos</button>
-      <button data-aba="entrega" class="py-2 rounded-lg text-sm font-bold border">Entrega</button>
-      <button data-aba="config" class="py-2 rounded-lg text-sm font-bold border">Conta</button>
+    <nav id="abas" class="grid grid-cols-4 gap-2">
+      <button data-aba="pedidos" class="py-2 rounded-lg text-xs font-bold border">Pedidos<span id="badge-pedidos" class="hidden ml-1 bg-red-600 text-white rounded-full px-1.5"></span></button>
+      <button data-aba="produtos" class="py-2 rounded-lg text-xs font-bold border">Produtos</button>
+      <button data-aba="entrega" class="py-2 rounded-lg text-xs font-bold border">Entrega</button>
+      <button data-aba="config" class="py-2 rounded-lg text-xs font-bold border">Conta</button>
     </nav>
+
+    <!-- Aba Pedidos -->
+    <div id="aba-pedidos" class="hidden space-y-3">
+      <div class="flex gap-2 items-center">
+        <button data-filtro="ativos" class="flex-1 py-2 rounded-lg text-xs font-bold border">Ativos</button>
+        <button data-filtro="encerrados" class="flex-1 py-2 rounded-lg text-xs font-bold border">Encerrados</button>
+        <button id="btn-som" class="px-3 py-2 rounded-lg text-sm border bg-white" aria-label="Som de novo pedido">🔔</button>
+      </div>
+      <div id="lista-pedidos" class="space-y-3"><p class="text-sm text-gray-500">Carregando pedidos...</p></div>
+    </div>
 
     <!-- Aba Produtos -->
     <div id="aba-produtos" class="space-y-4">
@@ -145,7 +156,7 @@
       const { data: { session } } = await sb.auth.getSession();
       $('tela-login').classList.toggle('hidden', !!session);
       $('tela-admin').classList.toggle('hidden', !session);
-      if (session) iniciarPainel();
+      if (session) iniciarPainel(); else pararPedidos();
     }
 
     async function iniciarPainel() {
@@ -157,7 +168,8 @@
       rest = data[0].restaurantes;
       $('rest-nome').innerText = rest.nome;
       $('rest-link').innerText = 'Cardápio: index.html?r=' + rest.slug;
-      preencherRestaurante(); mostrarAba('produtos');
+      preencherRestaurante(); mostrarAba('pedidos');
+      carregarPedidos(); iniciarPedidos();
       carregarProdutos(); carregarBairros();
     }
 
@@ -169,10 +181,10 @@
       if (error) return alert('E-mail ou senha incorretos.');
       $('login-senha').value = ''; checarSessao();
     });
-    $('btn-sair').addEventListener('click', async () => { await sb.auth.signOut(); rest = null; checarSessao(); });
+    $('btn-sair').addEventListener('click', async () => { await sb.auth.signOut(); rest = null; pararPedidos(); checarSessao(); });
 
     function mostrarAba(nome) {
-      ['produtos', 'entrega', 'config'].forEach((a) => {
+      ['pedidos', 'produtos', 'entrega', 'config'].forEach((a) => {
         $('aba-' + a).classList.toggle('hidden', a !== nome);
         const btn = document.querySelector(`[data-aba="${a}"]`);
         if (btn) {
@@ -181,6 +193,174 @@
       });
     }
     $('abas').addEventListener('click', (e) => { const b = e.target.closest('[data-aba]'); if (b) mostrarAba(b.dataset.aba); });
+
+
+    // ---------- Pedidos (ao vivo) ----------
+    const STATUS = {
+      pendente_pagamento: { rotulo: 'Aguardando Pix', cor: 'bg-yellow-100 text-yellow-700', prox: 'pago', acao: 'Confirmar pagamento' },
+      pago: { rotulo: 'Pago', cor: 'bg-blue-100 text-blue-700', prox: 'preparando', acao: 'Iniciar preparo' },
+      preparando: { rotulo: 'Em preparo', cor: 'bg-orange-100 text-orange-700', prox: 'saiu_entrega', acao: 'Saiu para entrega' },
+      saiu_entrega: { rotulo: 'Saiu p/ entrega', cor: 'bg-purple-100 text-purple-700', prox: 'entregue', acao: 'Marcar entregue' },
+      entregue: { rotulo: 'Entregue', cor: 'bg-green-100 text-green-700' },
+      cancelado: { rotulo: 'Cancelado', cor: 'bg-gray-200 text-gray-600' }
+    };
+    const ENCERRADOS = ['entregue', 'cancelado'];
+    let pedidos = [], filtroPedidos = 'ativos', idsVistos = null, canalPedidos = null, timerPedidos = null, audioCtx = null, somLigado = true;
+
+    function desbloquearAudio() {
+      try {
+        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      } catch (e) { }
+    }
+    ['click', 'touchstart'].forEach((ev) => document.addEventListener(ev, desbloquearAudio, { once: true }));
+
+    function beep() {
+      if (!somLigado || !audioCtx) return;
+      try {
+        const t = audioCtx.currentTime;
+        [0, 0.25].forEach((d) => {
+          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.frequency.value = 880;
+          g.gain.setValueAtTime(0.2, t + d); g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.2);
+          o.connect(g); g.connect(audioCtx.destination); o.start(t + d); o.stop(t + d + 0.2);
+        });
+      } catch (e) { }
+    }
+
+    const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const minutosDesde = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
+    const codigo = (p) => String(p.id).slice(-4).toUpperCase();
+    function itensDe(p) {
+      try { const v = typeof p.itens === 'string' ? JSON.parse(p.itens) : p.itens; return Array.isArray(v) ? v : []; }
+      catch (e) { return []; }
+    }
+
+    async function carregarPedidos() {
+      if (!rest) return;
+      const { data, error } = await sb.from('pedidos').select('*').eq('restaurante_id', rest.id)
+        .order('created_at', { ascending: false }).limit(100);
+      if (error) { tratarErro(error, 'Erro ao carregar pedidos.'); return; }
+      const lista = data || [];
+      if (idsVistos && lista.some((p) => !idsVistos.has(String(p.id)))) { beep(); aviso('🔔 Novo pedido!'); }
+      idsVistos = new Set(lista.map((p) => String(p.id)));
+      pedidos = lista; renderPedidos();
+    }
+
+    function iniciarPedidos() {
+      if (timerPedidos) return;
+      try {
+        canalPedidos = sb.channel('pedidos-' + rest.id)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: 'restaurante_id=eq.' + rest.id }, carregarPedidos)
+          .subscribe();
+      } catch (e) { console.error(e); }
+      // reserva: se o tempo real não estiver ligado no banco, atualiza a cada 30 s
+      timerPedidos = setInterval(carregarPedidos, 30000);
+    }
+    function pararPedidos() {
+      if (canalPedidos) { try { sb.removeChannel(canalPedidos); } catch (e) { } canalPedidos = null; }
+      clearInterval(timerPedidos); timerPedidos = null; pedidos = []; idsVistos = null;
+    }
+
+    function renderPedidos() {
+      const ativos = pedidos.filter((p) => !ENCERRADOS.includes(p.status))
+        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // mais antigo primeiro
+      const encerrados = pedidos.filter((p) => ENCERRADOS.includes(p.status));
+      const badge = $('badge-pedidos');
+      badge.innerText = ativos.length; badge.classList.toggle('hidden', ativos.length === 0);
+      document.querySelectorAll('[data-filtro]').forEach((b) => {
+        b.className = 'flex-1 py-2 rounded-lg text-xs font-bold border ' + (b.dataset.filtro === filtroPedidos ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-700');
+      });
+      $('btn-som').innerText = somLigado ? '🔔' : '🔕';
+      const lista = filtroPedidos === 'ativos' ? ativos : encerrados;
+      $('lista-pedidos').innerHTML = lista.length ? lista.map((p) => {
+        const st = STATUS[p.status] || { rotulo: p.status || '—', cor: 'bg-gray-100 text-gray-600' };
+        const fim = ENCERRADOS.includes(p.status);
+        return `
+        <div class="bg-white border rounded-xl p-3 space-y-2">
+          <div class="flex justify-between items-start gap-2">
+            <div class="min-w-0">
+              <p class="font-bold text-sm truncate">${esc(p.cliente_nome)}</p>
+              <p class="text-xs text-gray-500">${esc(hora(p.created_at))}${fim ? '' : ' · há ' + minutosDesde(p.created_at) + ' min'} · #${esc(codigo(p))}</p>
+            </div>
+            <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${st.cor}">${esc(st.rotulo)}</span>
+          </div>
+          <ul class="text-sm">${itensDe(p).map((i) => `<li>${Number(i.qtd) || 0}x ${esc(i.nome)}</li>`).join('')}</ul>
+          <p class="text-xs text-gray-600">📍 ${esc(p.bairro)} — ${esc(p.endereco_completo)}</p>
+          <div class="flex justify-between text-sm">
+            <span class="text-xs text-gray-500">${esc(p.forma_pagamento || '')} · entrega ${brl.format(Number(p.taxa_entrega) || 0)}</span>
+            <strong>${brl.format(Number(p.total) || 0)}</strong>
+          </div>
+          <div class="flex gap-2">
+            ${st.prox ? `<button data-avancar="${esc(p.id)}" class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded-lg">${esc(st.acao)}</button>` : '<span class="flex-1"></span>'}
+            <button data-zap="${esc(p.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-green-50 text-green-700 border-green-200" aria-label="WhatsApp">WhatsApp</button>
+            <button data-imprimir="${esc(p.id)}" class="px-3 py-2 text-xs rounded-lg border bg-white" aria-label="Imprimir comanda">🖨️</button>
+            ${fim ? '' : `<button data-cancelar="${esc(p.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">Cancelar</button>`}
+          </div>
+        </div>`;
+      }).join('') : `<p class="text-sm text-gray-500">${filtroPedidos === 'ativos' ? 'Nenhum pedido ativo no momento.' : 'Nenhum pedido encerrado ainda.'}</p>`;
+    }
+
+    function foneZap(p) {
+      let n = String(p.cliente_phone || '').replace(/\D/g, '');
+      if (!n) return null;
+      if (!n.startsWith('55') && n.length <= 11) n = '55' + n;
+      return n;
+    }
+    function textoZap(p) {
+      const nome = String(p.cliente_nome || '').split(' ')[0];
+      const valor = brl.format(Number(p.total) || 0);
+      const msg = {
+        pendente_pagamento: `Recebemos seu pedido de ${valor}! Falta só o pagamento via Pix para confirmarmos.`,
+        pago: 'Pagamento confirmado ✅ Já vamos preparar seu pedido!',
+        preparando: 'Seu pedido está em preparo 👨‍🍳',
+        saiu_entrega: 'Seu pedido saiu para entrega 🛵',
+        entregue: 'Obrigado pela preferência! 🙏',
+        cancelado: 'Seu pedido foi cancelado. Qualquer dúvida, é só responder aqui.'
+      }[p.status] || 'Sobre o seu pedido:';
+      return `Olá ${nome}! ${rest.nome}: ${msg}`;
+    }
+    function imprimirComanda(p) {
+      const linhas = itensDe(p).map((i) => `<div>${Number(i.qtd) || 0}x ${esc(i.nome)}</div>`).join('');
+      const html = `<html><head><meta charset="utf-8"><style>
+        body{font:13px monospace;width:58mm;margin:0;padding:4px} h1{font-size:15px;margin:0 0 4px} hr{border:0;border-top:1px dashed #000;margin:6px 0} .t{font-weight:bold;font-size:15px}
+        </style></head><body>
+        <h1>${esc(rest.nome)}</h1><div>Pedido #${esc(codigo(p))} — ${esc(hora(p.created_at))}</div><hr>
+        <div><b>${esc(p.cliente_nome)}</b></div><div>${esc(p.cliente_phone || '')}</div>
+        <div>${esc(p.bairro)}</div><div>${esc(p.endereco_completo)}</div><hr>${linhas}<hr>
+        <div>Entrega: ${brl.format(Number(p.taxa_entrega) || 0)}</div>
+        <div class="t">TOTAL: ${brl.format(Number(p.total) || 0)}</div><div>${esc(p.forma_pagamento || '')} — ${esc((STATUS[p.status] || {}).rotulo || p.status || '')}</div>
+        </body></html>`;
+      const f = document.createElement('iframe');
+      f.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden';
+      document.body.appendChild(f);
+      f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } finally { setTimeout(() => f.remove(), 2000); } };
+      f.srcdoc = html;
+    }
+    async function mudarStatus(p, novo, msgOk) {
+      const r = await atualizar('pedidos', p.id, { status: novo }, msgOk);
+      if (r) { p.status = r.status; renderPedidos(); }
+    }
+
+    $('lista-pedidos').addEventListener('click', async (e) => {
+      const alvo = (attr) => { const b = e.target.closest('[' + attr + ']'); return b ? achar(pedidos, b.getAttribute(attr)) : null; };
+      let p;
+      if ((p = alvo('data-avancar'))) {
+        const st = STATUS[p.status]; if (st && st.prox) await mudarStatus(p, st.prox, STATUS[st.prox].rotulo);
+      } else if ((p = alvo('data-cancelar'))) {
+        if (confirm('Cancelar o pedido de ' + (p.cliente_nome || 'cliente') + '?')) await mudarStatus(p, 'cancelado', 'Pedido cancelado');
+      } else if ((p = alvo('data-zap'))) {
+        const n = foneZap(p); if (!n) return aviso('Pedido sem telefone');
+        window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(textoZap(p)), '_blank', 'noopener,noreferrer');
+      } else if ((p = alvo('data-imprimir'))) {
+        imprimirComanda(p);
+      }
+    });
+    document.querySelector('#aba-pedidos').addEventListener('click', (e) => {
+      const f = e.target.closest('[data-filtro]');
+      if (f) { filtroPedidos = f.dataset.filtro; renderPedidos(); }
+      if (e.target.closest('#btn-som')) { somLigado = !somLigado; desbloquearAudio(); renderPedidos(); if (somLigado) beep(); }
+    });
 
     // ---------- Produtos ----------
     async function carregarProdutos() {
