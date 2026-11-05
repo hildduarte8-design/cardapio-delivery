@@ -7,11 +7,10 @@
   <title>Painel do Restaurante</title>
   <link rel="stylesheet" href="styles.css" />
   <meta name="theme-color" content="#0F172A" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 antialiased min-h-screen">
 
-  <!-- Login -->
   <div id="tela-login" class="max-w-sm mx-auto mt-10 p-6 bg-white rounded-2xl shadow-md border">
     <h1 class="text-xl font-bold mb-4 text-center">Painel do Restaurante</h1>
     <p id="aviso-config" class="hidden mb-3 bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Configure SUPABASE_URL e SUPABASE_ANON_KEY no código.</p>
@@ -22,7 +21,6 @@
     </form>
   </div>
 
-  <!-- Painel -->
   <div id="tela-admin" class="hidden max-w-md mx-auto p-4 pb-24 space-y-4">
     <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
       <div class="min-w-0">
@@ -41,7 +39,6 @@
       <button data-aba="config" class="py-2 rounded-lg text-xs font-bold border">Conta</button>
     </nav>
 
-    <!-- Aba Pedidos -->
     <div id="aba-pedidos" class="hidden space-y-3">
       <div class="flex gap-2 items-center">
         <button data-filtro="ativos" class="flex-1 py-2 rounded-lg text-xs font-bold border">Ativos</button>
@@ -51,8 +48,7 @@
       <div id="lista-pedidos" class="space-y-3"><p class="text-sm text-gray-500">Carregando pedidos...</p></div>
     </div>
 
-    <!-- Aba Produtos -->
-    <div id="aba-produtos" class="space-y-4">
+    <div id="aba-produtos" class="hidden space-y-4">
       <section class="bg-white rounded-xl shadow-sm border">
         <button id="btn-toggle-form" class="w-full text-left p-4 font-bold text-sm flex justify-between"><span>+ Novo produto</span><span id="seta-form" class="text-gray-400">▼</span></button>
         <form id="form-produto" class="hidden px-4 pb-4 space-y-3">
@@ -69,7 +65,6 @@
       <div id="lista-produtos" class="space-y-3"></div>
     </div>
 
-    <!-- Aba Entrega -->
     <div id="aba-entrega" class="hidden space-y-4">
       <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
         <h2 class="font-bold text-sm">Dados do restaurante</h2>
@@ -96,7 +91,6 @@
       </section>
     </div>
 
-    <!-- Aba Conta / Configurações -->
     <div id="aba-config" class="hidden space-y-4">
       <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
         <h2 class="font-bold text-sm">Segurança & Acesso</h2>
@@ -118,413 +112,6 @@
 
   <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"></div>
 
-  <script>
-    // ====== CONFIGURAÇÃO (substitua pela sua chave anon pública completa) ======
-    const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_raTvDULM2YDmTngVIOM11g_CZe6jZWj';
-    // =========================================================================
-
-    const configurado = !SUPABASE_URL.includes('SUA_') && !SUPABASE_ANON_KEY.includes('SUA_');
-    const sb = configurado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
-    const $ = (id) => document.getElementById(id);
-    const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
-    let rest = null, produtos = [], bairros = [], toastTimer;
-
-    const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-    const num = (v) => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
-
-    function aviso(msg) {
-      const t = $('toast'); t.innerText = msg; t.classList.remove('hidden');
-      clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2500);
-    }
-    function tratarErro(error, padrao) {
-      console.error(error);
-      if (error && /jwt|token|expired/i.test(error.message || '')) {
-        aviso('Sessão expirada. Entre de novo.'); sb.auth.signOut().then(checarSessao); return;
-      }
-      aviso(padrao + (error && error.message ? ' (' + error.message + ')' : ''));
-    }
-    async function atualizar(tabela, id, campos, msgOk) {
-      const { data, error } = await sb.from(tabela).update(campos).eq('id', id).select();
-      if (error || !data || !data.length) { tratarErro(error, 'Não foi possível salvar.'); return null; }
-      aviso(msgOk); return data[0];
-    }
-
-    // ---------- Sessão ----------
-    async function checarSessao() {
-      if (!configurado) { $('aviso-config').classList.remove('hidden'); return; }
-      const { data: { session } } = await sb.auth.getSession();
-      $('tela-login').classList.toggle('hidden', !!session);
-      $('tela-admin').classList.toggle('hidden', !session);
-      if (session) iniciarPainel(); else pararPedidos();
-    }
-
-    async function iniciarPainel() {
-      const { data, error } = await sb.from('restaurante_usuarios').select('restaurantes(*)').limit(1);
-      if (error || !data || !data.length || !data[0].restaurantes) {
-        $('sem-acesso').classList.remove('hidden'); $('abas').classList.add('hidden');
-        $('aba-produtos').classList.add('hidden'); return;
-      }
-      rest = data[0].restaurantes;
-      $('rest-nome').innerText = rest.nome;
-      $('rest-link').innerText = 'Cardápio: index.html?r=' + rest.slug;
-      preencherRestaurante(); mostrarAba('pedidos');
-      carregarPedidos(); iniciarPedidos();
-      carregarProdutos(); carregarBairros();
-    }
-
-    $('form-login').addEventListener('submit', async (e) => {
-      e.preventDefault(); if (!configurado) return;
-      const b = $('btn-login'); b.disabled = true; b.innerText = 'Entrando...';
-      const { error } = await sb.auth.signInWithPassword({ email: $('login-email').value.trim(), password: $('login-senha').value });
-      b.disabled = false; b.innerText = 'Entrar';
-      if (error) return alert('E-mail ou senha incorretos.');
-      $('login-senha').value = ''; checarSessao();
-    });
-    $('btn-sair').addEventListener('click', async () => { await sb.auth.signOut(); rest = null; pararPedidos(); checarSessao(); });
-
-    function mostrarAba(nome) {
-      ['pedidos', 'produtos', 'entrega', 'config'].forEach((a) => {
-        $('aba-' + a).classList.toggle('hidden', a !== nome);
-        const btn = document.querySelector(`[data-aba="${a}"]`);
-        if (btn) {
-          btn.className = 'py-2 rounded-lg text-sm font-bold border ' + (a === nome ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-700');
-        }
-      });
-    }
-    $('abas').addEventListener('click', (e) => { const b = e.target.closest('[data-aba]'); if (b) mostrarAba(b.dataset.aba); });
-
-
-    // ---------- Pedidos (ao vivo) ----------
-    const STATUS = {
-      pendente_pagamento: { rotulo: 'Aguardando Pix', cor: 'bg-yellow-100 text-yellow-700', prox: 'pago', acao: 'Confirmar pagamento' },
-      pago: { rotulo: 'Pago', cor: 'bg-blue-100 text-blue-700', prox: 'preparando', acao: 'Iniciar preparo' },
-      preparando: { rotulo: 'Em preparo', cor: 'bg-orange-100 text-orange-700', prox: 'saiu_entrega', acao: 'Saiu para entrega' },
-      saiu_entrega: { rotulo: 'Saiu p/ entrega', cor: 'bg-purple-100 text-purple-700', prox: 'entregue', acao: 'Marcar entregue' },
-      entregue: { rotulo: 'Entregue', cor: 'bg-green-100 text-green-700' },
-      cancelado: { rotulo: 'Cancelado', cor: 'bg-gray-200 text-gray-600' }
-    };
-    const ENCERRADOS = ['entregue', 'cancelado'];
-    let pedidos = [], filtroPedidos = 'ativos', idsVistos = null, canalPedidos = null, timerPedidos = null, audioCtx = null, somLigado = true;
-
-    function desbloquearAudio() {
-      try {
-        audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
-      } catch (e) { }
-    }
-    ['click', 'touchstart'].forEach((ev) => document.addEventListener(ev, desbloquearAudio, { once: true }));
-
-    function beep() {
-      if (!somLigado || !audioCtx) return;
-      try {
-        const t = audioCtx.currentTime;
-        [0, 0.25].forEach((d) => {
-          const o = audioCtx.createOscillator(), g = audioCtx.createGain();
-          o.frequency.value = 880;
-          g.gain.setValueAtTime(0.2, t + d); g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.2);
-          o.connect(g); g.connect(audioCtx.destination); o.start(t + d); o.stop(t + d + 0.2);
-        });
-      } catch (e) { }
-    }
-
-    const hora = (iso) => new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const minutosDesde = (iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-    const codigo = (p) => String(p.id).slice(-4).toUpperCase();
-    function itensDe(p) {
-      try { const v = typeof p.itens === 'string' ? JSON.parse(p.itens) : p.itens; return Array.isArray(v) ? v : []; }
-      catch (e) { return []; }
-    }
-
-    async function carregarPedidos() {
-      if (!rest) return;
-      const { data, error } = await sb.from('pedidos').select('*').eq('restaurante_id', rest.id)
-        .order('created_at', { ascending: false }).limit(100);
-      if (error) { tratarErro(error, 'Erro ao carregar pedidos.'); return; }
-      const lista = data || [];
-      if (idsVistos && lista.some((p) => !idsVistos.has(String(p.id)))) { beep(); aviso('🔔 Novo pedido!'); }
-      idsVistos = new Set(lista.map((p) => String(p.id)));
-      pedidos = lista; renderPedidos();
-    }
-
-    function iniciarPedidos() {
-      if (timerPedidos) return;
-      try {
-        canalPedidos = sb.channel('pedidos-' + rest.id)
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'pedidos', filter: 'restaurante_id=eq.' + rest.id }, carregarPedidos)
-          .subscribe();
-      } catch (e) { console.error(e); }
-      // reserva: se o tempo real não estiver ligado no banco, atualiza a cada 30 s
-      timerPedidos = setInterval(carregarPedidos, 30000);
-    }
-    function pararPedidos() {
-      if (canalPedidos) { try { sb.removeChannel(canalPedidos); } catch (e) { } canalPedidos = null; }
-      clearInterval(timerPedidos); timerPedidos = null; pedidos = []; idsVistos = null;
-    }
-
-    function renderPedidos() {
-      const ativos = pedidos.filter((p) => !ENCERRADOS.includes(p.status))
-        .sort((a, b) => new Date(a.created_at) - new Date(b.created_at)); // mais antigo primeiro
-      const encerrados = pedidos.filter((p) => ENCERRADOS.includes(p.status));
-      const badge = $('badge-pedidos');
-      badge.innerText = ativos.length; badge.classList.toggle('hidden', ativos.length === 0);
-      document.querySelectorAll('[data-filtro]').forEach((b) => {
-        b.className = 'flex-1 py-2 rounded-lg text-xs font-bold border ' + (b.dataset.filtro === filtroPedidos ? 'bg-orange-600 text-white border-orange-600' : 'bg-white text-gray-700');
-      });
-      $('btn-som').innerText = somLigado ? '🔔' : '🔕';
-      const lista = filtroPedidos === 'ativos' ? ativos : encerrados;
-      $('lista-pedidos').innerHTML = lista.length ? lista.map((p) => {
-        const st = STATUS[p.status] || { rotulo: p.status || '—', cor: 'bg-gray-100 text-gray-600' };
-        const fim = ENCERRADOS.includes(p.status);
-        return `
-        <div class="bg-white border rounded-xl p-3 space-y-2">
-          <div class="flex justify-between items-start gap-2">
-            <div class="min-w-0">
-              <p class="font-bold text-sm truncate">${esc(p.cliente_nome)}</p>
-              <p class="text-xs text-gray-500">${esc(hora(p.created_at))}${fim ? '' : ' · há ' + minutosDesde(p.created_at) + ' min'} · #${esc(codigo(p))}</p>
-            </div>
-            <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${st.cor}">${esc(st.rotulo)}</span>
-          </div>
-          <ul class="text-sm">${itensDe(p).map((i) => `<li>${Number(i.qtd) || 0}x ${esc(i.nome)}</li>`).join('')}</ul>
-          <p class="text-xs text-gray-600">📍 ${esc(p.bairro)} — ${esc(p.endereco_completo)}</p>
-          <div class="flex justify-between text-sm">
-            <span class="text-xs text-gray-500">${esc(p.forma_pagamento || '')} · entrega ${brl.format(Number(p.taxa_entrega) || 0)}</span>
-            <strong>${brl.format(Number(p.total) || 0)}</strong>
-          </div>
-          <div class="flex gap-2">
-            ${st.prox ? `<button data-avancar="${esc(p.id)}" class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded-lg">${esc(st.acao)}</button>` : '<span class="flex-1"></span>'}
-            <button data-zap="${esc(p.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-green-50 text-green-700 border-green-200" aria-label="WhatsApp">WhatsApp</button>
-            <button data-imprimir="${esc(p.id)}" class="px-3 py-2 text-xs rounded-lg border bg-white" aria-label="Imprimir comanda">🖨️</button>
-            ${fim ? '' : `<button data-cancelar="${esc(p.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">Cancelar</button>`}
-          </div>
-        </div>`;
-      }).join('') : `<p class="text-sm text-gray-500">${filtroPedidos === 'ativos' ? 'Nenhum pedido ativo no momento.' : 'Nenhum pedido encerrado ainda.'}</p>`;
-    }
-
-    function foneZap(p) {
-      let n = String(p.cliente_phone || '').replace(/\D/g, '');
-      if (!n) return null;
-      if (!n.startsWith('55') && n.length <= 11) n = '55' + n;
-      return n;
-    }
-    function textoZap(p) {
-      const nome = String(p.cliente_nome || '').split(' ')[0];
-      const valor = brl.format(Number(p.total) || 0);
-      const msg = {
-        pendente_pagamento: `Recebemos seu pedido de ${valor}! Falta só o pagamento via Pix para confirmarmos.`,
-        pago: 'Pagamento confirmado ✅ Já vamos preparar seu pedido!',
-        preparando: 'Seu pedido está em preparo 👨‍🍳',
-        saiu_entrega: 'Seu pedido saiu para entrega 🛵',
-        entregue: 'Obrigado pela preferência! 🙏',
-        cancelado: 'Seu pedido foi cancelado. Qualquer dúvida, é só responder aqui.'
-      }[p.status] || 'Sobre o seu pedido:';
-      return `Olá ${nome}! ${rest.nome}: ${msg}`;
-    }
-    function imprimirComanda(p) {
-      const linhas = itensDe(p).map((i) => `<div>${Number(i.qtd) || 0}x ${esc(i.nome)}</div>`).join('');
-      const html = `<html><head><meta charset="utf-8"><style>
-        body{font:13px monospace;width:58mm;margin:0;padding:4px} h1{font-size:15px;margin:0 0 4px} hr{border:0;border-top:1px dashed #000;margin:6px 0} .t{font-weight:bold;font-size:15px}
-        </style></head><body>
-        <h1>${esc(rest.nome)}</h1><div>Pedido #${esc(codigo(p))} — ${esc(hora(p.created_at))}</div><hr>
-        <div><b>${esc(p.cliente_nome)}</b></div><div>${esc(p.cliente_phone || '')}</div>
-        <div>${esc(p.bairro)}</div><div>${esc(p.endereco_completo)}</div><hr>${linhas}<hr>
-        <div>Entrega: ${brl.format(Number(p.taxa_entrega) || 0)}</div>
-        <div class="t">TOTAL: ${brl.format(Number(p.total) || 0)}</div><div>${esc(p.forma_pagamento || '')} — ${esc((STATUS[p.status] || {}).rotulo || p.status || '')}</div>
-        </body></html>`;
-      const f = document.createElement('iframe');
-      f.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden';
-      document.body.appendChild(f);
-      f.onload = () => { try { f.contentWindow.focus(); f.contentWindow.print(); } finally { setTimeout(() => f.remove(), 2000); } };
-      f.srcdoc = html;
-    }
-    async function mudarStatus(p, novo, msgOk) {
-      const r = await atualizar('pedidos', p.id, { status: novo }, msgOk);
-      if (r) { p.status = r.status; renderPedidos(); }
-    }
-
-    $('lista-pedidos').addEventListener('click', async (e) => {
-      const alvo = (attr) => { const b = e.target.closest('[' + attr + ']'); return b ? achar(pedidos, b.getAttribute(attr)) : null; };
-      let p;
-      if ((p = alvo('data-avancar'))) {
-        const st = STATUS[p.status]; if (st && st.prox) await mudarStatus(p, st.prox, STATUS[st.prox].rotulo);
-      } else if ((p = alvo('data-cancelar'))) {
-        if (confirm('Cancelar o pedido de ' + (p.cliente_nome || 'cliente') + '?')) await mudarStatus(p, 'cancelado', 'Pedido cancelado');
-      } else if ((p = alvo('data-zap'))) {
-        const n = foneZap(p); if (!n) return aviso('Pedido sem telefone');
-        window.open('https://wa.me/' + n + '?text=' + encodeURIComponent(textoZap(p)), '_blank', 'noopener,noreferrer');
-      } else if ((p = alvo('data-imprimir'))) {
-        imprimirComanda(p);
-      }
-    });
-    document.querySelector('#aba-pedidos').addEventListener('click', (e) => {
-      const f = e.target.closest('[data-filtro]');
-      if (f) { filtroPedidos = f.dataset.filtro; renderPedidos(); }
-      if (e.target.closest('#btn-som')) { somLigado = !somLigado; desbloquearAudio(); renderPedidos(); if (somLigado) beep(); }
-    });
-
-    // ---------- Produtos ----------
-    async function carregarProdutos() {
-      const { data, error } = await sb.from('produtos').select('*').eq('restaurante_id', rest.id)
-        .order('categoria').order('nome');
-      if (error) { tratarErro(error, 'Erro ao carregar produtos.'); return; }
-      produtos = data || []; renderProdutos();
-    }
-    function renderProdutos() {
-      $('lista-categorias').innerHTML = [...new Set(produtos.map((p) => p.categoria).filter(Boolean))]
-        .map((c) => `<option value="${esc(c)}"></option>`).join('');
-      $('lista-produtos').innerHTML = produtos.length ? produtos.map((p) => `
-        <div class="p-3 border rounded-xl ${p.disponivel ? 'bg-white' : 'bg-gray-50 border-gray-300'}">
-          <div class="flex justify-between items-start gap-2">
-            <div class="min-w-0 ${p.disponivel ? '' : 'opacity-60'}">
-              <h3 class="font-bold text-sm">${esc(p.nome)}</h3>
-              <p class="text-xs text-gray-500">${esc(p.categoria || 'Geral')}${p.descricao ? ' • ' + esc(p.descricao) : ''}</p>
-            </div>
-            <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${p.disponivel ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}">${p.disponivel ? 'Ativo' : 'Pausado'}</span>
-          </div>
-          <div class="flex items-center gap-2 mt-3">
-            <label class="flex items-center border rounded-lg px-2 bg-gray-50"><span class="text-xs text-gray-500">R$</span>
-              <input data-preco="${esc(p.id)}" type="number" step="0.01" min="0.01" inputmode="decimal" value="${Number(p.preco).toFixed(2)}" aria-label="Preço de ${esc(p.nome)}" class="w-20 p-2 bg-transparent text-sm font-semibold outline-none" /></label>
-            <button data-toggle="${esc(p.id)}" class="flex-1 px-3 py-2 text-xs font-bold rounded-lg border ${p.disponivel ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'}">${p.disponivel ? 'Pausar' : 'Ativar'}</button>
-            <button data-del="${esc(p.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">Excluir</button>
-          </div>
-        </div>`).join('') : '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
-    }
-    const achar = (lista, id) => lista.find((x) => String(x.id) === String(id));
-
-    $('lista-produtos').addEventListener('click', async (e) => {
-      const t = e.target.closest('[data-toggle]'), d = e.target.closest('[data-del]');
-      if (t) {
-        const p = achar(produtos, t.dataset.toggle); if (!p) return;
-        const r = await atualizar('produtos', p.id, { disponivel: !p.disponivel }, p.disponivel ? 'Item pausado' : 'Item ativado');
-        if (r) { p.disponivel = r.disponivel; renderProdutos(); }
-      }
-      if (d) {
-        const p = achar(produtos, d.dataset.del); if (!p || !confirm('Excluir "' + p.nome + '"?')) return;
-        const { data, error } = await sb.from('produtos').delete().eq('id', p.id).select();
-        if (error || !data || !data.length) return tratarErro(error, 'Não foi possível excluir.');
-        produtos = produtos.filter((x) => x !== p); aviso('Item excluído'); renderProdutos();
-      }
-    });
-    $('lista-produtos').addEventListener('change', async (e) => {
-      if (!e.target.matches('[data-preco]')) return;
-      const p = achar(produtos, e.target.dataset.preco), novo = num(e.target.value);
-      if (!p) return;
-      if (!(novo > 0) || novo > 10000) { aviso('Preço inválido'); e.target.value = Number(p.preco).toFixed(2); return; }
-      if (novo === Number(p.preco)) return;
-      const r = await atualizar('produtos', p.id, { preco: novo }, 'Preço atualizado: ' + brl.format(novo));
-      if (r) p.preco = r.preco; else e.target.value = Number(p.preco).toFixed(2);
-    });
-
-    $('form-produto').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = $('p-nome').value.trim(), preco = num($('p-preco').value);
-      if (nome.length < 2) return aviso('Informe o nome');
-      if (!(preco > 0) || preco > 10000) return aviso('Preço inválido');
-      const b = $('btn-cadastrar'); b.disabled = true;
-      const { error } = await sb.from('produtos').insert([{
-        restaurante_id: rest.id, nome, preco, disponivel: true,
-        categoria: $('p-categoria').value.trim() || 'Geral', descricao: $('p-descricao').value.trim() || null
-      }]);
-      b.disabled = false;
-      if (error) return tratarErro(error, 'Erro ao cadastrar.');
-      $('form-produto').reset(); aviso('Produto cadastrado'); carregarProdutos();
-    });
-    $('btn-toggle-form').addEventListener('click', () => {
-      const f = $('form-produto'); f.classList.toggle('hidden');
-      $('seta-form').innerText = f.classList.contains('hidden') ? '▼' : '▲';
-    });
-
-    // ---------- Entrega: restaurante ----------
-    function preencherRestaurante() {
-      $('r-nome').value = rest.nome || ''; $('r-whatsapp').value = rest.whatsapp || '';
-      $('r-taxa-base').value = rest.taxa_base ?? ''; $('r-valor-km').value = rest.valor_km ?? '';
-      $('r-lat').value = rest.loja_lat ?? ''; $('r-lon').value = rest.loja_lon ?? '';
-    }
-    $('btn-salvar-rest').addEventListener('click', async () => {
-      const nome = $('r-nome').value.trim(), taxa_base = num($('r-taxa-base').value), valor_km = num($('r-valor-km').value);
-      const lat = num($('r-lat').value), lon = num($('r-lon').value);
-      if (nome.length < 2) return aviso('Informe o nome');
-      if (!(taxa_base >= 0) || !(valor_km >= 0)) return aviso('Taxa base e valor por km são obrigatórios');
-      if ((lat !== null && Math.abs(lat) > 90) || (lon !== null && Math.abs(lon) > 180)) return aviso('Coordenadas inválidas');
-      const b = $('btn-salvar-rest'); b.disabled = true;
-      const r = await atualizar('restaurantes', rest.id, {
-        nome, taxa_base, valor_km, loja_lat: lat, loja_lon: lon,
-        whatsapp: $('r-whatsapp').value.replace(/\D/g, '') || null
-      }, 'Dados salvos');
-      b.disabled = false;
-      if (r) { rest = r; $('rest-nome').innerText = rest.nome; }
-    });
-
-    // ---------- Entrega: bairros ----------
-    async function carregarBairros() {
-      const { data, error } = await sb.from('bairros').select('*').eq('restaurante_id', rest.id).order('nome');
-      if (error) { tratarErro(error, 'Erro ao carregar bairros.'); return; }
-      bairros = data || []; renderBairros();
-    }
-    function renderBairros() {
-      $('lista-bairros').innerHTML = bairros.length ? bairros.map((b) => `
-        <div class="flex items-center gap-2 p-2 border rounded-lg ${b.ativo ? 'bg-white' : 'bg-gray-50 opacity-60'}">
-          <span class="flex-1 min-w-0 text-sm font-semibold truncate">${esc(b.nome)}</span>
-          <input data-btaxa="${esc(b.id)}" type="number" step="0.01" min="0" inputmode="decimal" value="${Number(b.taxa ?? 0).toFixed(2)}" aria-label="Taxa de ${esc(b.nome)}" class="w-20 p-2 border rounded-lg bg-gray-50 text-sm" />
-          <input data-btempo="${esc(b.id)}" maxlength="20" value="${esc(b.tempo_estimado || '')}" aria-label="Tempo de ${esc(b.nome)}" class="w-24 p-2 border rounded-lg bg-gray-50 text-xs" />
-          <button data-bativo="${esc(b.id)}" class="px-2 py-2 text-xs font-bold rounded-lg border ${b.ativo ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-green-50 text-green-700 border-green-200'}">${b.ativo ? 'Pausar' : 'Ativar'}</button>
-        </div>`).join('') : '<p class="text-sm text-gray-500">Nenhum bairro cadastrado.</p>';
-    }
-    $('lista-bairros').addEventListener('change', async (e) => {
-      const el = e.target, id = el.dataset.btaxa || el.dataset.btempo, b = achar(bairros, id);
-      if (!b) return;
-      if (el.matches('[data-btaxa]')) {
-        const v = num(el.value);
-        if (!(v >= 0) || v > 1000) { aviso('Taxa inválida'); el.value = Number(b.taxa).toFixed(2); return; }
-        const r = await atualizar('bairros', b.id, { taxa: v }, 'Taxa de ' + b.nome + ': ' + brl.format(v));
-        if (r) b.taxa = r.taxa; else el.value = Number(b.taxa).toFixed(2);
-      } else if (el.matches('[data-btempo]')) {
-        const r = await atualizar('bairros', b.id, { tempo_estimado: el.value.trim() || null }, 'Tempo atualizado');
-        if (r) b.tempo_estimado = r.tempo_estimado; else el.value = b.tempo_estimado || '';
-      }
-    });
-    $('lista-bairros').addEventListener('click', async (e) => {
-      const t = e.target.closest('[data-bativo]'); if (!t) return;
-      const b = achar(bairros, t.dataset.bativo); if (!b) return;
-      const r = await atualizar('bairros', b.id, { ativo: !b.ativo }, b.ativo ? 'Bairro pausado' : 'Bairro ativado');
-      if (r) { b.ativo = r.ativo; renderBairros(); }
-    });
-    $('form-bairro').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const nome = $('b-nome').value.trim(), taxa = num($('b-taxa').value);
-      if (nome.length < 2) return aviso('Informe o bairro');
-      if (!(taxa >= 0) || taxa > 1000) return aviso('Taxa inválida');
-      const { error } = await sb.from('bairros').insert([{
-        restaurante_id: rest.id, nome, taxa, tempo_estimado: $('b-tempo').value.trim() || null, ativo: true
-      }]);
-      if (error) return tratarErro(error, /duplicate|unique/i.test(error.message || '') ? 'Esse bairro já existe.' : 'Erro ao cadastrar.');
-      $('form-bairro').reset(); aviso('Bairro cadastrado'); carregarBairros();
-    });
-
-    // ---------- Configurações / Troca de Senha ----------
-    $('form-senha').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const novaSenha = $('nova-senha').value;
-      const confirmaSenha = $('confirma-senha').value;
-
-      if (novaSenha.length < 6) return aviso('A nova senha deve ter no mínimo 6 caracteres.');
-      if (novaSenha !== confirmaSenha) return aviso('As senhas digitadas não coincidem.');
-
-      const b = $('btn-alterar-senha');
-      b.disabled = true;
-      b.innerText = 'Alterando...';
-
-      const { error } = await sb.auth.updateUser({ password: novaSenha });
-      b.disabled = false;
-      b.innerText = 'Alterar Senha';
-
-      if (error) return tratarErro(error, 'Erro ao alterar a senha.');
-
-      $('form-senha').reset();
-      aviso('Senha alterada com sucesso!');
-    });
-
-    checarSessao();
-  </script>
+  <script type="module" src="./js/admin.js"></script>
 </body>
 </html>
