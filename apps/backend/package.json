@@ -1,12 +1,13 @@
 {
   "name": "delivery-backend",
   "version": "1.0.0",
-  "description": "Backend para Micro-SaaS de Delivery (WhatsApp + Asaas + OSRM)",
+  "description": "Backend para Micro-SaaS de Delivery",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
