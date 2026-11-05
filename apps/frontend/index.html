@@ -1,95 +1,14 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cardápio Digital</title>
-  <link rel="stylesheet" href="styles.css" />
-  <link id="link-manifest" rel="manifest" href="manifest.json" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-  <meta name="theme-color" content="#0F172A" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-</head>
-<body class="bg-gray-100 text-gray-800 antialiased pb-32">
-
-  <div id="app-container">
-    <header class="bg-slate-900 text-white p-4 sticky top-0 z-10 shadow-md">
-      <div class="max-w-md mx-auto">
-        <h1 id="rest-nome" class="font-bold text-xl">Carregando...</h1>
-        <p class="text-xs text-orange-300">Cardápio digital</p>
-      </div>
-    </header>
-
-    <main class="max-w-md mx-auto p-4 space-y-6">
-      <div id="aviso-config" class="hidden bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
-        Configure SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar.
-      </div>
-
-      <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <label for="select-bairro" class="block text-sm font-semibold mb-2">Seu bairro:</label>
-        <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500">
-          <option value="">Carregando bairros...</option>
-        </select>
-        <div class="mt-2 text-xs text-gray-500 flex justify-between">
-          <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
-          <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
-        </div>
-      </section>
-
-      <section>
-        <h2 class="font-bold text-lg mb-3">Cardápio</h2>
-        <div id="lista-produtos" class="space-y-3">
-          <p class="text-sm text-gray-500">Carregando produtos...</p>
-        </div>
-      </section>
-
-      <section id="secao-carrinho" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hidden">
-        <h2 class="font-bold text-lg mb-3">Seu pedido</h2>
-        <div id="lista-carrinho" class="space-y-2"></div>
-      </section>
-
-      <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
-        <h2 class="font-bold text-lg">Seus dados</h2>
-        <div>
-          <label for="cli-nome" class="block text-sm font-semibold mb-1">Nome</label>
-          <input id="cli-nome" type="text" autocomplete="name" maxlength="80"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label for="cli-fone" class="block text-sm font-semibold mb-1">WhatsApp (com DDD)</label>
-          <input id="cli-fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label for="cli-endereco" class="block text-sm font-semibold mb-1">Endereço (rua, número, complemento)</label>
-          <textarea id="cli-endereco" rows="2" maxlength="200"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500"></textarea>
-        </div>
-      </section>
-    </main>
-
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
-      <div class="max-w-md mx-auto flex justify-between items-center">
-        <div>
-          <p class="text-xs text-gray-500">Total com entrega (<span id="qtd-itens">0</span> itens)</p>
-          <p id="total-carrinho" class="text-xl font-bold text-gray-900">R$ 0,00</p>
-        </div>
-        <button id="btn-enviar"
-          class="bg-green-600 text-white font-bold px-6 py-3 rounded-xl shadow hover:bg-green-700 transition disabled:opacity-60">
-          Enviar Pedido
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // ====== CONFIGURAÇÃO (mantenha as chaves reais do seu repositório ao colar este arquivo) ======
+<script>
+    // ====== CONFIGURAÇÃO ======
     const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_raTvDULM2YDmTngVIOM11g_CZe6jZWj';
-    // Restaurante usado quando o link não tem ?r=. Ao vender para outros donos, troque por null
-    // (aí o link sem ?r= mostra "Link inválido").
+    
+    // URL oficial do seu Backend no Render
+    const API_BACKEND_URL = 'https://cardapio-delivery-backend.onrender.com';
+    
+    // Restaurante padrão (quando o link não possui ?r=slug)
     const SLUG_PADRAO = 'imperial';
-    // ===============================================================================================
+    // ==========================
 
     const configurado = !SUPABASE_URL.includes('SUA_') && !SUPABASE_ANON_KEY.includes('SUA_');
     const supabaseClient = configurado ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
@@ -133,8 +52,7 @@
       await Promise.all([carregarBairros(), carregarProdutos()]);
     }
 
-    // ---------- PWA ----------
-    // Manifest por restaurante: o app instalado abre no cardápio certo (?r=slug)
+    // ---------- PWA Dynamic Manifest ----------
     function ajustarManifest(r) {
       try {
         const base = new URL('.', location.href).href;
@@ -183,7 +101,7 @@
       atualizarTotal();
     }
 
-    // ---------- Produtos (agrupados por categoria) ----------
+    // ---------- Produtos ----------
     async function carregarProdutos() {
       const container = $('lista-produtos');
       const { data, error } = await supabaseClient.from('produtos').select('id, nome, descricao, preco, categoria')
@@ -207,7 +125,7 @@
           <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-3">
             <div>
               <h4 class="font-bold text-gray-800">${esc(p.nome)}</h4>
-              <p class="text-xs text-gray-500">${esc(p.descricao)}</p>
+              <p class="text-xs text-gray-500">${esc(p.descricao || '')}</p>
               <p class="text-sm font-semibold text-orange-600 mt-1">${brl.format(parseFloat(p.preco) || 0)}</p>
             </div>
             <button data-add="${esc(p.id)}"
@@ -281,12 +199,13 @@
       } catch (e) { /* ignora */ }
     }
 
-    // ---------- Envio do pedido ----------
+    // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
     async function finalizarPedido() {
       const select = $('select-bairro');
       const nome = $('cli-nome').value.trim();
       const fone = $('cli-fone').value.replace(/\D/g, '');
       const endereco = $('cli-endereco').value.trim();
+      const optionSelecionada = select.options[select.selectedIndex];
 
       if (!select.value) return alert('Selecione seu bairro antes de enviar o pedido.');
       if (carrinho.length === 0) return alert('Seu carrinho está vazio.');
@@ -294,50 +213,68 @@
       if (fone.length < 10 || fone.length > 11) return alert('Informe um WhatsApp válido com DDD.');
       if (endereco.length < 5) return alert('Informe seu endereço de entrega.');
 
-      const subtotal = calcularSubtotal();
       const botao = $('btn-enviar');
       botao.disabled = true;
       botao.innerText = 'Enviando...';
 
-      // O banco recalcula preços e taxa; os valores abaixo são só informativos.
-      const { error } = await supabaseClient.from('pedidos').insert([{
+      // Monta o payload padronizado para a API do Render
+      const payloadPedido = {
         restaurante_id: restauranteInfo.id,
         cliente_nome: nome,
-        cliente_phone: fone,
+        cliente_whatsapp: fone,
         endereco_completo: endereco,
-        bairro: select.options[select.selectedIndex].text,
-        itens: carrinho.map((i) => ({ id: i.id, nome: i.nome, preco: i.preco, qtd: i.qtd })),
-        subtotal: subtotal,
-        taxa_entrega: taxaAtual,
-        total: subtotal + taxaAtual,
-        forma_pagamento: 'Pix',
-        status: 'pendente_pagamento'
-      }]);
+        bairro_id: select.value,
+        bairro_nome: optionSelecionada ? optionSelecionada.text : null,
+        itens: carrinho.map(item => ({
+          produto_id: item.id,
+          quantidade: item.qtd
+        })),
+        forma_pagamento: 'pix',
+        troco_para: null,
+        observacao_geral: ''
+      };
 
-      botao.disabled = false;
-      botao.innerText = 'Enviar Pedido';
+      try {
+        const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payloadPedido)
+        });
 
-      if (error) {
-        console.error(error);
-        const msg = error.message || '';
-        if (/indispon|inválido|outro restaurante|Bairro não atendido|PRECO_DESATUALIZADO|BAIRRO_INVALIDO|PEDIDO_INVALIDO/i.test(msg)) {
-          // Cardápio ou bairro mudou desde que a página abriu: recarrega e pede conferência.
-          carrinho = [];
-          renderCarrinho();
-          await Promise.all([carregarBairros(), carregarProdutos()]);
-          select.value = '';
-          atualizarTaxa();
-          return alert('O cardápio foi atualizado. Confira os itens e o bairro e envie de novo.');
+        const resultado = await resposta.json();
+
+        botao.disabled = false;
+        botao.innerText = 'Enviar Pedido';
+
+        if (!resposta.ok) {
+          const msgErro = resultado.erro || 'Não foi possível processar seu pedido.';
+          alert(`Atenção: ${msgErro}`);
+
+          if (resposta.status === 422 || resposta.status === 400) {
+            carrinho = [];
+            renderCarrinho();
+            await Promise.all([carregarBairros(), carregarProdutos()]);
+          }
+          return;
         }
-        return alert('Erro ao enviar pedido. Tente novamente.');
-      }
 
-      salvarDadosCliente();
-      alert('Pedido enviado com sucesso! Aguarde o contato da cozinha.');
-      carrinho = [];
-      renderCarrinho();
-      select.value = '';
-      atualizarTaxa();
+        // Sucesso na transação!
+        salvarDadosCliente();
+        alert(`Pedido #${resultado.pedido.id.slice(0, 8)} enviado com sucesso! Aguarde o contato da cozinha.`);
+        
+        carrinho = [];
+        renderCarrinho();
+        select.value = '';
+        atualizarTaxa();
+
+      } catch (error) {
+        console.error('[ERRO CONEXÃO]:', error);
+        botao.disabled = false;
+        botao.innerText = 'Enviar Pedido';
+        alert('O servidor está inicializando ou indisponível no momento. Por favor, aguarde alguns segundos e tente novamente.');
+      }
     }
 
     // ---------- Eventos ----------
@@ -358,5 +295,3 @@
 
     init();
   </script>
-</body>
-</html>
