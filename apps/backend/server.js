@@ -3,7 +3,12 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import process from 'node:process';
 import { supabaseAdmin } from './src/config/supabase.js';
-import { calcularDistanciaKm } from './src/services/frete.js';
+import { 
+  configurarFrete, 
+  calcularFrete, 
+  criarLimitadorDeRequisicoes, 
+  FreteError 
+} from './src/services/frete.js';
 import { criarPedido } from './src/controllers/pedidosController.js';
 
 dotenv.config();
@@ -11,59 +16,68 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// O Render fica atrás de um Reverse Proxy (necessário para ler o IP real no Rate Limiter)
+app.set('trust proxy', 1);
+
 // ==========================================
-// 1. MIDDLEWARES DE SEGURANÇA E PARSER
+// 1. INICIALIZAÇÃO DO MOTOR DE FRETE
+// ==========================================
+configurarFrete({
+  buscarTaxaBairro: async ({ restauranteId, bairro }) => {
+    const { data, error } = await supabaseAdmin
+      .from('bairros')
+      .select('id, nome, taxa')
+      .eq('restaurante_id', restauranteId)
+      .ilike('nome', bairro.trim())
+      .eq('ativo', true)
+      .maybeSingle();
+
+    if (error || !data) return null;
+    return { id: data.id, nome: data.nome, taxa: data.taxa };
+  }
+});
+
+// ==========================================
+// 2. MIDDLEWARES DE SEGURANÇA E RATE LIMIT
 // ==========================================
 
-// Configuração estrita de CORS para evitar abusos externos
-const origensPermitidas = [
-  process.env.FRONTEND_URL || 'http://localhost:5173',
-  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null
+const origensValidas = [
+  process.env.FRONTEND_URL,
+  process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null,
+  'http://localhost:5173',
+  'http://localhost:3000'
 ].filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permite requisições sem origin (como apps mobile/PWA nativos ou ferramentas de dev)
-    if (!origin || origensPermitidas.some(o => origin.startsWith(o))) {
-      return callback(null, true);
+    if (!origin) return callback(null, true);
+    try {
+      const urlOrigin = new URL(origin).origin;
+      const permitida = origensValidas.some(o => {
+        try { return new URL(o).origin === urlOrigin; } catch { return false; }
+      });
+      if (permitida) return callback(null, true);
+    } catch {
+      // URL malformada
     }
-    return callback(new Error('Bloqueado pelas políticas de CORS do SaaS.'));
+    return callback(new Error('Bloqueado pelas políticas de segurança CORS do SaaS.'));
   },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Desativa o cabeçalho X-Powered-By por questões de segurança
 app.disable('x-powered-by');
-
-// Limite rigoroso de tamanho do payload para evitar ataques de estouro de memória
 app.use(express.json({ limit: '10kb' }));
 
-// ==========================================
-// 2. HELPER DE VALIDAÇÃO E SANITIZAÇÃO
-// ==========================================
-
-function validarCoordenadas(lat, lon) {
-  const latitude = Number(lat);
-  const longitude = Number(lon);
-  
-  const latValida = Number.isFinite(latitude) && Math.abs(latitude) <= 90;
-  const lonValida = Number.isFinite(longitude) && Math.abs(longitude) <= 180;
-  
-  return latValida && lonValida ? { lat: latitude, lon: longitude } : null;
-}
-
-function sanitizarErro(err) {
-  // Garante que senhas, tokens ou URLs internas com chaves não vazem nos logs
-  const mensagem = String(err?.message || err || 'Erro desconhecido');
-  return mensagem.replace(/(access_token|key|secret|password)=[^&]*/gi, '$1=***REDACTED***');
-}
+// Rate Limit em memória exportado pelo frete.js (30 requisições/min por IP)
+const limitadorGeral = criarLimitadorDeRequisicoes({ janelaMs: 60_000, max: 30 });
+app.use('/api/', limitadorGeral);
 
 // ==========================================
 // 3. ROTAS OPERACIONAIS
 // ==========================================
 
-// Rota de Health Check (Monitorização de Uptime)
+// Health Check (Monitoramento de Uptime)
 app.get('/health', (_req, res) => {
   res.status(200).json({ 
     status: 'OK', 
@@ -72,120 +86,75 @@ app.get('/health', (_req, res) => {
   });
 });
 
-// Endpoint Seguro de Cotação de Frete Híbrido
+// Endpoint Seguro de Cotação de Frete (Consome o frete.js)
 app.post('/api/frete/cotar', async (req, res) => {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000); // Timeout global de 6s
-
   try {
-    const { restaurante_id, cliente_lat, cliente_lon, bairro_id } = req.body || {};
+    const { restaurante_id, cliente_lat, cliente_lon, bairro_nome, bairro_id } = req.body || {};
 
     if (!restaurante_id || typeof restaurante_id !== 'string') {
-      clearTimeout(timeoutId);
-      return res.status(400).json({ erro: 'ID do restaurante é obrigatório e deve ser válido.' });
+      return res.status(400).json({ erro: 'ID do restaurante é obrigatório.' });
     }
 
-    // 1. Busca configurações reais da loja no banco (Bypass seguro via Service Role)
     const { data: rest, error: restErro } = await supabaseAdmin
       .from('restaurantes')
-      .select('loja_lat, loja_lon, taxa_base, valor_km, ativo, raio_max_km')
+      .select('id, ativo, taxa_base, valor_km, raio_max_km, loja_lat, loja_lon')
       .eq('id', restaurante_id)
       .maybeSingle();
 
-    if (restErro) {
-      throw new Error(`Erro ao consultar restaurante: ${restErro.message}`);
-    }
-
+    if (restErro) throw new Error(`Erro ao consultar restaurante: ${restErro.message}`);
     if (!rest || !rest.ativo) {
-      clearTimeout(timeoutId);
-      return res.status(404).json({ erro: 'Restaurante não localizado ou com operações pausadas.' });
+      return res.status(404).json({ erro: 'Restaurante inativo ou não localizado.' });
     }
 
-    // 2. Opção A: Cálculo Híbrido por GPS
-    if (cliente_lat !== undefined && cliente_lon !== undefined) {
-      const coordsCliente = validarCoordenadas(cliente_lat, cliente_lon);
-      const coordsLoja = validarCoordenadas(rest.loja_lat, rest.loja_lon);
-
-      if (!coordsCliente) {
-        clearTimeout(timeoutId);
-        return res.status(400).json({ erro: 'Coordenadas de latitude/longitude do cliente são inválidas.' });
-      }
-
-      if (!coordsLoja) {
-        clearTimeout(timeoutId);
-        return res.status(422).json({ erro: 'Coordenadas geográficas da loja não estão configuradas no painel.' });
-      }
-
-      // Calcula distância por rota real com fallback defensivo interno
-      const distanciaKm = await calcularDistanciaKm(
-        coordsLoja.lat, 
-        coordsLoja.lon, 
-        coordsCliente.lat, 
-        coordsCliente.lon,
-        { signal: controller.signal }
-      );
-
-      // Validação de raio máximo de atendimento
-      if (rest.raio_max_km > 0 && distanciaKm > rest.raio_max_km) {
-        clearTimeout(timeoutId);
-        return res.status(400).json({ 
-          erro: `Endereço fora da área de entrega. Distância (${distanciaKm}km) excede o raio máximo de ${rest.raio_max_km}km.` 
-        });
-      }
-
-      const taxaCalculada = Number(rest.taxa_base) + (distanciaKm * Number(rest.valor_km));
-      clearTimeout(timeoutId);
-
-      return res.status(200).json({
-        tipo: 'gps',
-        distancia_km: Number(distanciaKm.toFixed(2)),
-        taxa: Number(taxaCalculada.toFixed(2))
-      });
-    }
-
-    // 3. Opção B: Cálculo por Tabela de Bairros (Fallback)
-    if (bairro_id) {
-      const { data: bairro, error: bairroErro } = await supabaseAdmin
+    let nomeBairro = bairro_nome || null;
+    if (bairro_id && !nomeBairro) {
+      const { data: bData } = await supabaseAdmin
         .from('bairros')
-        .select('taxa, tempo_estimado, ativo')
+        .select('nome')
         .eq('id', bairro_id)
-        .eq('restaurante_id', restaurante_id)
+        .eq('restaurante_id', rest.id)
         .maybeSingle();
-
-      if (bairroErro) {
-        throw new Error(`Erro ao consultar tabela de bairros: ${bairroErro.message}`);
-      }
-
-      if (!bairro || !bairro.ativo) {
-        clearTimeout(timeoutId);
-        return res.status(404).json({ erro: 'Bairro selecionado não é atendido por este estabelecimento.' });
-      }
-
-      clearTimeout(timeoutId);
-      return res.status(200).json({
-        tipo: 'bairro',
-        taxa: Number(Number(bairro.taxa).toFixed(2)),
-        tempo: bairro.tempo_estimado || '40-50 min'
-      });
+      if (bData) nomeBairro = bData.nome;
     }
 
-    clearTimeout(timeoutId);
-    return res.status(400).json({ erro: 'Informe as coordenadas de GPS ou selecione um bairro válido.' });
+    const resultadoFrete = await calcularFrete({
+      restaurante: rest,
+      destino: (cliente_lat !== undefined && cliente_lon !== undefined)
+        ? { lat: cliente_lat, lon: cliente_lon }
+        : null,
+      bairro: nomeBairro
+    });
+
+    return res.status(200).json({
+      sucesso: true,
+      tipo: resultadoFrete.frete_tipo,
+      taxa: resultadoFrete.taxa,
+      taxa_centavos: resultadoFrete.taxa_centavos,
+      distancia_km: resultadoFrete.distancia_km,
+      estimado: resultadoFrete.estimado,
+      requer_confirmacao: resultadoFrete.requer_confirmacao,
+      bairro: resultadoFrete.bairro,
+      cache: resultadoFrete.cache
+    });
 
   } catch (error) {
-    clearTimeout(timeoutId);
-    console.error('[ERRO INTERNO - COTAR FRETE]:', sanitizarErro(error));
-    
-    return res.status(500).json({ 
-      erro: 'Não foi possível processar a cotação de frete no momento. Tente novamente em instantes.' 
-    });
+    if (error instanceof FreteError) {
+      return res.status(error.status).json({ 
+        erro: error.message, 
+        codigo: error.code,
+        detalhes: error.detalhes 
+      });
+    }
+
+    console.error('[ERRO COTAÇÃO FRETE]:', error.message);
+    return res.status(500).json({ erro: 'Não foi possível cotar o frete no momento.' });
   }
 });
 
 // Endpoint Seguro de Criação de Pedidos (Zero-Trust)
 app.post('/api/pedidos', criarPedido);
 
-// Rota coringa para tratar endpoints inexistentes (404)
+// Rota 404 para URLs não encontradas
 app.use((_req, res) => {
   res.status(404).json({ erro: 'Recurso não encontrado no servidor.' });
 });
@@ -195,14 +164,13 @@ app.use((_req, res) => {
 // ==========================================
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 [Sonnet-G Engine] Servidor SaaS rodando na porta ${PORT}`);
+  console.log(`🚀 [Sonnet-G Engine] Servidor SaaS operacional na porta ${PORT}`);
 });
 
-// Tratamento de encerramento gracioso (evita conexões pendentes no Render)
 function fecharServidor(sinal) {
-  console.log(`\nRecebido ${sinal}. Encerrando conexões graciosamente...`);
+  console.log(`\nRecebido ${sinal}. Encerrando o servidor graciosamente...`);
   server.close(() => {
-    console.log('Servidor HTTP finalizado com sucesso.');
+    console.log('Servidor HTTP encerrado com sucesso.');
     process.exit(0);
   });
 }
