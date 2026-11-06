@@ -2,105 +2,192 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Cardápio Digital</title>
-  <link rel="stylesheet" href="styles.css" />
   <link id="link-manifest" rel="manifest" href="manifest.json" />
   <link rel="apple-touch-icon" href="icon-192.png" />
-  <meta name="theme-color" content="#0F172A" />
-  
-  <!-- CDN Supabase com bundle UMD explícito (garante o objeto global window.supabase) -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <meta id="meta-theme" name="theme-color" content="#16171A" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ===== Tema (a loja sobrescreve --cor, --cor-texto e --fundo pelo cadastro) ===== */
+    :root {
+      --cor: #C2410C;          /* cor principal da loja */
+      --cor-texto: #FFFFFF;    /* texto sobre a cor principal (calculado pelo contraste) */
+      --fundo: #FBF7F0;
+      --texto: #25262A;
+      --suave: #5A5648;
+      --borda: #EFE7D6;
+      --grafite: #16171A;
+      --dourado: #C9A24B;
+      --erro: #B42318;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0; padding-bottom: calc(112px + env(safe-area-inset-bottom, 0px));
+      background: var(--fundo); color: var(--texto);
+      font-family: Manrope, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.4; -webkit-font-smoothing: antialiased;
+    }
+    h1, h2, h3, h4, p { margin: 0; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+    :focus-visible { outline: 3px solid var(--cor); outline-offset: 2px; }
+
+    /* ===== Cabeçalho ===== */
+    .topo { padding: 20px 0 12px; }
+    .loja { display: flex; gap: 12px; align-items: center; }
+    .logo-box { position: relative; width: 56px; height: 56px; flex: none; border-radius: 50%; overflow: hidden; background: var(--grafite); }
+    .logo-box .ini { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--dourado); font: 700 20px Fraunces, Georgia, serif; }
+    .logo-box img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; background: #fff; }
+    .loja h1 { font: 700 21px/1.15 Fraunces, Georgia, serif; }
+    .loja p { font-size: 12.5px; color: var(--suave); margin-top: 3px; }
+    .banner { display: block; width: 100%; height: 112px; object-fit: cover; border-radius: 16px; margin-top: 14px; background: var(--borda); }
+    .aviso { background: #FEF3C7; border: 1px solid #FCD34D; color: #78350F; font-size: 14px; padding: 12px; border-radius: 12px; margin: 12px 0; }
+
+    /* ===== Busca e categorias ===== */
+    .barra { position: sticky; top: 0; z-index: 10; background: var(--fundo); padding: 8px 0 10px; border-bottom: 1px solid var(--borda); }
+    .busca { width: 100%; height: 46px; border: 1px solid #E4DCCB; border-radius: 12px; padding: 0 14px; font-size: 16px; background: #fff; }
+    .chips { display: flex; gap: 8px; margin-top: 8px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chip { flex: none; height: 44px; padding: 0 16px; border-radius: 999px; border: 1px solid #E4DCCB; background: #fff; font-size: 14px; font-weight: 700; }
+    .chip[aria-pressed="true"] { background: var(--cor); border-color: var(--cor); color: var(--cor-texto); }
+
+    /* ===== Produtos ===== */
+    .cat { font: 700 18px Fraunces, Georgia, serif; margin: 22px 0 10px; scroll-margin-top: 140px; }
+    .card { position: relative; display: flex; gap: 12px; align-items: center; background: #fff; border: 1px solid var(--borda); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+    .card .foto { width: 84px; height: 84px; flex: none; border-radius: 10px; object-fit: cover; background: var(--borda); order: 2; }
+    .card .info { flex: 1; min-width: 0; order: 1; }
+    .card h4 { font-size: 15.5px; font-weight: 700; }
+    .card .desc { font-size: 12.5px; color: var(--suave); margin-top: 2px; }
+    .card .preco { font-size: 16px; font-weight: 800; margin-top: 6px; }
+    .add { position: relative; flex: none; order: 3; width: 44px; height: 44px; border: 0; border-radius: 12px; background: var(--cor); color: var(--cor-texto); font-size: 24px; font-weight: 700; line-height: 1; }
+    .add:active { transform: scale(.96); }
+    .badge { position: absolute; top: -8px; right: -8px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px; background: var(--grafite); color: #fff; border: 2px solid #fff; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+    .vazio { text-align: center; color: var(--suave); font-size: 14px; padding: 28px 0; }
+
+    /* ===== Blocos de pedido ===== */
+    .bloco { background: #fff; border: 1px solid var(--borda); border-radius: 16px; padding: 16px; margin-top: 18px; }
+    .bloco h2 { font: 700 19px Fraunces, Georgia, serif; margin-bottom: 12px; }
+    .linha-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 14px; padding: 6px 0; }
+    .linha-item small { display: block; color: var(--suave); font-size: 12px; }
+    .qtd { display: flex; align-items: center; gap: 4px; }
+    .qtd button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid #E4DCCB; background: #fff; font-size: 20px; font-weight: 700; }
+    .qtd span { width: 24px; text-align: center; font-weight: 800; }
+    label.campo { display: block; font-size: 13px; font-weight: 700; margin: 12px 0 5px; }
+    label.campo:first-of-type { margin-top: 0; }
+    .entrada { width: 100%; min-height: 46px; border: 1px solid #E4DCCB; border-radius: 12px; padding: 10px 12px; font-size: 16px; background: #fff; }
+    textarea.entrada { resize: vertical; }
+    .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--suave); }
+    .meta strong { color: var(--texto); }
+
+    /* ===== Barra do carrinho (fixa) ===== */
+    .carrinho-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--grafite); color: #F2EFE8; padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 20px rgba(0,0,0,.18); }
+    .carrinho-barra .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .carrinho-barra .rot { font-size: 12px; color: #B9B5A8; }
+    .carrinho-barra .tot { font-size: 21px; font-weight: 800; color: var(--dourado); }
+    #btn-enviar { height: 52px; padding: 0 22px; border: 0; border-radius: 14px; background: var(--cor); color: var(--cor-texto); font-size: 16px; font-weight: 800; }
+    #btn-enviar:disabled { opacity: .6; cursor: default; }
+  </style>
 </head>
-<body class="bg-gray-100 text-gray-800 antialiased pb-32">
+<body>
 
   <div id="app-container">
-    <header class="bg-slate-900 text-white p-4 sticky top-0 z-10 shadow-md">
-      <div class="max-w-md mx-auto">
-        <h1 id="rest-nome" class="font-bold text-xl">Carregando...</h1>
-        <p class="text-xs text-orange-300">Cardápio digital</p>
-      </div>
-    </header>
+    <div class="wrap">
+      <header class="topo">
+        <div class="loja">
+          <div class="logo-box" id="logo-box">
+            <span class="ini" id="rest-ini" aria-hidden="true"></span>
+          </div>
+          <div>
+            <h1 id="rest-nome">Carregando...</h1>
+            <p id="info-entrega">Cardápio digital</p>
+          </div>
+        </div>
+        <div id="area-banner"></div>
+        <div id="aviso-config" class="aviso hidden">
+          Configure SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar.
+        </div>
+      </header>
+    </div>
 
-    <main class="max-w-md mx-auto p-4 space-y-6">
-      <div id="aviso-config" class="hidden bg-yellow-100 border border-yellow-300 text-yellow-800 text-sm p-3 rounded-lg">
-        Configure SUPABASE_URL e SUPABASE_ANON_KEY no código antes de usar.
+    <div class="barra">
+      <div class="wrap">
+        <label for="busca" class="sr-only">Buscar no cardápio</label>
+        <input id="busca" class="busca" type="search" placeholder="Buscar no cardápio" autocomplete="off" />
+        <div id="chips" class="chips" role="group" aria-label="Categorias"></div>
       </div>
+    </div>
 
-      <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <label for="select-bairro" class="block text-sm font-semibold mb-2">Seu bairro:</label>
-        <select id="select-bairro" class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500">
+    <main class="wrap">
+      <section id="lista-produtos" aria-live="polite">
+        <p class="vazio">Carregando produtos...</p>
+      </section>
+
+      <section id="secao-carrinho" class="bloco hidden">
+        <h2>Seu pedido</h2>
+        <div id="lista-carrinho"></div>
+      </section>
+
+      <section class="bloco">
+        <h2>Entrega</h2>
+        <label for="select-bairro" class="campo">Seu bairro</label>
+        <select id="select-bairro" class="entrada">
           <option value="">Carregando bairros...</option>
         </select>
-        <div class="mt-2 text-xs text-gray-500 flex justify-between">
+        <div class="meta">
           <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
           <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
         </div>
       </section>
 
-      <section>
-        <h2 class="font-bold text-lg mb-3">Cardápio</h2>
-        <div id="lista-produtos" class="space-y-3">
-          <p class="text-sm text-gray-500">Carregando produtos...</p>
-        </div>
-      </section>
-
-      <section id="secao-carrinho" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 hidden">
-        <h2 class="font-bold text-lg mb-3">Seu pedido</h2>
-        <div id="lista-carrinho" class="space-y-2"></div>
-      </section>
-
-      <section class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 space-y-3">
-        <h2 class="font-bold text-lg">Seus dados</h2>
-        <div>
-          <label for="cli-nome" class="block text-sm font-semibold mb-1">Nome</label>
-          <input id="cli-nome" type="text" autocomplete="name" maxlength="80"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label for="cli-fone" class="block text-sm font-semibold mb-1">WhatsApp (com DDD)</label>
-          <input id="cli-fone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500" />
-        </div>
-        <div>
-          <label for="cli-endereco" class="block text-sm font-semibold mb-1">Endereço (rua, número, complemento)</label>
-          <textarea id="cli-endereco" rows="2" maxlength="200"
-            class="w-full p-2.5 border rounded-lg bg-gray-50 text-sm outline-none focus:ring-2 focus:ring-orange-500"></textarea>
-        </div>
+      <section class="bloco">
+        <h2>Seus dados</h2>
+        <label for="cli-nome" class="campo">Nome</label>
+        <input id="cli-nome" class="entrada" type="text" autocomplete="name" maxlength="80" />
+        <label for="cli-fone" class="campo">WhatsApp (com DDD)</label>
+        <input id="cli-fone" class="entrada" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16" />
+        <label for="cli-endereco" class="campo">Endereço (rua, número, complemento)</label>
+        <textarea id="cli-endereco" class="entrada" rows="2" maxlength="200"></textarea>
       </section>
     </main>
 
-    <div class="fixed bottom-0 left-0 right-0 bg-white border-t p-4 shadow-lg z-20">
-      <div class="max-w-md mx-auto flex justify-between items-center">
+    <div class="carrinho-barra">
+      <div class="wrap">
         <div>
-          <p class="text-xs text-gray-500">Total com entrega (<span id="qtd-itens">0</span> itens)</p>
-          <p id="total-carrinho" class="text-xl font-bold text-gray-900">R$ 0,00</p>
+          <p class="rot">Total com entrega (<span id="qtd-itens">0</span> itens)</p>
+          <p id="total-carrinho" class="tot">R$ 0,00</p>
         </div>
-        <button id="btn-enviar"
-          class="bg-green-600 text-white font-bold px-6 py-3 rounded-xl shadow hover:bg-green-700 transition disabled:opacity-60">
-          Enviar Pedido
-        </button>
+        <button id="btn-enviar" type="button">Enviar Pedido</button>
       </div>
     </div>
   </div>
 
+  <!-- CDN Supabase com bundle UMD explícito (garante o objeto global window.supabase) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script>
     // ====== CONFIGURAÇÃO ======
     const SUPABASE_URL = 'https://wdxqkagwuzekzxdhxbnp.supabase.co';
     const SUPABASE_ANON_KEY = 'sb_publishable_raTvDULM2YDmTngVIOM11g_CZe6jZWj';
-    
+
     // URL oficial do seu Backend no Render
     const API_BACKEND_URL = 'https://cardapio-delivery-backend.onrender.com';
-    
+
     // Restaurante padrão (quando o link não possui ?r=slug)
     const SLUG_PADRAO = 'imperial';
     // ==========================
 
     const configurado = !SUPABASE_URL.includes('SUA_') && !SUPABASE_ANON_KEY.includes('SUA_');
-    
+
     // Instanciação defensiva: verifica se o script UMD do Supabase está presente no objeto window
-    const supabaseClient = (configurado && typeof supabase !== 'undefined') 
-      ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) 
+    const supabaseClient = (configurado && typeof supabase !== 'undefined')
+      ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : null;
 
     const brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -109,13 +196,79 @@
     let produtos = [];
     let carrinho = []; // { id, nome, preco, qtd }
     let taxaAtual = 0;
+    let filtroBusca = '';
+    let categoriaAtiva = '';
 
     const $ = (id) => document.getElementById(id);
     const esc = (t) => String(t ?? '').replace(/[&<>"']/g, (c) => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     }[c]));
 
+    // ---------- Segurança dos dados de identidade visual ----------
+    // Cor e endereço de imagem vêm do cadastro: só entram na página se estiverem no formato esperado.
+    const corValida = (c) => typeof c === 'string' && /^#[0-9a-fA-F]{6}$/.test(c);
+    const urlImagemValida = (u) => typeof u === 'string' && u.length <= 500 && /^https:\/\/[^\s"'()<>\\]+$/.test(u);
+
+    function luminancia(hex) {
+      const canais = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+        .map((v) => (v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)));
+      return 0.2126 * canais[0] + 0.7152 * canais[1] + 0.0722 * canais[2];
+    }
+
+    // Texto branco ou grafite, o que tiver mais contraste sobre a cor da loja
+    function corDoTexto(hexFundo) {
+      const l = luminancia(hexFundo);
+      const contrasteBranco = 1.05 / (l + 0.05);
+      const contrasteGrafite = (l + 0.05) / (luminancia('#16171A') + 0.05);
+      return contrasteBranco >= contrasteGrafite ? '#FFFFFF' : '#16171A';
+    }
+
+    function aplicarTema(r) {
+      const raiz = document.documentElement.style;
+      if (corValida(r.cor_primaria)) {
+        raiz.setProperty('--cor', r.cor_primaria);
+        raiz.setProperty('--cor-texto', corDoTexto(r.cor_primaria));
+      }
+      // O fundo só muda se a cor secundária for clara (texto continua legível)
+      if (corValida(r.cor_secundaria) && luminancia(r.cor_secundaria) > 0.8) {
+        raiz.setProperty('--fundo', r.cor_secundaria);
+      }
+    }
+
+    function iniciais(nome) {
+      const p = String(nome || '').trim().split(/\s+/).filter((w) => w.length > 2);
+      return ((p[0] || nome || '?')[0] + (p[1] ? p[1][0] : '')).toUpperCase();
+    }
+
+    function renderCabecalho(r) {
+      $('rest-nome').innerText = r.nome;
+      $('rest-ini').innerText = iniciais(r.nome);
+      if (urlImagemValida(r.logo_url)) {
+        const img = document.createElement('img');
+        img.src = r.logo_url; img.alt = 'Logo de ' + r.nome; img.decoding = 'async';
+        img.addEventListener('error', () => img.remove());
+        $('logo-box').appendChild(img);
+      }
+      if (urlImagemValida(r.banner_url)) {
+        const img = document.createElement('img');
+        img.className = 'banner'; img.src = r.banner_url; img.alt = ''; img.decoding = 'async';
+        img.addEventListener('error', () => img.remove());
+        $('area-banner').appendChild(img);
+      }
+    }
+
     // ---------- Inicialização ----------
+    async function carregarRestaurante(slug) {
+      const colunasBase = 'id, slug, nome, ativo';
+      const colunasVisuais = colunasBase + ', logo_url, banner_url, cor_primaria, cor_secundaria';
+      let resp = await supabaseClient.from('restaurantes').select(colunasVisuais).eq('slug', slug).eq('ativo', true).maybeSingle();
+      // Se as colunas visuais ainda não existirem no banco, o cardápio continua funcionando
+      if (resp.error) {
+        resp = await supabaseClient.from('restaurantes').select(colunasBase).eq('slug', slug).eq('ativo', true).maybeSingle();
+      }
+      return resp;
+    }
+
     async function init() {
       if (!configurado || !supabaseClient) {
         $('aviso-config').classList.remove('hidden');
@@ -128,18 +281,17 @@
       }
 
       const slug = (new URLSearchParams(window.location.search).get('r') || SLUG_PADRAO || '').toLowerCase();
-      const { data, error } = slug
-        ? await supabaseClient.from('restaurantes').select('id, slug, nome, ativo').eq('slug', slug).eq('ativo', true).maybeSingle()
-        : { data: null, error: null };
+      const { data, error } = slug ? await carregarRestaurante(slug) : { data: null, error: null };
 
       if (error || !data) {
-        $('app-container').innerHTML = '<p class="text-center p-8 mt-10 text-red-600 font-bold">Restaurante não encontrado ou indisponível no momento.</p>';
+        $('app-container').innerHTML = '<p style="text-align:center;padding:32px;margin-top:40px;color:#B42318;font-weight:700">Restaurante não encontrado ou indisponível no momento.</p>';
         return;
       }
 
       restauranteInfo = data;
-      $('rest-nome').innerText = data.nome;
       document.title = 'Cardápio - ' + data.nome;
+      aplicarTema(data);
+      renderCabecalho(data);
       ajustarManifest(data);
 
       restaurarDadosCliente();
@@ -150,10 +302,11 @@
     function ajustarManifest(r) {
       try {
         const base = new URL('.', location.href).href;
+        const tema = corValida(r.cor_primaria) ? r.cor_primaria : '#16171A';
         const manifest = {
           name: r.nome, short_name: r.nome.slice(0, 12),
           start_url: base + '?r=' + encodeURIComponent(r.slug), scope: base,
-          display: 'standalone', background_color: '#0F172A', theme_color: '#0F172A',
+          display: 'standalone', background_color: '#16171A', theme_color: tema,
           icons: [
             { src: base + 'icon-192.png', sizes: '192x192', type: 'image/png' },
             { src: base + 'icon-512.png', sizes: '512x512', type: 'image/png' }
@@ -161,6 +314,7 @@
         };
         const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
         $('link-manifest').href = URL.createObjectURL(blob);
+        $('meta-theme').content = tema;
       } catch (e) { /* mantém o manifest.json padrão */ }
     }
     if ('serviceWorker' in navigator) {
@@ -179,6 +333,9 @@
       }
       select.innerHTML = '<option value="">Selecione seu bairro...</option>' +
         data.map((b) => `<option value="${esc(b.id)}" data-taxa="${esc(b.taxa)}" data-tempo="${esc(b.tempo_estimado)}">${esc(b.nome)}</option>`).join('');
+
+      const taxas = data.map((b) => parseFloat(b.taxa)).filter((n) => !isNaN(n));
+      if (taxas.length) $('info-entrega').innerText = 'Entrega a partir de ' + brl.format(Math.min(...taxas));
     }
 
     function atualizarTaxa() {
@@ -198,38 +355,80 @@
     // ---------- Produtos ----------
     async function carregarProdutos() {
       const container = $('lista-produtos');
-      const { data, error } = await supabaseClient.from('produtos').select('id, nome, descricao, preco, categoria')
+      const consulta = (colunas) => supabaseClient.from('produtos').select(colunas)
         .eq('restaurante_id', restauranteInfo.id).eq('disponivel', true).order('categoria').order('nome');
+
+      let resp = await consulta('id, nome, descricao, preco, categoria, imagem_url');
+      // Se a coluna de imagem ainda não existir, o cardápio continua sem fotos
+      if (resp.error) resp = await consulta('id, nome, descricao, preco, categoria');
+      const { data, error } = resp;
 
       if (error || !data || data.length === 0) {
         produtos = [];
-        container.innerHTML = '<p class="text-sm text-gray-500">Nenhum produto disponível no momento.</p>';
+        container.innerHTML = '<p class="vazio">Nenhum produto disponível no momento.</p>';
+        $('chips').innerHTML = '';
         return;
       }
       produtos = data;
+      renderProdutos();
+    }
 
-      let html = '', categoriaAtual = null;
-      for (const p of produtos) {
+    // Texto sem acento e em minúsculas, para a busca não depender de acentuação
+    const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+    function renderProdutos() {
+      const container = $('lista-produtos');
+      const termo = normalizar(filtroBusca).trim();
+      const visiveis = produtos.filter((p) => !termo ||
+        normalizar(p.nome).includes(termo) || normalizar(p.descricao).includes(termo) || normalizar(p.categoria).includes(termo));
+
+      if (visiveis.length === 0) {
+        container.innerHTML = '<p class="vazio">Nenhum produto encontrado para essa busca.</p>';
+        $('chips').innerHTML = '';
+        return;
+      }
+
+      const grupos = new Map();
+      for (const p of visiveis) {
         const cat = p.categoria || 'Geral';
-        if (cat !== categoriaAtual) {
-          categoriaAtual = cat;
-          html += `<h3 class="pt-2 text-sm font-bold uppercase tracking-wide text-gray-500">${esc(cat)}</h3>`;
+        if (!grupos.has(cat)) grupos.set(cat, []);
+        grupos.get(cat).push(p);
+      }
+      if (!grupos.has(categoriaAtiva)) categoriaAtiva = '';
+
+      $('chips').innerHTML = [...grupos.keys()].map((cat, i) =>
+        `<button type="button" class="chip" data-cat="${i}" aria-pressed="${cat === categoriaAtiva}">${esc(cat)}</button>`).join('');
+
+      let html = '', i = 0;
+      for (const [cat, lista] of grupos) {
+        html += `<h3 class="cat" id="cat-${i}">${esc(cat)}</h3>`;
+        for (const p of lista) {
+          const foto = urlImagemValida(p.imagem_url)
+            ? `<img class="foto" src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async" width="84" height="84">`
+            : '';
+          html += `
+            <article class="card">
+              <div class="info">
+                <h4>${esc(p.nome)}</h4>
+                ${p.descricao ? `<p class="desc">${esc(p.descricao)}</p>` : ''}
+                <p class="preco">${brl.format(parseFloat(p.preco) || 0)}</p>
+              </div>
+              ${foto}
+              <button type="button" class="add" data-add="${esc(p.id)}" aria-label="Adicionar ${esc(p.nome)} ao carrinho">
+                +<span class="badge hidden" data-badge="${esc(p.id)}"></span>
+              </button>
+            </article>`;
         }
-        html += `
-          <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center gap-3">
-            <div>
-              <h4 class="font-bold text-gray-800">${esc(p.nome)}</h4>
-              <p class="text-xs text-gray-500">${esc(p.descricao || '')}</p>
-              <p class="text-sm font-semibold text-orange-600 mt-1">${brl.format(parseFloat(p.preco) || 0)}</p>
-            </div>
-            <button data-add="${esc(p.id)}"
-              class="shrink-0 bg-orange-50 text-orange-600 font-bold px-3 py-1.5 rounded-lg border border-orange-200 text-sm hover:bg-orange-100">
-              + Adicionar
-            </button>
-          </div>`;
+        i++;
       }
       container.innerHTML = html;
+      atualizarBadges();
     }
+
+    // Foto que falhar ao carregar simplesmente some (o card continua inteiro)
+    $('lista-produtos').addEventListener('error', (e) => {
+      if (e.target && e.target.classList && e.target.classList.contains('foto')) e.target.remove();
+    }, true);
 
     // ---------- Carrinho ----------
     function adicionarCarrinho(id) {
@@ -252,18 +451,28 @@
     function renderCarrinho() {
       $('secao-carrinho').classList.toggle('hidden', carrinho.length === 0);
       $('lista-carrinho').innerHTML = carrinho.map((i) => `
-        <div class="flex items-center justify-between text-sm">
-          <div class="flex-1 pr-2">
-            <p class="font-semibold">${esc(i.nome)}</p>
-            <p class="text-xs text-gray-500">${brl.format(i.preco)} cada</p>
+        <div class="linha-item">
+          <div>
+            <strong>${esc(i.nome)}</strong>
+            <small>${brl.format(i.preco)} cada</small>
           </div>
-          <div class="flex items-center gap-2">
-            <button data-menos="${esc(i.id)}" class="w-7 h-7 rounded-full bg-gray-100 font-bold">−</button>
-            <span class="w-5 text-center">${i.qtd}</span>
-            <button data-mais="${esc(i.id)}" class="w-7 h-7 rounded-full bg-gray-100 font-bold">+</button>
+          <div class="qtd">
+            <button type="button" data-menos="${esc(i.id)}" aria-label="Diminuir ${esc(i.nome)}">−</button>
+            <span>${i.qtd}</span>
+            <button type="button" data-mais="${esc(i.id)}" aria-label="Aumentar ${esc(i.nome)}">+</button>
           </div>
         </div>`).join('');
+      atualizarBadges();
       atualizarTotal();
+    }
+
+    // Mostra no botão "+" de cada produto quantas unidades já estão no carrinho
+    function atualizarBadges() {
+      document.querySelectorAll('[data-badge]').forEach((el) => {
+        const item = carrinho.find((i) => String(i.id) === String(el.dataset.badge));
+        el.textContent = item ? item.qtd : '';
+        el.classList.toggle('hidden', !item);
+      });
     }
 
     const calcularSubtotal = () => carrinho.reduce((soma, i) => soma + i.preco * i.qtd, 0);
@@ -355,7 +564,7 @@
 
         salvarDadosCliente();
         alert(`Pedido #${resultado.pedido.id.slice(0, 8)} enviado com sucesso! Aguarde o contato da cozinha.`);
-        
+
         carrinho = [];
         renderCarrinho();
         select.value = '';
@@ -372,6 +581,20 @@
     // ---------- Eventos ----------
     $('select-bairro').addEventListener('change', atualizarTaxa);
     $('btn-enviar').addEventListener('click', finalizarPedido);
+
+    $('busca').addEventListener('input', (e) => {
+      filtroBusca = e.target.value;
+      renderProdutos();
+    });
+
+    $('chips').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-cat]');
+      if (!chip) return;
+      const alvo = $('cat-' + chip.dataset.cat);
+      if (alvo) alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.querySelectorAll('#chips .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+      categoriaAtiva = chip.textContent;
+    });
 
     $('lista-produtos').addEventListener('click', (e) => {
       const btn = e.target.closest('[data-add]');
