@@ -1,238 +1,808 @@
-import { sb, configurado } from './admin-supabase.js';
-import { state } from './admin-state.js';
-import { $, aviso, tratarErro } from './admin-utils.js';
-import { carregarPedidos, iniciarPedidos, pararPedidos, inicializarPedidos } from './admin-pedidos.js';
-import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
-import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
-import { inicializarDashboard, iniciarDashboard, pararDashboard } from './admin-dashboard.js';
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Painel do Restaurante | Império Delivery</title>
+  <meta name="theme-color" content="#16171A" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 
-let inicializacaoEmAndamento = false;
+  <style>
+    /* ===== Identidade Visual Fixa do SaaS: Império Moderno ===== */
+    :root {
+      --bg: #16171A;            /* Grafite escuro de fundo */
+      --card: #1F2024;          /* Carvão dos cards e painéis */
+      --card-hover: #26272E;    /* Hover sutil */
+      --card-alt: #282A30;      /* Destaque interno */
+      --borda: #2E3038;         /* Borda discreta */
+      --borda-suave: #3A3C46;
+      --texto: #F2EFE8;         /* Marfim para textos principais */
+      --suave: #9E9CA3;         /* Cinza neutro para detalhes */
+      --dourado: #C9A24B;       /* Dourado Imperial clássico */
+      --dourado-hover: #DFC06F;
 
-const ABAS = ['painel', 'pedidos', 'produtos', 'entrega', 'config'];
-
-// Aba que abre ao entrar no painel (troque para 'painel' se preferir começar pelos números do dia)
-const ABA_INICIAL = 'pedidos';
-
-function mostrarAba(nome) {
-  ABAS.forEach((aba) => {
-    const painel = $(`aba-${aba}`);
-    if (painel) painel.classList.toggle('hidden', aba !== nome);
-
-    const botao = document.querySelector(`[data-aba="${aba}"]`);
-    if (botao) {
-      botao.classList.toggle('ativa', aba === nome);
-      if (aba === nome) botao.setAttribute('aria-current', 'page');
-      else botao.removeAttribute('aria-current');
-    }
-  });
-
-  // O Painel só atualiza sozinho enquanto a aba está aberta
-  if (nome === 'painel') iniciarDashboard();
-  else pararDashboard();
-}
-
-function configurarNavegacao() {
-  const abasEl = $('abas');
-  if (abasEl) {
-    abasEl.addEventListener('click', (evento) => {
-      const botao = evento.target.closest('[data-aba]');
-      if (botao) mostrarAba(botao.dataset.aba);
-    });
-  }
-
-  // Os cartões do Painel levam direto para a aba de Pedidos
-  window.addEventListener('admin:ir-aba', (evento) => {
-    if (ABAS.includes(evento.detail)) mostrarAba(evento.detail);
-  });
-}
-
-function mostrarSemAcesso() {
-  $('sem-acesso').classList.remove('hidden');
-  $('abas').classList.add('hidden');
-  pararDashboard();
-
-  ABAS.forEach((aba) => {
-    const painel = $(`aba-${aba}`);
-    if (painel) painel.classList.add('hidden');
-  });
-}
-
-function esconderSemAcesso() {
-  $('sem-acesso').classList.add('hidden');
-  $('abas').classList.remove('hidden');
-}
-
-async function iniciarPainel() {
-  if (!sb || inicializacaoEmAndamento) return;
-
-  inicializacaoEmAndamento = true;
-
-  try {
-    const { data, error } = await sb
-      .from('restaurante_usuarios')
-      .select('restaurantes(*)')
-      .limit(1);
-
-    if (error) {
-      tratarErro(error, 'Não foi possível carregar seu restaurante.');
-      return;
+      /* Cores semânticas de status */
+      --verde: #3FB67A;
+      --verde-bg: rgba(63, 182, 122, 0.15);
+      --laranja: #F0953A;
+      --laranja-bg: rgba(240, 149, 58, 0.15);
+      --vermelho: #E5594F;
+      --vermelho-bg: rgba(229, 89, 79, 0.15);
+      --azul: #60A5FA;
+      --azul-bg: rgba(96, 165, 250, 0.15);
+      --roxo: #A78BFA;
+      --roxo-bg: rgba(167, 139, 250, 0.15);
+      --amarelo: #FBBF24;
+      --amarelo-bg: rgba(251, 191, 36, 0.15);
     }
 
-    if (!data?.length || !data[0].restaurantes) {
-      mostrarSemAcesso();
-      return;
+    *, *::before, *::after { box-sizing: border-box; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--texto);
+      font-family: Manrope, system-ui, -apple-system, sans-serif;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
     }
 
-    state.rest = data[0].restaurantes;
-    esconderSemAcesso();
+    h1, h2, h3, h4, p, ul { margin: 0; padding: 0; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; border: 0; background: none; }
+    .hidden { display: none !important; }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 16px; }
+    :focus-visible { outline: 3px solid var(--dourado); outline-offset: 2px; }
 
-    $('rest-nome').innerText = state.rest.nome;
-    const linkCardapio = `index.html?r=${state.rest.slug}`;
-    const elLink = $('rest-link');
-    if (elLink) {
-      elLink.href = linkCardapio;
-      elLink.innerText = `Ver cardápio (${state.rest.slug})`;
+    /* ===== Tela de Login ===== */
+    .login-container {
+      max-width: 380px;
+      margin: 60px auto 20px;
+      padding: 32px 24px;
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+    .login-topo { text-align: center; margin-bottom: 24px; }
+    .login-coroa { font-size: 32px; display: block; margin-bottom: 6px; }
+    .login-titulo { font: 700 24px Fraunces, Georgia, serif; color: var(--dourado); }
+    .login-sub { font-size: 13px; color: var(--suave); margin-top: 4px; }
+    .form-grupo { margin-bottom: 14px; }
+    .form-grupo label { display: block; font-size: 12px; font-weight: 600; color: var(--suave); margin-bottom: 6px; }
+    .input-padrao {
+      width: 100%;
+      height: 46px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1px solid var(--borda);
+      background: var(--bg);
+      color: var(--texto);
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-padrao:focus { border-color: var(--dourado); }
+    .btn-login {
+      width: 100%;
+      height: 48px;
+      background: var(--dourado);
+      color: #121315;
+      font-weight: 800;
+      font-size: 15px;
+      border-radius: 12px;
+      margin-top: 8px;
+      transition: background 0.2s, transform 0.1s;
+    }
+    .btn-login:hover { background: var(--dourado-hover); }
+    .btn-login:active { transform: scale(0.99); }
+    .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* ===== Cabeçalho do Painel ===== */
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 14px 16px;
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 16px;
+      margin-bottom: 14px;
+    }
+    .admin-rest-info { min-width: 0; }
+    .admin-rest-nome {
+      font: 700 19px/1.2 Fraunces, Georgia, serif;
+      color: var(--texto);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .admin-rest-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      min-height: 32px;
+      font-size: 12px;
+      color: var(--dourado);
+      text-decoration: none;
+    }
+    .admin-rest-link:hover { text-decoration: underline; }
+    .btn-sair {
+      flex: none;
+      min-height: 44px;
+      padding: 0 14px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--vermelho);
+      border: 1px solid rgba(229, 89, 79, 0.3);
+      border-radius: 10px;
+      background: var(--vermelho-bg);
+      transition: background 0.2s;
+    }
+    .btn-sair:hover { background: rgba(229, 89, 79, 0.25); }
+
+    /* ===== Navegação por Abas ===== */
+    .nav-abas {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+    .nav-tab {
+      position: relative;
+      min-height: 44px;
+      padding: 8px 2px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--suave);
+      background: var(--card);
+      border: 1px solid var(--borda);
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .nav-tab.ativa {
+      background: var(--dourado);
+      color: #121315;
+      border-color: var(--dourado);
+      box-shadow: 0 4px 12px rgba(201, 162, 75, 0.2);
+    }
+    .tab-badge {
+      display: inline-block;
+      margin-left: 2px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      background: var(--vermelho);
+      color: #fff;
+    }
+    .nav-tab.ativa .tab-badge {
+      background: #121315;
+      color: #fff;
+    }
+    @media (max-width: 360px) {
+      .nav-tab { font-size: 11px; }
     }
 
-    preencherRestaurante();
-    mostrarAba(ABA_INICIAL);
-
-    await Promise.all([
-      carregarPedidos(),
-      carregarProdutos(),
-      carregarBairros()
-    ]);
-
-    iniciarPedidos();
-  } finally {
-    inicializacaoEmAndamento = false;
-  }
-}
-
-async function checarSessao() {
-  if (!configurado || !sb) {
-    $('aviso-config').classList.remove('hidden');
-    $('aviso-config').innerText =
-      'Configuração do Supabase ausente ou biblioteca não carregada.';
-    return;
-  }
-
-  const { data, error } = await sb.auth.getSession();
-
-  if (error) {
-    tratarErro(error, 'Erro ao verificar sessão.');
-    return;
-  }
-
-  const sessao = data?.session;
-
-  $('tela-login').classList.toggle('hidden', Boolean(sessao));
-  $('tela-admin').classList.toggle('hidden', !sessao);
-
-  if (sessao) {
-    await iniciarPainel();
-  } else {
-    pararPedidos();
-    pararDashboard();
-    state.rest = null;
-  }
-}
-
-function configurarLogin() {
-  $('form-login').addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-    if (!sb) return;
-
-    const botao = $('btn-login');
-    botao.disabled = true;
-    botao.innerText = 'Entrando...';
-
-    const { error } = await sb.auth.signInWithPassword({
-      email: $('login-email').value.trim(),
-      password: $('login-senha').value
-    });
-
-    botao.disabled = false;
-    botao.innerText = 'Entrar no painel';
-
-    if (error) {
-      aviso('E-mail ou senha incorretos.');
-      return;
+    /* ===== Mini resumo da aba Pedidos (Ação em Primeiro Lugar) ===== */
+    .metricas-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+    .metrica-card {
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      padding: 10px 4px;
+      text-align: center;
+    }
+    .metrica-card.destaque-acao {
+      border-color: rgba(240, 149, 58, 0.4);
+      background: linear-gradient(180deg, var(--card) 0%, rgba(240, 149, 58, 0.08) 100%);
+    }
+    .metrica-val {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--texto);
+      line-height: 1.1;
+    }
+    .metrica-card.destaque-acao .metrica-val { color: var(--laranja); }
+    .metrica-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--suave);
+      margin-top: 3px;
+      line-height: 1.2;
     }
 
-    $('login-senha').value = '';
-    await checarSessao();
-  });
+    /* ===== Barra de Controle e Filtros de Pedidos ===== */
+    .barra-controle-pedidos {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .btn-som-toggle {
+      flex: 1;
+      min-height: 44px;
+      padding: 0 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--card);
+      border: 1px solid var(--borda);
+      color: var(--texto);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: border-color 0.2s;
+    }
+    .btn-som-toggle.mudo { color: var(--suave); border-color: var(--borda); opacity: 0.7; }
 
-  $('btn-sair').addEventListener('click', async () => {
-    if (!sb) return;
-
-    await sb.auth.signOut();
-    pararPedidos();
-    pararDashboard();
-    state.rest = null;
-    await checarSessao();
-  });
-}
-
-function configurarConta() {
-  $('form-senha').addEventListener('submit', async (evento) => {
-    evento.preventDefault();
-
-    const novaSenha = $('nova-senha').value;
-    const confirmaSenha = $('confirma-senha').value;
-
-    if (novaSenha.length < 6) {
-      aviso('A nova senha deve ter no mínimo 6 caracteres.');
-      return;
+    .filtros-scroll {
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 4px;
+      margin-bottom: 12px;
+    }
+    .filtros-scroll::-webkit-scrollbar { display: none; }
+    .filtro-chip {
+      flex: none;
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--card);
+      border: 1px solid var(--borda);
+      color: var(--suave);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .filtro-chip .chip-contador {
+      padding: 1px 7px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: var(--card-alt);
+      color: var(--texto);
+    }
+    .filtro-chip.ativo {
+      background: var(--texto);
+      color: #121315;
+      border-color: var(--texto);
+    }
+    .filtro-chip.ativo .chip-contador {
+      background: #121315;
+      color: #fff;
     }
 
-    if (novaSenha !== confirmaSenha) {
-      aviso('As senhas digitadas não coincidem.');
-      return;
+    /* ===== Cards de Pedido (Império Moderno) ===== */
+    .card-pedido {
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+      position: relative;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .card-pedido.card-atraso-alerta {
+      border-color: rgba(240, 149, 58, 0.6);
+      box-shadow: 0 0 15px rgba(240, 149, 58, 0.12);
+    }
+    .card-pedido.card-atraso-critico {
+      border-color: var(--vermelho);
+      box-shadow: 0 0 18px rgba(229, 89, 79, 0.2);
+    }
+    .card-topo {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .card-cliente { min-width: 0; }
+    .cliente-nome {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--texto);
+      line-height: 1.2;
+    }
+    .cliente-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--suave);
+      margin-top: 3px;
+    }
+    .tag-tempo { font-weight: 600; }
+    .tag-tempo.atraso-alerta { color: var(--laranja); font-weight: 700; }
+    .tag-tempo.atraso-critico { color: var(--vermelho); font-weight: 800; }
+    .pedido-cod { color: var(--dourado); font-weight: 700; }
+
+    /* Badges de Status */
+    .badge-status {
+      flex: none;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .badge-laranja-vivo { background: rgba(240, 149, 58, 0.2); color: #FBA04B; border: 1px solid rgba(240, 149, 58, 0.4); }
+    .badge-amarelo { background: var(--amarelo-bg); color: var(--amarelo); border: 1px solid rgba(251, 191, 36, 0.3); }
+    .badge-azul { background: var(--azul-bg); color: var(--azul); border: 1px solid rgba(96, 165, 250, 0.3); }
+    .badge-laranja { background: var(--laranja-bg); color: var(--laranja); border: 1px solid rgba(240, 149, 58, 0.3); }
+    .badge-roxo { background: var(--roxo-bg); color: var(--roxo); border: 1px solid rgba(167, 139, 250, 0.3); }
+    .badge-verde { background: var(--verde-bg); color: var(--verde); border: 1px solid rgba(63, 182, 122, 0.3); }
+    .badge-cinza { background: rgba(158, 156, 163, 0.15); color: var(--suave); border: 1px solid var(--borda); }
+
+    /* Itens */
+    .lista-itens {
+      list-style: none;
+      background: var(--bg);
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin: 10px 0;
+    }
+    .item-linha {
+      font-size: 13.5px;
+      color: var(--texto);
+      padding: 3px 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 6px;
+    }
+    .item-qtd { font-weight: 800; color: var(--dourado); min-width: 22px; }
+    .item-nome { font-weight: 600; flex: 1; }
+    .item-obs {
+      width: 100%;
+      font-size: 12px;
+      color: var(--laranja);
+      font-style: italic;
+      padding-left: 28px;
     }
 
-    const botao = $('btn-alterar-senha');
-    botao.disabled = true;
-    botao.innerText = 'Alterando...';
-
-    const { error } = await sb.auth.updateUser({ password: novaSenha });
-
-    botao.disabled = false;
-    botao.innerText = 'Alterar Senha';
-
-    if (error) {
-      tratarErro(error, 'Erro ao alterar a senha.');
-      return;
+    /* Endereço e observação */
+    .card-endereco {
+      display: flex;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--suave);
+      margin: 8px 0;
+      line-height: 1.35;
+    }
+    .card-endereco strong { color: var(--texto); }
+    .end-icone { flex: none; font-size: 14px; }
+    .card-obs-geral {
+      background: rgba(201, 162, 75, 0.1);
+      border: 1px dashed rgba(201, 162, 75, 0.3);
+      color: var(--texto);
+      font-size: 12px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin: 8px 0;
     }
 
-    $('form-senha').reset();
-    aviso('Senha alterada com sucesso!');
-  });
-}
+    /* Financeiro */
+    .card-financeiro {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0 12px;
+      border-top: 1px solid var(--borda);
+      margin-top: 8px;
+    }
+    .pagto-info { display: flex; flex-direction: column; }
+    .pagto-forma { font-size: 12px; font-weight: 700; color: var(--dourado); }
+    .pagto-taxa { font-size: 11px; color: var(--suave); }
+    .pagto-total { font-size: 17px; font-weight: 800; color: var(--texto); }
 
-function inicializar() {
-  inicializarPedidos();
-  inicializarProdutos();
-  inicializarEntrega();
-  inicializarDashboard();
-  configurarNavegacao();
-  configurarLogin();
-  configurarConta();
+    /* Ações do Card */
+    .card-acoes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+    }
+    .btn-acao-principal {
+      flex: 1 1 140px;
+      min-height: 44px;
+      padding: 0 14px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+    .btn-acao-principal:active { transform: scale(0.99); }
+    .btn-verde { background: var(--verde); color: #0C1E14; }
+    .btn-roxo { background: var(--roxo); color: #1E122E; }
+    .btn-amarelo { background: var(--amarelo); color: #2E2006; }
+    .btn-acao-principal:disabled { opacity: 0.6; cursor: not-allowed; }
 
-  window.addEventListener('admin:session-expired', async () => {
-    if (sb) await sb.auth.signOut();
-    pararPedidos();
-    pararDashboard();
-    state.rest = null;
-    await checarSessao();
-  });
+    .btn-acao-sec {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0 12px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--card-alt);
+      border: 1px solid var(--borda);
+      color: var(--texto);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: background 0.2s;
+    }
+    .btn-acao-sec:hover { background: var(--card-hover); }
+    .btn-acao-sec:disabled { opacity: 0.6; cursor: not-allowed; }
+    .btn-zap { color: #5EEAD4; border-color: rgba(94, 234, 212, 0.3); background: rgba(94, 234, 212, 0.08); }
+    .btn-zap:hover { background: rgba(94, 234, 212, 0.15); }
+    .btn-comanda { font-size: 15px; padding: 0 10px; }
+    .btn-cancelar { color: var(--vermelho); border-color: rgba(229, 89, 79, 0.3); background: var(--vermelho-bg); font-size: 12px; }
+    .espaco-acao { flex: 1; }
 
-  checarSessao();
-}
+    .painel-vazio {
+      text-align: center;
+      padding: 40px 16px;
+      background: var(--card);
+      border: 1px dashed var(--borda);
+      border-radius: 16px;
+    }
+    .vazio-texto { color: var(--suave); font-size: 14px; }
 
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', inicializar, { once: true });
-} else {
-  inicializar();
-}
+    /* ===== Aba Painel (números do dia) ===== */
+    .dash h2 { margin: 0; font-size: 20px; font-weight: 800; }
+    .dash h3 { margin: 0 0 10px; font-size: 14px; font-weight: 800; }
+    .dash-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .dash-d { display: block; margin: 0; font-size: 12px; color: var(--suave); }
+    .dash-btn { min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--borda-suave); background: transparent; color: var(--texto); font-weight: 700; font-size: 13px; }
+    .dash-btn:hover { background: var(--card-hover); }
+    .dash-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+    .dash-k { display: flex; flex-direction: column; gap: 2px; text-align: left; background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 14px; color: inherit; min-height: 44px; }
+    button.dash-k:hover { background: var(--card-hover); }
+    .dash-alerta { border-color: var(--vermelho); }
+    .dash-l { font-size: 12px; color: var(--suave); }
+    .dash-n { font-size: 24px; font-weight: 800; line-height: 1.15; word-break: break-word; }
+    .dash-bloco { background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+    .dash-barras { display: flex; gap: 6px; height: 150px; }
+    .dash-col { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .dash-area { flex: 1; width: 100%; display: flex; align-items: flex-end; }
+    .dash-barra { width: 100%; background: var(--dourado); border-radius: 6px 6px 0 0; }
+    .dash-col span { font-size: 11px; color: var(--suave); }
+    .dash-lista { list-style: none; margin: 0; padding: 0; font-size: 14px; }
+    .dash-lista li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--borda); }
+    .dash-lista li:last-child { border-bottom: 0; }
+    .dash-vazio { margin: 0; font-size: 13px; color: var(--suave); }
+    .dash-aviso { margin: 0 0 8px; padding: 10px 12px; border-radius: 10px; font-size: 13px; }
+    .dash-critico { background: var(--vermelho-bg); color: #FFB3AD; }
+    .dash-atencao { background: var(--laranja-bg); color: #FFD2A0; }
+
+    /* ===== Estilos para as Abas Produtos, Entrega e Conta ===== */
+    .secao-admin {
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .secao-titulo {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--texto);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .secao-desc { font-size: 12px; color: var(--suave); margin-bottom: 12px; }
+
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .btn-destaque {
+      width: 100%;
+      min-height: 44px;
+      background: var(--verde);
+      color: #0C1E14;
+      font-weight: 800;
+      font-size: 13.5px;
+      border-radius: 10px;
+      margin-top: 8px;
+    }
+    .btn-destaque.laranja { background: var(--laranja); color: #1E1206; }
+    .btn-destaque:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    /* Cards nas listas de produtos e bairros */
+    #lista-produtos, #lista-bairros { color: #1F2937; }
+    .card-item-gestao {
+      background: var(--card);
+      border: 1px solid var(--borda);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 8px;
+    }
+
+    /* ===== Toast de Aviso ===== */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #0E0F12;
+      border: 1px solid var(--dourado);
+      color: var(--texto);
+      font-size: 13.5px;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 999px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6);
+      z-index: 999;
+      max-width: calc(100vw - 32px);
+      text-align: center;
+      pointer-events: none;
+    }
+    .aviso-banner {
+      background: rgba(240, 149, 58, 0.15);
+      border: 1px solid var(--laranja);
+      color: #FBA04B;
+      font-size: 13px;
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Tela de Login -->
+  <div id="tela-login" class="login-container">
+    <div class="login-topo">
+      <span class="login-coroa" aria-hidden="true">👑</span>
+      <h1 class="login-titulo">Painel Imperial</h1>
+      <p class="login-sub">Acesso restrito ao lojista</p>
+    </div>
+
+    <p id="aviso-config" class="hidden aviso-banner">
+      Configure o Supabase no arquivo de configuração.
+    </p>
+
+    <form id="form-login">
+      <div class="form-grupo">
+        <label for="login-email">Seu e-mail</label>
+        <input
+          id="login-email"
+          type="email"
+          required
+          autocomplete="username"
+          placeholder="exemplo@email.com"
+          class="input-padrao"
+        />
+      </div>
+
+      <div class="form-grupo">
+        <label for="login-senha">Sua senha</label>
+        <input
+          id="login-senha"
+          type="password"
+          required
+          autocomplete="current-password"
+          placeholder="••••••••"
+          class="input-padrao"
+        />
+      </div>
+
+      <button id="btn-login" class="btn-login">Entrar no painel</button>
+    </form>
+  </div>
+
+  <!-- Tela do Painel Admin -->
+  <div id="tela-admin" class="hidden wrap">
+
+    <!-- Cabeçalho -->
+    <header class="admin-header">
+      <div class="admin-rest-info">
+        <h1 id="rest-nome" class="admin-rest-nome">Lanchonete</h1>
+        <a id="rest-link" href="#" target="_blank" rel="noopener noreferrer" class="admin-rest-link">
+          Ver cardápio ↗
+        </a>
+      </div>
+      <button id="btn-sair" class="btn-sair">Sair</button>
+    </header>
+
+    <p id="sem-acesso" class="hidden aviso-banner">
+      Este usuário não está vinculado a nenhum restaurante.
+    </p>
+
+    <!-- Navegação por Abas -->
+    <nav id="abas" class="nav-abas" aria-label="Seções do painel">
+      <button data-aba="painel" class="nav-tab">Painel</button>
+      <button data-aba="pedidos" class="nav-tab ativa" aria-current="page">
+        Pedidos<span id="badge-pedidos" class="hidden tab-badge"></span>
+      </button>
+      <button data-aba="produtos" class="nav-tab">Produtos</button>
+      <button data-aba="entrega" class="nav-tab">Entrega</button>
+      <button data-aba="config" class="nav-tab">Conta</button>
+    </nav>
+
+    <!-- ================= ABA PAINEL (números do dia) ================= -->
+    <div id="aba-painel" class="hidden">
+      <div id="painel-conteudo" class="dash" aria-live="polite">
+        <p class="dash-vazio">Carregando painel...</p>
+      </div>
+    </div>
+
+    <!-- ================= ABA PEDIDOS ================= -->
+    <div id="aba-pedidos">
+      <!-- Mini resumo (Ação em Primeiro Lugar) -->
+      <section class="metricas-grid" aria-label="Resumo dos pedidos">
+        <div class="metrica-card destaque-acao">
+          <div id="metrica-acao" class="metrica-val">0</div>
+          <div class="metrica-label">⚡ Ação</div>
+        </div>
+        <div class="metrica-card">
+          <div id="metrica-preparo" class="metrica-val">0</div>
+          <div class="metrica-label">👨‍🍳 Preparo</div>
+        </div>
+        <div class="metrica-card">
+          <div id="metrica-entrega" class="metrica-val">0</div>
+          <div class="metrica-label">🛵 Em rota</div>
+        </div>
+        <div class="metrica-card">
+          <div id="metrica-total" class="metrica-val">0</div>
+          <div class="metrica-label">Total ativos</div>
+        </div>
+      </section>
+
+      <!-- Barra de Controle (Som) -->
+      <div class="barra-controle-pedidos">
+        <button id="btn-som" class="btn-som-toggle" aria-label="Ativar ou desativar som de novo pedido">
+          🔔 Som ativado
+        </button>
+      </div>
+
+      <!-- Filtros por Status no Celular -->
+      <div class="filtros-scroll" role="group" aria-label="Filtrar pedidos por etapa">
+        <button data-status-filtro="todos" class="filtro-chip ativo" aria-pressed="true">
+          Todos <span id="chip-num-todos" class="chip-contador">0</span>
+        </button>
+        <button data-status-filtro="acao" class="filtro-chip" aria-pressed="false">
+          ⚡ Ação <span id="chip-num-acao" class="chip-contador">0</span>
+        </button>
+        <button data-status-filtro="preparando" class="filtro-chip" aria-pressed="false">
+          👨‍🍳 Preparo <span id="chip-num-preparo" class="chip-contador">0</span>
+        </button>
+        <button data-status-filtro="saiu_entrega" class="filtro-chip" aria-pressed="false">
+          🛵 Entrega <span id="chip-num-entrega" class="chip-contador">0</span>
+        </button>
+        <button data-status-filtro="encerrados" class="filtro-chip" aria-pressed="false">
+          Encerrados <span id="chip-num-encerrados" class="chip-contador">0</span>
+        </button>
+      </div>
+
+      <!-- Lista de Pedidos -->
+      <div id="lista-pedidos" aria-live="polite">
+        <div class="painel-vazio">
+          <p class="vazio-texto">Carregando pedidos...</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= ABA PRODUTOS ================= -->
+    <div id="aba-produtos" class="hidden">
+      <section class="secao-admin">
+        <button id="btn-toggle-form" class="secao-titulo" style="width:100%">
+          <span>+ Novo produto</span>
+          <span id="seta-form" style="color:var(--suave)">▼</span>
+        </button>
+        <form id="form-produto" class="hidden" style="margin-top:12px; display:flex; flex-direction:column; gap:10px;">
+          <input id="p-nome" required maxlength="80" placeholder="Nome do produto" class="input-padrao" />
+          <div class="grid-2">
+            <input id="p-categoria" list="lista-categorias" maxlength="40" placeholder="Categoria (ex: Batatas)" class="input-padrao" />
+            <input id="p-preco" type="number" step="0.01" min="0.01" inputmode="decimal" required placeholder="Preço (R$)" class="input-padrao" />
+          </div>
+          <datalist id="lista-categorias"></datalist>
+          <input id="p-descricao" maxlength="200" placeholder="Descrição dos ingredientes (opcional)" class="input-padrao" />
+          <button id="btn-cadastrar" class="btn-destaque">Cadastrar produto</button>
+        </form>
+      </section>
+
+      <div id="lista-produtos"></div>
+    </div>
+
+    <!-- ================= ABA ENTREGA ================= -->
+    <div id="aba-entrega" class="hidden">
+      <section class="secao-admin">
+        <h2 class="secao-titulo">Dados da loja</h2>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+          <input id="r-nome" maxlength="80" placeholder="Nome da loja" class="input-padrao" />
+          <input id="r-whatsapp" inputmode="numeric" maxlength="16" placeholder="WhatsApp com DDD" class="input-padrao" />
+          <div class="grid-2">
+            <div>
+              <label for="r-taxa-base" style="font-size:12px; color:var(--suave)">Taxa base (R$)</label>
+              <input id="r-taxa-base" type="number" step="0.01" min="0" inputmode="decimal" class="input-padrao" style="margin-top:4px" />
+            </div>
+            <div>
+              <label for="r-valor-km" style="font-size:12px; color:var(--suave)">Valor por km (R$)</label>
+              <input id="r-valor-km" type="number" step="0.01" min="0" inputmode="decimal" class="input-padrao" style="margin-top:4px" />
+            </div>
+            <div>
+              <label for="r-lat" style="font-size:12px; color:var(--suave)">Latitude</label>
+              <input id="r-lat" type="number" step="any" inputmode="decimal" class="input-padrao" style="margin-top:4px" />
+            </div>
+            <div>
+              <label for="r-lon" style="font-size:12px; color:var(--suave)">Longitude</label>
+              <input id="r-lon" type="number" step="any" inputmode="decimal" class="input-padrao" style="margin-top:4px" />
+            </div>
+          </div>
+          <button id="btn-salvar-rest" class="btn-destaque laranja">Salvar dados da loja</button>
+        </div>
+      </section>
+
+      <section class="secao-admin">
+        <h2 class="secao-titulo">Bairros atendidos</h2>
+        <form id="form-bairro" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+          <input id="b-nome" required maxlength="60" placeholder="Nome do bairro" class="input-padrao" />
+          <div class="grid-2">
+            <input id="b-taxa" type="number" step="0.01" min="0" required inputmode="decimal" placeholder="Taxa (R$)" class="input-padrao" />
+            <input id="b-tempo" maxlength="20" placeholder="Tempo (ex: 40-50 min)" class="input-padrao" />
+          </div>
+          <button class="btn-destaque">+ Adicionar bairro</button>
+        </form>
+        <div id="lista-bairros" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </section>
+    </div>
+
+    <!-- ================= ABA CONTA ================= -->
+    <div id="aba-config" class="hidden">
+      <section class="secao-admin">
+        <h2 class="secao-titulo">Segurança & Acesso</h2>
+        <p class="secao-desc">Altere sua senha de acesso a este painel administrativo.</p>
+        <form id="form-senha" style="display:flex; flex-direction:column; gap:10px;">
+          <div>
+            <label for="nova-senha" style="font-size:12px; color:var(--suave)">Nova Senha</label>
+            <input id="nova-senha" type="password" required minlength="6" placeholder="Mínimo de 6 caracteres" class="input-padrao" style="margin-top:4px" />
+          </div>
+          <div>
+            <label for="confirma-senha" style="font-size:12px; color:var(--suave)">Confirmar Nova Senha</label>
+            <input id="confirma-senha" type="password" required minlength="6" placeholder="Repita a senha" class="input-padrao" style="margin-top:4px" />
+          </div>
+          <button id="btn-alterar-senha" class="btn-destaque laranja">Alterar Senha</button>
+        </form>
+      </section>
+    </div>
+
+  </div>
+
+  <!-- Toast de Notificações -->
+  <div id="toast" class="hidden toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./js/admin.js"></script>
+</body>
+</html>
