@@ -5,45 +5,50 @@ import { $, brl, esc, aviso, tratarErro, atualizar, achar } from './admin-utils.
 const STATUS = {
   pendente_pagamento: {
     rotulo: 'Aguardando Pix',
-    cor: 'bg-yellow-100 text-yellow-700',
+    classe: 'badge-amarelo',
+    btnClasse: 'btn-amarelo',
     prox: 'pago',
     acao: 'Confirmar pagamento'
   },
   pago: {
     rotulo: 'Pago',
-    cor: 'bg-blue-100 text-blue-700',
+    classe: 'badge-azul',
+    btnClasse: 'btn-verde',
     prox: 'preparando',
     acao: 'Iniciar preparo'
   },
   preparando: {
     rotulo: 'Em preparo',
-    cor: 'bg-orange-100 text-orange-700',
+    classe: 'badge-laranja',
+    btnClasse: 'btn-roxo',
     prox: 'saiu_entrega',
     acao: 'Saiu para entrega'
   },
   saiu_entrega: {
     rotulo: 'Saiu p/ entrega',
-    cor: 'bg-purple-100 text-purple-700',
+    classe: 'badge-roxo',
+    btnClasse: 'btn-verde',
     prox: 'entregue',
-    acao: 'Marcar entregue'
+    acao: 'Marcar como entregue'
   },
   entregue: {
     rotulo: 'Entregue',
-    cor: 'bg-green-100 text-green-700'
+    classe: 'badge-verde'
   },
   cancelado: {
     rotulo: 'Cancelado',
-    cor: 'bg-gray-200 text-gray-600'
+    classe: 'badge-cinza'
   }
 };
 
 const ENCERRADOS = ['entregue', 'cancelado'];
 
-// Pedido em dinheiro/cartão não espera pagamento antecipado:
-// no banco continua 'pendente_pagamento', mas no painel vira "Novo pedido".
+// Pedido em dinheiro ou cartão não espera Pix antecipado:
+// no banco continua 'pendente_pagamento', mas para o lojista vira "Novo pedido"
 const STATUS_NOVO_NA_ENTREGA = {
   rotulo: 'Novo pedido',
-  cor: 'bg-yellow-100 text-yellow-700',
+  classe: 'badge-laranja-vivo',
+  btnClasse: 'btn-verde',
   prox: 'preparando',
   acao: 'Aceitar e preparar'
 };
@@ -182,10 +187,12 @@ function beep() {
 export async function carregarPedidos() {
   if (!state.rest || !sb) return;
 
+  // Os 100 pedidos MAIS RECENTES (sem a ordenação, o banco devolveria 100 quaisquer)
   const { data, error } = await sb
     .from('pedidos')
     .select('*')
     .eq('restaurante_id', state.rest.id)
+    .order('created_at', { ascending: false })
     .limit(100);
 
   if (error) {
@@ -202,7 +209,7 @@ export async function carregarPedidos() {
     lista.some((pedido) => !state.idsVistos.has(String(pedido.id)))
   ) {
     beep();
-    aviso('🔔 Novo pedido!');
+    aviso('🔔 Novo pedido recebido!');
   }
 
   state.idsVistos = new Set(lista.map((pedido) => String(pedido.id)));
@@ -250,98 +257,229 @@ export function pararPedidos() {
   state.idsVistos = null;
 }
 
+// Ordem de prioridade para a cozinha/gestor:
+// 1º Pedidos aguardando ação (Novos ou Pix pendente)
+// 2º Em preparo (os mais antigos primeiro)
+// 3º Em entrega
+function pesoPrioridade(pedido) {
+  if (pedido.status === 'pendente_pagamento') return 1;
+  if (pedido.status === 'pago') return 2;
+  if (pedido.status === 'preparando') return 3;
+  if (pedido.status === 'saiu_entrega') return 4;
+  return 5;
+}
+
 export function renderPedidos() {
-  const ativos = state.pedidos
-    .filter((pedido) => !ENCERRADOS.includes(pedido.status))
-    .sort((a, b) => {
-      return new Date(dataDoPedido(a) || 0) - new Date(dataDoPedido(b) || 0);
-    });
+  // Preserva a rolagem da tela durante atualizações automáticas
+  const scrollAtual = window.scrollY;
 
-  const encerrados = state.pedidos.filter(
-    (pedido) => ENCERRADOS.includes(pedido.status)
-  );
+  const ativos = state.pedidos.filter((p) => !ENCERRADOS.includes(p.status));
+  const encerrados = state.pedidos.filter((p) => ENCERRADOS.includes(p.status));
 
+  // Contadores por etapa
+  const contAcao = ativos.filter((p) => p.status === 'pendente_pagamento' || p.status === 'pago').length;
+  const contPreparo = ativos.filter((p) => p.status === 'preparando').length;
+  const contEntrega = ativos.filter((p) => p.status === 'saiu_entrega').length;
+  const contEncerrados = encerrados.length;
+  const contTodosAtivos = ativos.length;
+
+  // Atualiza badge geral de pedidos
   const badge = $('badge-pedidos');
-  badge.innerText = ativos.length;
-  badge.classList.toggle('hidden', ativos.length === 0);
+  if (badge) {
+    badge.innerText = contTodosAtivos;
+    badge.classList.toggle('hidden', contTodosAtivos === 0);
+  }
 
-  document.querySelectorAll('[data-filtro]').forEach((botao) => {
-    botao.className =
-      'flex-1 py-2 rounded-lg text-xs font-bold border ' +
-      (botao.dataset.filtro === state.filtroPedidos
-        ? 'bg-orange-600 text-white border-orange-600'
-        : 'bg-white text-gray-700');
+  // Atualiza métricas do topo (Dashboard rápido)
+  if ($('metrica-acao')) $('metrica-acao').innerText = contAcao;
+  if ($('metrica-preparo')) $('metrica-preparo').innerText = contPreparo;
+  if ($('metrica-entrega')) $('metrica-entrega').innerText = contEntrega;
+  if ($('metrica-total')) $('metrica-total').innerText = contTodosAtivos;
+
+  // Atualiza números nos chips de filtro
+  const chipNum = (id, n) => {
+    const el = $(id);
+    if (el) el.innerText = n;
+  };
+  chipNum('chip-num-todos', contTodosAtivos);
+  chipNum('chip-num-acao', contAcao);
+  chipNum('chip-num-preparo', contPreparo);
+  chipNum('chip-num-entrega', contEntrega);
+  chipNum('chip-num-encerrados', contEncerrados);
+
+  // Destaca o chip ativo (e informa o estado para leitores de tela)
+  document.querySelectorAll('[data-status-filtro]').forEach((btn) => {
+    const ativo = btn.dataset.statusFiltro === state.filtroStatus;
+    btn.classList.toggle('ativo', ativo);
+    btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
   });
 
-  $('btn-som').innerText = state.somLigado ? '🔔' : '🔕';
+  // Atualiza ícone do som
+  if ($('btn-som')) {
+    $('btn-som').innerText = state.somLigado ? '🔔 Som ativado' : '🔕 Som mudo';
+    $('btn-som').classList.toggle('mudo', !state.somLigado);
+  }
 
-  const lista = state.filtroPedidos === 'ativos' ? ativos : encerrados;
+  // Filtra e ordena a lista
+  let lista = [];
+  if (state.filtroStatus === 'encerrados') {
+    lista = [...encerrados].sort((a, b) => new Date(dataDoPedido(b) || 0) - new Date(dataDoPedido(a) || 0));
+  } else {
+    let filtrados = ativos;
+    if (state.filtroStatus === 'acao') {
+      filtrados = ativos.filter((p) => p.status === 'pendente_pagamento' || p.status === 'pago');
+    } else if (state.filtroStatus === 'preparando') {
+      filtrados = ativos.filter((p) => p.status === 'preparando');
+    } else if (state.filtroStatus === 'saiu_entrega') {
+      filtrados = ativos.filter((p) => p.status === 'saiu_entrega');
+    }
 
-  $('lista-pedidos').innerHTML = lista.length
-    ? lista.map((pedido) => {
-        const status = statusDe(pedido) || {
-          rotulo: pedido.status || '—',
-          cor: 'bg-gray-100 text-gray-600'
-        };
+    // Ordenação inteligente: pedidos que exigem ação primeiro, depois mais antigos
+    lista = [...filtrados].sort((a, b) => {
+      const pesoA = pesoPrioridade(a);
+      const pesoB = pesoPrioridade(b);
+      if (pesoA !== pesoB) return pesoA - pesoB;
+      return new Date(dataDoPedido(a) || 0) - new Date(dataDoPedido(b) || 0);
+    });
+  }
 
-        const encerrado = ENCERRADOS.includes(pedido.status);
+  const container = $('lista-pedidos');
+  if (!container) return;
 
-        const itensHTML = itensDe(pedido).map((item) => {
-          return `<li>${quantidadeDoItem(item)}x ${esc(item.nome)}</li>`;
-        }).join('');
+  if (!lista.length) {
+    let mensagemVazia = 'Nenhum pedido ativo no momento.';
+    if (state.filtroStatus === 'acao') mensagemVazia = 'Nenhum pedido aguardando ação. Tudo em dia! 👏';
+    else if (state.filtroStatus === 'preparando') mensagemVazia = 'Nenhum pedido na cozinha no momento.';
+    else if (state.filtroStatus === 'saiu_entrega') mensagemVazia = 'Nenhum pedido na rota de entrega agora.';
+    else if (state.filtroStatus === 'encerrados') mensagemVazia = 'Nenhum pedido encerrado ainda.';
 
-        return `
-          <div class="bg-white border rounded-xl p-3 space-y-2">
-            <div class="flex justify-between items-start gap-2">
-              <div class="min-w-0">
-                <p class="font-bold text-sm truncate">${esc(pedido.cliente_nome)}</p>
-                <p class="text-xs text-gray-500">
-                  ${esc(hora(dataDoPedido(pedido)))}
-                  ${encerrado ? '' : ` · há ${minutosDesde(dataDoPedido(pedido))} min`}
-                  · #${esc(codigo(pedido))}
-                </p>
-              </div>
-              <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${status.cor}">
-                ${esc(status.rotulo)}
-              </span>
-            </div>
+    container.innerHTML = `
+      <div class="painel-vazio">
+        <p class="vazio-texto">${esc(mensagemVazia)}</p>
+      </div>
+    `;
+    window.scrollTo({ top: scrollAtual, behavior: 'instant' });
+    return;
+  }
 
-            <ul class="text-sm">${itensHTML}</ul>
+  container.innerHTML = lista.map((pedido) => {
+    const status = statusDe(pedido) || {
+      rotulo: pedido.status || '—',
+      classe: 'badge-cinza',
+      btnClasse: 'btn-verde'
+    };
 
-            <p class="text-xs text-gray-600">
-              📍 ${esc(nomeBairroPedido(pedido))} — ${esc(pedido.endereco_completo)}
-            </p>
+    const encerrado = ENCERRADOS.includes(pedido.status);
+    const minutos = minutosDesde(dataDoPedido(pedido));
 
-            <div class="flex justify-between text-sm">
-              <span class="text-xs text-gray-500">
-                ${esc(rotuloPagamento(pedido))}
-                · entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}
-              </span>
-              <strong>${brl.format(Number(pedido.total) || 0)}</strong>
-            </div>
+    // Destaque visual para pedidos demorando
+    let classeAtraso = '';
+    let badgeTempoHTML = '';
+    if (!encerrado) {
+      if (minutos >= 45) {
+        classeAtraso = 'card-atraso-critico';
+        badgeTempoHTML = `<span class="tag-tempo atraso-critico">⚠️ ${minutos} min</span>`;
+      } else if (minutos >= 30) {
+        classeAtraso = 'card-atraso-alerta';
+        badgeTempoHTML = `<span class="tag-tempo atraso-alerta">⏰ ${minutos} min</span>`;
+      } else {
+        badgeTempoHTML = `<span class="tag-tempo">há ${minutos} min</span>`;
+      }
+    }
 
-            <div class="flex gap-2">
-              ${
-                status.prox
-                  ? `<button data-avancar="${esc(pedido.id)}" class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded-lg">${esc(status.acao)}</button>`
-                  : '<span class="flex-1"></span>'
-              }
-              <button data-zap="${esc(pedido.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-green-50 text-green-700 border-green-200" aria-label="WhatsApp">WhatsApp</button>
-              <button data-imprimir="${esc(pedido.id)}" class="px-3 py-2 text-xs rounded-lg border bg-white" aria-label="Imprimir comanda">🖨️</button>
-              ${
-                encerrado
-                  ? ''
-                  : `<button data-cancelar="${esc(pedido.id)}" class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200">Cancelar</button>`
-              }
+    const itensHTML = itensDe(pedido).map((item) => {
+      const obs = item.observacao ? `<div class="item-obs">Obs: ${esc(item.observacao)}</div>` : '';
+      return `
+        <li class="item-linha">
+          <span class="item-qtd">${quantidadeDoItem(item)}x</span>
+          <span class="item-nome">${esc(item.nome)}</span>
+          ${obs}
+        </li>
+      `;
+    }).join('');
+
+    const estaProcessando = String(state.processandoPedidoId) === String(pedido.id);
+
+    return `
+      <div class="card-pedido ${classeAtraso}" id="card-ped-${esc(pedido.id)}">
+        <div class="card-topo">
+          <div class="card-cliente">
+            <h3 class="cliente-nome">${esc(pedido.cliente_nome)}</h3>
+            <div class="cliente-meta">
+              <span class="pedido-hora">${esc(hora(dataDoPedido(pedido)))}</span>
+              ${badgeTempoHTML}
+              <span class="pedido-cod">#${esc(codigo(pedido))}</span>
             </div>
           </div>
-        `;
-      }).join('')
-    : `<p class="text-sm text-gray-500">${
-        state.filtroPedidos === 'ativos'
-          ? 'Nenhum pedido ativo no momento.'
-          : 'Nenhum pedido encerrado ainda.'
-      }</p>`;
+          <span class="badge-status ${status.classe}">
+            ${esc(status.rotulo)}
+          </span>
+        </div>
+
+        <ul class="lista-itens">${itensHTML}</ul>
+
+        <div class="card-endereco">
+          <span class="end-icone">📍</span>
+          <span class="end-texto">
+            <strong>${esc(nomeBairroPedido(pedido))}</strong> — ${esc(pedido.endereco_completo)}
+          </span>
+        </div>
+
+        ${pedido.observacao ? `
+          <div class="card-obs-geral">
+            <strong>Observação:</strong> ${esc(pedido.observacao)}
+          </div>
+        ` : ''}
+
+        <div class="card-financeiro">
+          <div class="pagto-info">
+            <span class="pagto-forma">${esc(rotuloPagamento(pedido))}</span>
+            <span class="pagto-taxa">entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}</span>
+          </div>
+          <strong class="pagto-total">${brl.format(Number(pedido.total) || 0)}</strong>
+        </div>
+
+        <div class="card-acoes">
+          ${
+            status.prox
+              ? `
+                <button
+                  data-avancar="${esc(pedido.id)}"
+                  class="btn-acao-principal ${status.btnClasse}"
+                  ${estaProcessando ? 'disabled' : ''}
+                >
+                  ${estaProcessando ? 'Salvando...' : esc(status.acao)}
+                </button>
+              `
+              : '<span class="espaco-acao"></span>'
+          }
+          <button data-zap="${esc(pedido.id)}" class="btn-acao-sec btn-zap" title="Enviar WhatsApp">
+            💬 WhatsApp
+          </button>
+          <button data-imprimir="${esc(pedido.id)}" class="btn-acao-sec btn-comanda" title="Imprimir comanda térmica" aria-label="Imprimir comanda">
+            🖨️
+          </button>
+          ${
+            encerrado
+              ? ''
+              : `
+                <button
+                  data-cancelar="${esc(pedido.id)}"
+                  class="btn-acao-sec btn-cancelar"
+                  ${estaProcessando ? 'disabled' : ''}
+                  title="Cancelar pedido"
+                >
+                  Cancelar
+                </button>
+              `
+          }
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Restaura a posição da tela exatamente de onde estava
+  window.scrollTo({ top: scrollAtual, behavior: 'instant' });
 }
 
 function foneZap(pedido) {
@@ -361,7 +499,7 @@ function textoZap(pedido) {
 
   const mensagens = {
     pendente_pagamento: pagaNaEntrega(pedido)
-      ? `Recebemos seu pedido de ${valor}! Já vamos confirmar e começar o preparo. O pagamento é na entrega (${rotuloPagamento(pedido).toLowerCase()}).`
+      ? `Recebemos seu pedido de ${valor}! Já vamos confirmar e começar o preparo. O pagamento é na entrega (${rotuloPagamento(pedido)}).`
       : `Recebemos seu pedido de ${valor}! Falta só o pagamento via Pix para confirmarmos.`,
     pago: 'Pagamento confirmado ✅ Já vamos preparar seu pedido!',
     preparando: 'Seu pedido está em preparo 👨‍🍳',
@@ -373,6 +511,7 @@ function textoZap(pedido) {
   return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}`;
 }
 
+// Impressão da comanda 58mm idêntica à versão validada
 function imprimirComanda(pedido) {
   const linhas = itensDe(pedido).map((item) => {
     const quantidade = quantidadeDoItem(item);
@@ -444,16 +583,26 @@ function imprimirComanda(pedido) {
   iframe.srcdoc = html;
 }
 
+// Mudança de status com proteção contra clique duplo
 async function mudarStatus(pedido, novoStatus, mensagem) {
-  const resultado = await atualizar(
-    'pedidos',
-    pedido.id,
-    { status: novoStatus },
-    mensagem
-  );
+  if (state.processandoPedidoId) return;
 
-  if (resultado) {
-    pedido.status = resultado.status;
+  state.processandoPedidoId = pedido.id;
+  renderPedidos();
+
+  try {
+    const resultado = await atualizar(
+      'pedidos',
+      pedido.id,
+      { status: novoStatus },
+      mensagem
+    );
+
+    if (resultado) {
+      pedido.status = resultado.status;
+    }
+  } finally {
+    state.processandoPedidoId = null;
     renderPedidos();
   }
 }
@@ -462,67 +611,75 @@ function configurarEventos() {
   document.addEventListener('click', desbloquearAudio, { once: true });
   document.addEventListener('touchstart', desbloquearAudio, { once: true });
 
-  $('lista-pedidos').addEventListener('click', async (evento) => {
-    const encontrarPedido = (atributo) => {
-      const botao = evento.target.closest(`[${atributo}]`);
-      return botao
-        ? achar(state.pedidos, botao.getAttribute(atributo))
-        : null;
-    };
+  const listaEl = $('lista-pedidos');
+  if (listaEl) {
+    listaEl.addEventListener('click', async (evento) => {
+      const encontrarPedido = (atributo) => {
+        const botao = evento.target.closest(`[${atributo}]`);
+        return botao
+          ? achar(state.pedidos, botao.getAttribute(atributo))
+          : null;
+      };
 
-    let pedido;
+      let pedido;
 
-    if ((pedido = encontrarPedido('data-avancar'))) {
-      const status = statusDe(pedido);
-      if (status?.prox) {
-        await mudarStatus(
-          pedido,
-          status.prox,
-          STATUS[status.prox]?.rotulo || 'Status atualizado'
+      if ((pedido = encontrarPedido('data-avancar'))) {
+        const status = statusDe(pedido);
+        if (status?.prox) {
+          await mudarStatus(
+            pedido,
+            status.prox,
+            STATUS[status.prox]?.rotulo || 'Status atualizado'
+          );
+        }
+        return;
+      }
+
+      if ((pedido = encontrarPedido('data-cancelar'))) {
+        const nomeCli = pedido.cliente_nome ? `de ${pedido.cliente_nome}` : '';
+        const codPed = codigo(pedido);
+        if (confirm(`Tem certeza que deseja cancelar o pedido #${codPed} ${nomeCli}?\n\nEsta ação não poderá ser desfeita.`)) {
+          await mudarStatus(pedido, 'cancelado', 'Pedido cancelado');
+        }
+        return;
+      }
+
+      if ((pedido = encontrarPedido('data-zap'))) {
+        const numero = foneZap(pedido);
+        if (!numero) return aviso('Pedido sem telefone cadastrado.');
+
+        window.open(
+          `https://wa.me/${numero}?text=${encodeURIComponent(textoZap(pedido))}`,
+          '_blank',
+          'noopener,noreferrer'
         );
+        return;
       }
-      return;
-    }
 
-    if ((pedido = encontrarPedido('data-cancelar'))) {
-      if (confirm(`Cancelar o pedido de ${pedido.cliente_nome || 'cliente'}?`)) {
-        await mudarStatus(pedido, 'cancelado', 'Pedido cancelado');
+      if ((pedido = encontrarPedido('data-imprimir'))) {
+        imprimirComanda(pedido);
       }
-      return;
-    }
+    });
+  }
 
-    if ((pedido = encontrarPedido('data-zap'))) {
-      const numero = foneZap(pedido);
-      if (!numero) return aviso('Pedido sem telefone');
+  const abaPedidos = $('aba-pedidos');
+  if (abaPedidos) {
+    abaPedidos.addEventListener('click', (evento) => {
+      const filtro = evento.target.closest('[data-status-filtro]');
+      if (filtro) {
+        state.filtroStatus = filtro.dataset.statusFiltro;
+        renderPedidos();
+        return;
+      }
 
-      window.open(
-        `https://wa.me/${numero}?text=${encodeURIComponent(textoZap(pedido))}`,
-        '_blank',
-        'noopener,noreferrer'
-      );
-      return;
-    }
-
-    if ((pedido = encontrarPedido('data-imprimir'))) {
-      imprimirComanda(pedido);
-    }
-  });
-
-  $('aba-pedidos').addEventListener('click', (evento) => {
-    const filtro = evento.target.closest('[data-filtro]');
-
-    if (filtro) {
-      state.filtroPedidos = filtro.dataset.filtro;
-      renderPedidos();
-    }
-
-    if (evento.target.closest('#btn-som')) {
-      state.somLigado = !state.somLigado;
-      desbloquearAudio();
-      renderPedidos();
-      if (state.somLigado) beep();
-    }
-  });
+      if (evento.target.closest('#btn-som')) {
+        state.somLigado = !state.somLigado;
+        desbloquearAudio();
+        renderPedidos();
+        if (state.somLigado) beep();
+      }
+    });
+  }
 }
 
 let eventosConfigurados = false;
