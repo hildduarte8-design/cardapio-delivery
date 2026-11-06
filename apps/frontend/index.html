@@ -87,6 +87,13 @@
     .meta { display: flex; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12.5px; color: var(--suave); }
     .meta strong { color: var(--texto); }
 
+    /* ===== Forma de pagamento ===== */
+    .opcao { display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid #E4DCCB; border-radius: 12px; background: #fff; cursor: pointer; }
+    .opcao input { width: 22px; height: 22px; flex: none; accent-color: var(--cor); }
+    .opcao strong { display: block; font-size: 15px; }
+    .opcao small { display: block; font-size: 12px; color: var(--suave); }
+    .opcao:has(input:checked) { border-color: var(--cor); box-shadow: 0 0 0 1px var(--cor); }
+
     /* ===== Barra do carrinho (fixa) ===== */
     .carrinho-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: var(--grafite); color: #F2EFE8; padding: 12px 0 calc(12px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 20px rgba(0,0,0,.18); }
     .carrinho-barra .wrap { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -155,6 +162,19 @@
         <input id="cli-fone" class="entrada" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16" />
         <label for="cli-endereco" class="campo">Endereço (rua, número, complemento)</label>
         <textarea id="cli-endereco" class="entrada" rows="2" maxlength="200"></textarea>
+      </section>
+
+      <section class="bloco">
+        <h2>Pagamento</h2>
+        <div id="opcoes-pagto" role="radiogroup" aria-label="Forma de pagamento">
+          <label class="opcao"><input type="radio" name="pagto" value="pix" /><span><strong>Pix</strong><small>A loja envia a chave Pix pelo seu WhatsApp</small></span></label>
+          <label class="opcao"><input type="radio" name="pagto" value="dinheiro" /><span><strong>Dinheiro</strong><small>Pague na entrega</small></span></label>
+          <label class="opcao"><input type="radio" name="pagto" value="cartao" /><span><strong>Cartão</strong><small>Débito ou crédito, na entrega</small></span></label>
+        </div>
+        <div id="area-troco" class="hidden">
+          <label for="cli-troco" class="campo">Precisa de troco? Troco para quanto (opcional)</label>
+          <input id="cli-troco" class="entrada" type="text" inputmode="decimal" placeholder="Ex.: 50" maxlength="10" />
+        </div>
       </section>
     </main>
 
@@ -502,6 +522,26 @@
       } catch (e) { /* ignora */ }
     }
 
+    // ---------- Pagamento ----------
+    const formaSelecionada = () => {
+      const marcada = document.querySelector('input[name="pagto"]:checked');
+      return marcada ? marcada.value : '';
+    };
+
+    // Aceita "50", "50,00" ou "1.000,50"; devolve número ou null se não for um valor válido
+    function lerValorEmReais(texto) {
+      let t = String(texto || '').replace(/[^\d.,]/g, '');
+      if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.');
+      const n = parseFloat(t);
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    function limparPagamento() {
+      document.querySelectorAll('input[name="pagto"]').forEach((r) => { r.checked = false; });
+      $('area-troco').classList.add('hidden');
+      $('cli-troco').value = '';
+    }
+
     // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
     async function finalizarPedido() {
       const select = $('select-bairro');
@@ -515,6 +555,19 @@
       if (nome.length < 2) return alert('Informe seu nome.');
       if (fone.length < 10 || fone.length > 11) return alert('Informe um WhatsApp válido com DDD.');
       if (endereco.length < 5) return alert('Informe seu endereço de entrega.');
+
+      const forma = formaSelecionada();
+      if (!forma) return alert('Escolha a forma de pagamento.');
+
+      // Troco: só para dinheiro, opcional; o backend confere de novo contra o total real
+      let troco = null;
+      if (forma === 'dinheiro' && $('cli-troco').value.trim() !== '') {
+        troco = lerValorEmReais($('cli-troco').value);
+        const totalEstimado = calcularSubtotal() + taxaAtual;
+        if (troco === null || Math.round(troco * 100) < Math.round(totalEstimado * 100)) {
+          return alert(`O valor para troco deve ser igual ou maior que o total (${brl.format(totalEstimado)}).`);
+        }
+      }
 
       const botao = $('btn-enviar');
       botao.disabled = true;
@@ -531,8 +584,8 @@
           produto_id: item.id,
           quantidade: item.qtd
         })),
-        forma_pagamento: 'pix',
-        troco_para: null,
+        forma_pagamento: forma,
+        troco_para: troco,
         observacao_geral: ''
       };
 
@@ -569,6 +622,7 @@
         renderCarrinho();
         select.value = '';
         atualizarTaxa();
+        limparPagamento();
 
       } catch (error) {
         console.error('[ERRO CONEXÃO]:', error);
@@ -581,6 +635,12 @@
     // ---------- Eventos ----------
     $('select-bairro').addEventListener('change', atualizarTaxa);
     $('btn-enviar').addEventListener('click', finalizarPedido);
+
+    $('opcoes-pagto').addEventListener('change', () => {
+      const dinheiro = formaSelecionada() === 'dinheiro';
+      $('area-troco').classList.toggle('hidden', !dinheiro);
+      if (!dinheiro) $('cli-troco').value = '';
+    });
 
     $('busca').addEventListener('input', (e) => {
       filtroBusca = e.target.value;
