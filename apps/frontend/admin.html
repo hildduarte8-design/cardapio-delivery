@@ -1,117 +1,238 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex, nofollow" />
-  <title>Painel do Restaurante</title>
-  <link rel="stylesheet" href="styles.css" />
-  <meta name="theme-color" content="#0F172A" />
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-</head>
-<body class="bg-gray-100 text-gray-800 antialiased min-h-screen">
+import { sb, configurado } from './admin-supabase.js';
+import { state } from './admin-state.js';
+import { $, aviso, tratarErro } from './admin-utils.js';
+import { carregarPedidos, iniciarPedidos, pararPedidos, inicializarPedidos } from './admin-pedidos.js';
+import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
+import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
+import { inicializarDashboard, iniciarDashboard, pararDashboard } from './admin-dashboard.js';
 
-  <div id="tela-login" class="max-w-sm mx-auto mt-10 p-6 bg-white rounded-2xl shadow-md border">
-    <h1 class="text-xl font-bold mb-4 text-center">Painel do Restaurante</h1>
-    <p id="aviso-config" class="hidden mb-3 bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Configure SUPABASE_URL e SUPABASE_ANON_KEY no código.</p>
-    <form id="form-login" class="space-y-4">
-      <input id="login-email" type="email" required autocomplete="username" placeholder="E-mail" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-      <input id="login-senha" type="password" required autocomplete="current-password" placeholder="Senha" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-      <button id="btn-login" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl disabled:opacity-60">Entrar</button>
-    </form>
-  </div>
+let inicializacaoEmAndamento = false;
 
-  <div id="tela-admin" class="hidden max-w-md mx-auto p-4 pb-24 space-y-4">
-    <header class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border">
-      <div class="min-w-0">
-        <h1 id="rest-nome" class="font-bold text-lg truncate"></h1>
-        <p id="rest-link" class="text-xs text-gray-500 truncate"></p>
-      </div>
-      <button id="btn-sair" class="text-xs font-semibold text-orange-600 border border-orange-200 px-3 py-2 rounded-lg">Sair</button>
-    </header>
+const ABAS = ['painel', 'pedidos', 'produtos', 'entrega', 'config'];
 
-    <p id="sem-acesso" class="hidden bg-yellow-100 text-yellow-800 text-sm p-3 rounded-lg">Este usuário não está vinculado a nenhum restaurante.</p>
+// Aba que abre ao entrar no painel (troque para 'painel' se preferir começar pelos números do dia)
+const ABA_INICIAL = 'pedidos';
 
-    <nav id="abas" class="grid grid-cols-4 gap-2">
-      <button data-aba="pedidos" class="py-2 rounded-lg text-xs font-bold border">Pedidos<span id="badge-pedidos" class="hidden ml-1 bg-red-600 text-white rounded-full px-1.5"></span></button>
-      <button data-aba="produtos" class="py-2 rounded-lg text-xs font-bold border">Produtos</button>
-      <button data-aba="entrega" class="py-2 rounded-lg text-xs font-bold border">Entrega</button>
-      <button data-aba="config" class="py-2 rounded-lg text-xs font-bold border">Conta</button>
-    </nav>
+function mostrarAba(nome) {
+  ABAS.forEach((aba) => {
+    const painel = $(`aba-${aba}`);
+    if (painel) painel.classList.toggle('hidden', aba !== nome);
 
-    <div id="aba-pedidos" class="hidden space-y-3">
-      <div class="flex gap-2 items-center">
-        <button data-filtro="ativos" class="flex-1 py-2 rounded-lg text-xs font-bold border">Ativos</button>
-        <button data-filtro="encerrados" class="flex-1 py-2 rounded-lg text-xs font-bold border">Encerrados</button>
-        <button id="btn-som" class="px-3 py-2 rounded-lg text-sm border bg-white" aria-label="Som de novo pedido">🔔</button>
-      </div>
-      <div id="lista-pedidos" class="space-y-3"><p class="text-sm text-gray-500">Carregando pedidos...</p></div>
-    </div>
+    const botao = document.querySelector(`[data-aba="${aba}"]`);
+    if (botao) {
+      botao.classList.toggle('ativa', aba === nome);
+      if (aba === nome) botao.setAttribute('aria-current', 'page');
+      else botao.removeAttribute('aria-current');
+    }
+  });
 
-    <div id="aba-produtos" class="hidden space-y-4">
-      <section class="bg-white rounded-xl shadow-sm border">
-        <button id="btn-toggle-form" class="w-full text-left p-4 font-bold text-sm flex justify-between"><span>+ Novo produto</span><span id="seta-form" class="text-gray-400">▼</span></button>
-        <form id="form-produto" class="hidden px-4 pb-4 space-y-3">
-          <input id="p-nome" required maxlength="80" placeholder="Nome" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-          <div class="grid grid-cols-2 gap-3">
-            <input id="p-categoria" list="lista-categorias" maxlength="40" placeholder="Categoria" class="p-3 border rounded-lg bg-gray-50 text-sm" />
-            <input id="p-preco" type="number" step="0.01" min="0.01" inputmode="decimal" required placeholder="Preço" class="p-3 border rounded-lg bg-gray-50 text-sm" />
-          </div>
-          <datalist id="lista-categorias"></datalist>
-          <input id="p-descricao" maxlength="200" placeholder="Descrição (opcional)" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-          <button id="btn-cadastrar" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg text-sm disabled:opacity-60">Cadastrar</button>
-        </form>
-      </section>
-      <div id="lista-produtos" class="space-y-3"></div>
-    </div>
+  // O Painel só atualiza sozinho enquanto a aba está aberta
+  if (nome === 'painel') iniciarDashboard();
+  else pararDashboard();
+}
 
-    <div id="aba-entrega" class="hidden space-y-4">
-      <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
-        <h2 class="font-bold text-sm">Dados do restaurante</h2>
-        <input id="r-nome" maxlength="80" placeholder="Nome" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-        <input id="r-whatsapp" inputmode="numeric" maxlength="16" placeholder="WhatsApp com DDD" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-        <div class="grid grid-cols-2 gap-3">
-          <label class="text-xs font-semibold">Taxa base (R$)<input id="r-taxa-base" type="number" step="0.01" min="0" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
-          <label class="text-xs font-semibold">Valor por km (R$)<input id="r-valor-km" type="number" step="0.01" min="0" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
-          <label class="text-xs font-semibold">Latitude da loja<input id="r-lat" type="number" step="any" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
-          <label class="text-xs font-semibold">Longitude da loja<input id="r-lon" type="number" step="any" inputmode="decimal" class="mt-1 w-full p-3 border rounded-lg bg-gray-50 text-sm" /></label>
-        </div>
-        <button id="btn-salvar-rest" class="w-full bg-orange-600 text-white font-bold py-3 rounded-lg text-sm disabled:opacity-60">Salvar dados</button>
-      </section>
+function configurarNavegacao() {
+  const abasEl = $('abas');
+  if (abasEl) {
+    abasEl.addEventListener('click', (evento) => {
+      const botao = evento.target.closest('[data-aba]');
+      if (botao) mostrarAba(botao.dataset.aba);
+    });
+  }
 
-      <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
-        <h2 class="font-bold text-sm">Bairros atendidos</h2>
-        <form id="form-bairro" class="grid grid-cols-5 gap-2">
-          <input id="b-nome" required maxlength="60" placeholder="Novo bairro" class="col-span-5 p-3 border rounded-lg bg-gray-50 text-sm" />
-          <input id="b-taxa" type="number" step="0.01" min="0" required inputmode="decimal" placeholder="Taxa" class="col-span-2 p-3 border rounded-lg bg-gray-50 text-sm" />
-          <input id="b-tempo" maxlength="20" placeholder="40-50 min" class="col-span-2 p-3 border rounded-lg bg-gray-50 text-sm" />
-          <button class="p-3 bg-green-600 text-white font-bold rounded-lg text-sm">+</button>
-        </form>
-        <div id="lista-bairros" class="space-y-2"></div>
-      </section>
-    </div>
+  // Os cartões do Painel levam direto para a aba de Pedidos
+  window.addEventListener('admin:ir-aba', (evento) => {
+    if (ABAS.includes(evento.detail)) mostrarAba(evento.detail);
+  });
+}
 
-    <div id="aba-config" class="hidden space-y-4">
-      <section class="bg-white p-4 rounded-xl shadow-sm border space-y-3">
-        <h2 class="font-bold text-sm">Segurança & Acesso</h2>
-        <p class="text-xs text-gray-500">Altere a sua senha de login do painel.</p>
-        <form id="form-senha" class="space-y-3">
-          <div>
-            <label for="nova-senha" class="block text-xs font-semibold mb-1">Nova Senha</label>
-            <input id="nova-senha" type="password" required minlength="6" placeholder="Digite no mínimo 6 caracteres" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-          </div>
-          <div>
-            <label for="confirma-senha" class="block text-xs font-semibold mb-1">Confirmar Nova Senha</label>
-            <input id="confirma-senha" type="password" required minlength="6" placeholder="Repita a nova senha" class="w-full p-3 border rounded-lg bg-gray-50 text-sm" />
-          </div>
-          <button id="btn-alterar-senha" class="w-full bg-orange-600 text-white font-bold py-3 rounded-lg text-sm disabled:opacity-60">Alterar Senha</button>
-        </form>
-      </section>
-    </div>
-  </div>
+function mostrarSemAcesso() {
+  $('sem-acesso').classList.remove('hidden');
+  $('abas').classList.add('hidden');
+  pararDashboard();
 
-  <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"></div>
+  ABAS.forEach((aba) => {
+    const painel = $(`aba-${aba}`);
+    if (painel) painel.classList.add('hidden');
+  });
+}
 
-  <script type="module" src="./js/admin.js"></script>
-</body>
-</html>
+function esconderSemAcesso() {
+  $('sem-acesso').classList.add('hidden');
+  $('abas').classList.remove('hidden');
+}
+
+async function iniciarPainel() {
+  if (!sb || inicializacaoEmAndamento) return;
+
+  inicializacaoEmAndamento = true;
+
+  try {
+    const { data, error } = await sb
+      .from('restaurante_usuarios')
+      .select('restaurantes(*)')
+      .limit(1);
+
+    if (error) {
+      tratarErro(error, 'Não foi possível carregar seu restaurante.');
+      return;
+    }
+
+    if (!data?.length || !data[0].restaurantes) {
+      mostrarSemAcesso();
+      return;
+    }
+
+    state.rest = data[0].restaurantes;
+    esconderSemAcesso();
+
+    $('rest-nome').innerText = state.rest.nome;
+    const linkCardapio = `index.html?r=${state.rest.slug}`;
+    const elLink = $('rest-link');
+    if (elLink) {
+      elLink.href = linkCardapio;
+      elLink.innerText = `Ver cardápio (${state.rest.slug})`;
+    }
+
+    preencherRestaurante();
+    mostrarAba(ABA_INICIAL);
+
+    await Promise.all([
+      carregarPedidos(),
+      carregarProdutos(),
+      carregarBairros()
+    ]);
+
+    iniciarPedidos();
+  } finally {
+    inicializacaoEmAndamento = false;
+  }
+}
+
+async function checarSessao() {
+  if (!configurado || !sb) {
+    $('aviso-config').classList.remove('hidden');
+    $('aviso-config').innerText =
+      'Configuração do Supabase ausente ou biblioteca não carregada.';
+    return;
+  }
+
+  const { data, error } = await sb.auth.getSession();
+
+  if (error) {
+    tratarErro(error, 'Erro ao verificar sessão.');
+    return;
+  }
+
+  const sessao = data?.session;
+
+  $('tela-login').classList.toggle('hidden', Boolean(sessao));
+  $('tela-admin').classList.toggle('hidden', !sessao);
+
+  if (sessao) {
+    await iniciarPainel();
+  } else {
+    pararPedidos();
+    pararDashboard();
+    state.rest = null;
+  }
+}
+
+function configurarLogin() {
+  $('form-login').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+    if (!sb) return;
+
+    const botao = $('btn-login');
+    botao.disabled = true;
+    botao.innerText = 'Entrando...';
+
+    const { error } = await sb.auth.signInWithPassword({
+      email: $('login-email').value.trim(),
+      password: $('login-senha').value
+    });
+
+    botao.disabled = false;
+    botao.innerText = 'Entrar no painel';
+
+    if (error) {
+      aviso('E-mail ou senha incorretos.');
+      return;
+    }
+
+    $('login-senha').value = '';
+    await checarSessao();
+  });
+
+  $('btn-sair').addEventListener('click', async () => {
+    if (!sb) return;
+
+    await sb.auth.signOut();
+    pararPedidos();
+    pararDashboard();
+    state.rest = null;
+    await checarSessao();
+  });
+}
+
+function configurarConta() {
+  $('form-senha').addEventListener('submit', async (evento) => {
+    evento.preventDefault();
+
+    const novaSenha = $('nova-senha').value;
+    const confirmaSenha = $('confirma-senha').value;
+
+    if (novaSenha.length < 6) {
+      aviso('A nova senha deve ter no mínimo 6 caracteres.');
+      return;
+    }
+
+    if (novaSenha !== confirmaSenha) {
+      aviso('As senhas digitadas não coincidem.');
+      return;
+    }
+
+    const botao = $('btn-alterar-senha');
+    botao.disabled = true;
+    botao.innerText = 'Alterando...';
+
+    const { error } = await sb.auth.updateUser({ password: novaSenha });
+
+    botao.disabled = false;
+    botao.innerText = 'Alterar Senha';
+
+    if (error) {
+      tratarErro(error, 'Erro ao alterar a senha.');
+      return;
+    }
+
+    $('form-senha').reset();
+    aviso('Senha alterada com sucesso!');
+  });
+}
+
+function inicializar() {
+  inicializarPedidos();
+  inicializarProdutos();
+  inicializarEntrega();
+  inicializarDashboard();
+  configurarNavegacao();
+  configurarLogin();
+  configurarConta();
+
+  window.addEventListener('admin:session-expired', async () => {
+    if (sb) await sb.auth.signOut();
+    pararPedidos();
+    pararDashboard();
+    state.rest = null;
+    await checarSessao();
+  });
+
+  checarSessao();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', inicializar, { once: true });
+} else {
+  inicializar();
+}
