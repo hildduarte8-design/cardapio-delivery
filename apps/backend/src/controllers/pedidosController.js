@@ -311,15 +311,17 @@ export function criarControladorPedidos({
       }
 
       // 8. Pagamento e troco
+      const FORMAS_PAGAMENTO = ['pix', 'dinheiro', 'cartao'];
       const pagamento = sanitizarTexto(forma_pagamento || 'pix', 2, 30)?.toLowerCase();
 
-      if (!pagamento) {
+      if (!pagamento || !FORMAS_PAGAMENTO.includes(pagamento)) {
         return respostaErro(res, 400, 'Forma de pagamento inválida.', 'PAGAMENTO_INVALIDO');
       }
 
       let trocoCentavos = null;
 
-      if (troco_para !== undefined && troco_para !== null && troco_para !== '') {
+      // Troco só existe para pagamento em dinheiro; nas outras formas é ignorado
+      if (pagamento === 'dinheiro' && troco_para !== undefined && troco_para !== null && troco_para !== '') {
         trocoCentavos = paraCentavos(troco_para);
 
         if (trocoCentavos === null || trocoCentavos < totalCentavos) {
