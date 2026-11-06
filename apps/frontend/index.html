@@ -119,6 +119,7 @@
     .pix-chave { display: block; word-break: break-all; font: 700 16px ui-monospace, Menlo, monospace; background: var(--fundo); border-radius: 10px; padding: 12px; margin: 8px 0; user-select: all; }
     .pix-box small { display: block; color: var(--suave); font-size: 12.5px; }
   </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -498,7 +499,11 @@
       const produto = produtos.find((p) => String(p.id) === String(id));
       if (!produto) return;
       const existente = carrinho.find((i) => String(i.id) === String(id));
-      if (existente) existente.qtd += 1;
+      if (existente) {
+        // Mesmo limite do backend: 50 unidades por produto
+        if (existente.qtd >= 50) return avisar('O limite é de 50 unidades por produto.');
+        existente.qtd += 1;
+      }
       else carrinho.push({ id: produto.id, nome: produto.nome, preco: parseFloat(produto.preco) || 0, qtd: 1 });
       renderCarrinho();
     }
@@ -506,6 +511,10 @@
     function alterarQtd(id, delta) {
       const item = carrinho.find((i) => String(i.id) === String(id));
       if (!item) return;
+      // Mesmo limite do backend: 50 unidades por produto
+      if (delta > 0 && item.qtd >= 50) {
+        return avisar('O limite é de 50 unidades por produto.');
+      }
       item.qtd += delta;
       if (item.qtd <= 0) carrinho = carrinho.filter((i) => i !== item);
       renderCarrinho();
@@ -643,13 +652,17 @@
     }
 
     const MSG_CAMPO = {
-      NOME_INVALIDO: ['Confira o seu nome.', 'cli-nome'],
-      WHATSAPP_INVALIDO: ['Confira o seu WhatsApp com DDD.', 'cli-fone'],
-      ENDERECO_INVALIDO: ['Confira o seu endereço de entrega.', 'cli-endereco'],
-      LOCALIZACAO_OBRIGATORIA: ['Escolha o seu bairro.', 'select-bairro'],
-      TROCO_INVALIDO: ['O troco deve ser igual ou maior que o total do pedido.', 'cli-troco'],
-      FORA_DA_AREA: ['Esse endereço fica fora da nossa área de entrega.', 'cli-endereco']
-    };
+  NOME_INVALIDO: ['Confira o seu nome.', 'cli-nome'],
+  WHATSAPP_INVALIDO: ['Confira o seu WhatsApp com DDD.', 'cli-fone'],
+  ENDERECO_INVALIDO: ['Confira o seu endereço de entrega.', 'cli-endereco'],
+  LOCALIZACAO_OBRIGATORIA: ['Escolha o seu bairro.', 'select-bairro'],
+  TROCO_INVALIDO: ['O troco deve ser igual ou maior que o total do pedido.', 'cli-troco'],
+  FORA_DA_AREA: ['Esse endereço fica fora da nossa área de entrega.', 'cli-endereco'],
+  SEM_DADOS_PARA_FRETE: [
+    'Não conseguimos calcular a entrega. Confira e selecione seu bairro novamente.',
+    'select-bairro'
+  ]
+};
 
     async function tratarErroPedido(status, r) {
       const cod = r && r.codigo;
@@ -676,6 +689,26 @@
       if (cod === 'CARRINHO_INVALIDO' || cod === 'ITEM_INVALIDO' || cod === 'QUANTIDADE_INVALIDA') {
         return avisar('Há algo errado com os itens do pedido. Confira as quantidades.');
       }
+      if (cod === 'PAGAMENTO_INVALIDO') {
+  $('opcoes-pagto').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  return avisar('Confira e escolha novamente a forma de pagamento.');
+}
+
+if (cod === 'ERRO_CONSULTA_BAIRRO') {
+  return avisar('Não conseguimos confirmar seu bairro agora. Aguarde um instante e tente novamente.');
+}
+
+if (cod === 'ERRO_CONSULTA_RESTAURANTE' || cod === 'ERRO_CONSULTA_PRODUTOS') {
+  return avisar('Não conseguimos confirmar os dados da loja ou dos produtos. Tente novamente em instantes.');
+}
+
+if (cod === 'PRECO_PRODUTO_INVALIDO' || cod === 'SUBTOTAL_INVALIDO') {
+  return avisar('Encontramos uma inconsistência no preço de um produto. Avise a loja pelo WhatsApp antes de refazer o pedido.');
+}
+
+if (cod === 'ERRO_PERSISTENCIA' || cod === 'ERRO_INTERNO') {
+  return avisar('Não foi possível registrar o pedido. Antes de tentar novamente, confirme com a loja pelo WhatsApp se ele chegou.');
+}
       if (MSG_CAMPO[cod]) return campoInvalido(MSG_CAMPO[cod][1], MSG_CAMPO[cod][0]);
       if (status === 429) return avisar('Muitas tentativas seguidas. Espere 1 minuto e tente de novo.');
       if (status >= 500) return avisar('Tivemos um problema do nosso lado. Tente de novo; se continuar, chame a loja no WhatsApp.');
@@ -709,7 +742,7 @@
       $('tela-sucesso').innerHTML = `<div class="estado" style="padding-bottom:8px">
           <div class="ok-icone" aria-hidden="true">✓</div>
           <h2 id="titulo-sucesso" tabindex="-1">Pedido enviado!</h2>
-          <p style="margin-bottom:0">Pedido <strong>#${esc(codigo)}</strong> · Total <strong>${total}</strong><br>A cozinha já recebeu e vai falar com você pelo WhatsApp.</p>
+          <p style="margin-bottom:0">Pedido <strong>#${esc(codigo)}</strong> · Total <strong>${total}</strong><br>Seu pedido foi registrado! Aguarde a confirmação da loja pelo WhatsApp.</p>
         </div>
         ${pagamento}
         ${zap ? `<a class="btn sec bloco-btn" href="${esc(zap)}" target="_blank" rel="noopener noreferrer">Falar com a loja no WhatsApp</a>` : ''}
@@ -806,9 +839,20 @@
           return;
         }
 
+        // Só considera concluído quando o backend confirma o pedido e seus dados.
+        // Se a resposta vier incompleta, o carrinho fica intacto para tentar de novo.
+        if (
+          resultado?.sucesso !== true ||
+          !resultado?.pedido?.id ||
+          !Number.isFinite(Number(resultado?.pedido?.total))
+        ) {
+          avisar('Recebemos uma resposta incompleta do servidor. Antes de tentar novamente, confirme com a loja pelo WhatsApp se o pedido foi registrado.');
+          return;
+        }
+
         salvarDadosCliente();
         $('toast').classList.add('hidden');
-        mostrarSucesso(resultado.pedido || {}, forma, troco);
+        mostrarSucesso(resultado.pedido, forma, troco);
 
         carrinho = [];
         renderCarrinho();
