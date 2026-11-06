@@ -101,13 +101,30 @@
     .carrinho-barra .tot { font-size: 21px; font-weight: 800; color: var(--dourado); }
     #btn-enviar { height: 52px; padding: 0 22px; border: 0; border-radius: 14px; background: var(--cor); color: var(--cor-texto); font-size: 16px; font-weight: 800; }
     #btn-enviar:disabled { opacity: .6; cursor: default; }
+
+    /* ===== Etapa 2: avisos, estados e tela de sucesso ===== */
+    .toast { position: fixed; left: 12px; right: 12px; bottom: calc(96px + env(safe-area-inset-bottom, 0px)); z-index: 30; max-width: 456px; margin: 0 auto; padding: 13px 14px; border-radius: 12px; font-size: 14px; font-weight: 600; box-shadow: 0 6px 24px rgba(0,0,0,.22); }
+    .toast.erro { background: #FEE4E2; color: #7A271A; border: 1px solid #FDA29B; }
+    .toast.info { background: #FEF3C7; color: #78350F; border: 1px solid #FCD34D; }
+    .entrada.invalido { border-color: var(--erro); box-shadow: 0 0 0 1px var(--erro); }
+    .estado { text-align: center; padding: 36px 8px; }
+    .estado h2 { font: 700 20px Fraunces, Georgia, serif; margin-bottom: 8px; }
+    .estado p { color: var(--suave); font-size: 14px; margin-bottom: 16px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 20px; border: 0; border-radius: 14px; background: var(--cor); color: var(--cor-texto); font-size: 15px; font-weight: 800; text-decoration: none; }
+    .btn.sec { background: #fff; color: var(--texto); border: 1px solid #E4DCCB; }
+    .btn.bloco-btn { display: flex; width: 100%; margin-top: 10px; }
+    .ok-icone { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%; background: #D1FADF; color: #067647; font-size: 30px; display: flex; align-items: center; justify-content: center; }
+    .pix-box { background: #fff; border: 2px solid var(--cor); border-radius: 16px; padding: 16px; margin-top: 16px; text-align: left; }
+    .pix-box h3 { font-size: 15px; margin-bottom: 8px; }
+    .pix-chave { display: block; word-break: break-all; font: 700 16px ui-monospace, Menlo, monospace; background: var(--fundo); border-radius: 10px; padding: 12px; margin: 8px 0; user-select: all; }
+    .pix-box small { display: block; color: var(--suave); font-size: 12.5px; }
   </style>
 </head>
 <body>
 
   <div id="app-container">
     <div class="wrap">
-      <header class="topo">
+      <header class="topo" id="topo">
         <div class="loja">
           <div class="logo-box" id="logo-box">
             <span class="ini" id="rest-ini" aria-hidden="true"></span>
@@ -124,7 +141,7 @@
       </header>
     </div>
 
-    <div class="barra">
+    <div class="barra" id="barra-busca">
       <div class="wrap">
         <label for="busca" class="sr-only">Buscar no cardápio</label>
         <input id="busca" class="busca" type="search" placeholder="Buscar no cardápio" autocomplete="off" />
@@ -132,7 +149,7 @@
       </div>
     </div>
 
-    <main class="wrap">
+    <main class="wrap" id="conteudo">
       <section id="lista-produtos" aria-live="polite">
         <p class="vazio">Carregando produtos...</p>
       </section>
@@ -167,7 +184,7 @@
       <section class="bloco">
         <h2>Pagamento</h2>
         <div id="opcoes-pagto" role="radiogroup" aria-label="Forma de pagamento">
-          <label class="opcao"><input type="radio" name="pagto" value="pix" /><span><strong>Pix</strong><small>A loja envia a chave Pix pelo seu WhatsApp</small></span></label>
+          <label class="opcao"><input type="radio" name="pagto" value="pix" /><span><strong>Pix</strong><small id="pix-sub">A loja envia a chave Pix pelo seu WhatsApp</small></span></label>
           <label class="opcao"><input type="radio" name="pagto" value="dinheiro" /><span><strong>Dinheiro</strong><small>Pague na entrega</small></span></label>
           <label class="opcao"><input type="radio" name="pagto" value="cartao" /><span><strong>Cartão</strong><small>Débito ou crédito, na entrega</small></span></label>
         </div>
@@ -178,7 +195,10 @@
       </section>
     </main>
 
-    <div class="carrinho-barra">
+    <section id="tela-sucesso" class="wrap hidden" aria-live="polite"></section>
+    <section id="tela-estado" class="wrap hidden"></section>
+
+    <div class="carrinho-barra" id="barra-carrinho">
       <div class="wrap">
         <div>
           <p class="rot">Total com entrega (<span id="qtd-itens">0</span> itens)</p>
@@ -188,6 +208,8 @@
       </div>
     </div>
   </div>
+
+  <div id="toast" class="toast hidden" role="alert"></div>
 
   <!-- CDN Supabase com bundle UMD explícito (garante o objeto global window.supabase) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
@@ -263,6 +285,7 @@
     function renderCabecalho(r) {
       $('rest-nome').innerText = r.nome;
       $('rest-ini').innerText = iniciais(r.nome);
+      document.querySelectorAll('#logo-box img, #area-banner img').forEach((el) => el.remove());
       if (urlImagemValida(r.logo_url)) {
         const img = document.createElement('img');
         img.src = r.logo_url; img.alt = 'Logo de ' + r.nome; img.decoding = 'async';
@@ -279,12 +302,18 @@
 
     // ---------- Inicialização ----------
     async function carregarRestaurante(slug) {
-      const colunasBase = 'id, slug, nome, ativo';
-      const colunasVisuais = colunasBase + ', logo_url, banner_url, cor_primaria, cor_secundaria';
-      let resp = await supabaseClient.from('restaurantes').select(colunasVisuais).eq('slug', slug).eq('ativo', true).maybeSingle();
-      // Se as colunas visuais ainda não existirem no banco, o cardápio continua funcionando
-      if (resp.error) {
-        resp = await supabaseClient.from('restaurantes').select(colunasBase).eq('slug', slug).eq('ativo', true).maybeSingle();
+      const base = 'id, slug, nome, ativo';
+      // Tenta com todas as colunas; se alguma ainda não existir no banco, usa menos (o cardápio continua funcionando)
+      const camadas = [
+        base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp, chave_pix',
+        base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp',
+        base + ', logo_url, banner_url, cor_primaria, cor_secundaria',
+        base
+      ];
+      let resp;
+      for (const colunas of camadas) {
+        resp = await supabaseClient.from('restaurantes').select(colunas).eq('slug', slug).eq('ativo', true).maybeSingle();
+        if (!resp.error) break;
       }
       return resp;
     }
@@ -303,12 +332,20 @@
       const slug = (new URLSearchParams(window.location.search).get('r') || SLUG_PADRAO || '').toLowerCase();
       const { data, error } = slug ? await carregarRestaurante(slug) : { data: null, error: null };
 
-      if (error || !data) {
-        $('app-container').innerHTML = '<p style="text-align:center;padding:32px;margin-top:40px;color:#B42318;font-weight:700">Restaurante não encontrado ou indisponível no momento.</p>';
+      if (error) {
+        mostrarEstado('Sem conexão', 'Não conseguimos abrir o cardápio agora. Confira sua internet e tente de novo.', 'init');
+        return;
+      }
+      if (!data) {
+        mostrarEstado('Loja indisponível', 'Não encontramos esta loja ou ela não está recebendo pedidos no momento.', null);
         return;
       }
 
+      // Acorda o servidor (plano gratuito dorme); o resultado não importa
+      fetch(API_BACKEND_URL + '/health', { mode: 'no-cors' }).catch(() => {});
+
       restauranteInfo = data;
+      if (chavePixValida(data.chave_pix)) $('pix-sub').textContent = 'Você recebe a chave Pix na próxima tela';
       document.title = 'Cardápio - ' + data.nome;
       aplicarTema(data);
       renderCabecalho(data);
@@ -383,14 +420,20 @@
       if (resp.error) resp = await consulta('id, nome, descricao, preco, categoria');
       const { data, error } = resp;
 
-      if (error || !data || data.length === 0) {
-        produtos = [];
-        container.innerHTML = '<p class="vazio">Nenhum produto disponível no momento.</p>';
+      if (error) {
+        container.innerHTML = '<div class="estado"><h2>Não conseguimos carregar o cardápio</h2><p>Confira sua internet e tente de novo.</p><button type="button" class="btn" data-retry="produtos">Tentar de novo</button></div>';
         $('chips').innerHTML = '';
-        return;
+        return false;
+      }
+      if (!data || data.length === 0) {
+        produtos = [];
+        container.innerHTML = '<div class="estado"><h2>Cardápio em preparação</h2><p>Ainda não há produtos disponíveis. Volte daqui a pouco!</p></div>';
+        $('chips').innerHTML = '';
+        return true;
       }
       produtos = data;
       renderProdutos();
+      return true;
     }
 
     // Texto sem acento e em minúsculas, para a busca não depender de acentuação
@@ -542,22 +585,176 @@
       $('cli-troco').value = '';
     }
 
+    // ---------- Avisos e telas (no lugar do alert) ----------
+    let timerToast;
+    function avisar(msg, tipo = 'erro') {
+      const t = $('toast');
+      t.textContent = msg;
+      t.className = 'toast ' + tipo;
+      clearTimeout(timerToast);
+      timerToast = setTimeout(() => t.classList.add('hidden'), 9000);
+    }
+
+    function campoInvalido(id, msg) {
+      const el = $(id);
+      el.classList.add('invalido');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus({ preventScroll: true });
+      avisar(msg);
+    }
+    ['input', 'change'].forEach((ev) => document.addEventListener(ev, (e) => e.target.classList && e.target.classList.remove('invalido')));
+
+    const PARTES_DO_PEDIDO = ['barra-busca', 'conteudo', 'barra-carrinho'];
+    function alternarTelas(tela) { // 'pedido' | 'sucesso' | 'estado'
+      PARTES_DO_PEDIDO.forEach((id) => $(id).classList.toggle('hidden', tela !== 'pedido'));
+      $('tela-sucesso').classList.toggle('hidden', tela !== 'sucesso');
+      $('tela-estado').classList.toggle('hidden', tela !== 'estado');
+      window.scrollTo({ top: 0 });
+    }
+
+    function mostrarEstado(titulo, texto, retry) {
+      $('tela-estado').innerHTML = `<div class="estado"><h2>${esc(titulo)}</h2><p>${esc(texto)}</p>` +
+        (retry ? `<button type="button" class="btn" data-retry="${retry}">Tentar de novo</button>` : '') + '</div>';
+      alternarTelas('estado');
+    }
+
+    const chavePixValida = (c) => typeof c === 'string' && c.trim().length > 0 && c.length <= 100 && !/[\u0000-\u001f<>]/.test(c);
+
+    function linkWhatsapp(texto) {
+      let n = String(restauranteInfo.whatsapp || '').replace(/\D/g, '');
+      if (n.length < 10) return null;
+      if (!n.startsWith('55') && n.length <= 11) n = '55' + n;
+      return `https://wa.me/${n}?text=${encodeURIComponent(texto)}`;
+    }
+
+    // Depois de um erro de produto/preço: recarrega o cardápio e ajusta o carrinho sem esvaziá-lo
+    function sincronizarCarrinho() {
+      const removidos = [];
+      let precoMudou = false;
+      carrinho = carrinho.filter((i) => {
+        const p = produtos.find((x) => String(x.id) === String(i.id));
+        if (!p) { removidos.push(i.nome); return false; }
+        const novo = parseFloat(p.preco) || 0;
+        if (novo !== i.preco) { i.preco = novo; precoMudou = true; }
+        return true;
+      });
+      renderCarrinho();
+      return { removidos, precoMudou };
+    }
+
+    const MSG_CAMPO = {
+      NOME_INVALIDO: ['Confira o seu nome.', 'cli-nome'],
+      WHATSAPP_INVALIDO: ['Confira o seu WhatsApp com DDD.', 'cli-fone'],
+      ENDERECO_INVALIDO: ['Confira o seu endereço de entrega.', 'cli-endereco'],
+      LOCALIZACAO_OBRIGATORIA: ['Escolha o seu bairro.', 'select-bairro'],
+      TROCO_INVALIDO: ['O troco deve ser igual ou maior que o total do pedido.', 'cli-troco'],
+      FORA_DA_AREA: ['Esse endereço fica fora da nossa área de entrega.', 'cli-endereco']
+    };
+
+    async function tratarErroPedido(status, r) {
+      const cod = r && r.codigo;
+
+      if (cod === 'RESTAURANTE_INATIVO' || cod === 'RESTAURANTE_NAO_ENCONTRADO' || cod === 'RESTAURANTE_INVALIDO') {
+        return mostrarEstado('A loja não está recebendo pedidos agora', 'Tente de novo em alguns minutos.', null);
+      }
+      if (cod === 'PRODUTO_INDISPONIVEL' || cod === 'PRODUTO_INVALIDO' || cod === 'PRECO_DESATUALIZADO') {
+        const ok = await carregarProdutos();
+        if (ok) {
+          const { removidos, precoMudou } = sincronizarCarrinho();
+          const partes = [];
+          if (removidos.length) partes.push('Tiramos do pedido o que acabou: ' + removidos.join(', ') + '.');
+          if (precoMudou) partes.push('Alguns preços foram atualizados.');
+          return avisar((partes.join(' ') || 'O cardápio foi atualizado.') + ' Confira o total e envie de novo.');
+        }
+      }
+      if (cod === 'BAIRRO_INVALIDO') {
+        await carregarBairros();
+        $('select-bairro').value = '';
+        atualizarTaxa();
+        return campoInvalido('select-bairro', 'Esse bairro mudou. Escolha o seu bairro de novo.');
+      }
+      if (cod === 'CARRINHO_INVALIDO' || cod === 'ITEM_INVALIDO' || cod === 'QUANTIDADE_INVALIDA') {
+        return avisar('Há algo errado com os itens do pedido. Confira as quantidades.');
+      }
+      if (MSG_CAMPO[cod]) return campoInvalido(MSG_CAMPO[cod][1], MSG_CAMPO[cod][0]);
+      if (status === 429) return avisar('Muitas tentativas seguidas. Espere 1 minuto e tente de novo.');
+      if (status >= 500) return avisar('Tivemos um problema do nosso lado. Tente de novo; se continuar, chame a loja no WhatsApp.');
+      return avisar((r && r.erro) || 'Não foi possível enviar o pedido. Confira os dados e tente de novo.');
+    }
+
+    // ---------- Tela de sucesso ----------
+    function mostrarSucesso(ped, forma, troco) {
+      const codigo = String(ped.id || '').slice(-4).toUpperCase();
+      const total = brl.format(Number(ped.total) || 0);
+      const chave = restauranteInfo.chave_pix;
+      let pagamento;
+
+      if (forma === 'pix' && chavePixValida(chave)) {
+        pagamento = `<div class="pix-box">
+          <h3>Pague com Pix agora</h3>
+          <small>Chave Pix</small>
+          <code class="pix-chave" id="pix-chave">${esc(chave.trim())}</code>
+          <button type="button" class="btn bloco-btn" data-copiar>Copiar chave Pix</button>
+          <small style="margin-top:10px">Valor: <strong>${total}</strong>. Depois de pagar, envie o comprovante pelo WhatsApp da loja.</small>
+        </div>`;
+      } else if (forma === 'pix') {
+        pagamento = '<div class="pix-box"><h3>Pagamento por Pix</h3><small>A loja vai enviar a chave Pix pelo seu WhatsApp em instantes.</small></div>';
+      } else if (forma === 'dinheiro') {
+        pagamento = `<div class="pix-box"><h3>Pagamento em dinheiro</h3><small>Pague na entrega${troco ? ` · troco para ${brl.format(troco)}` : ''}.</small></div>`;
+      } else {
+        pagamento = '<div class="pix-box"><h3>Pagamento no cartão</h3><small>Débito ou crédito, na entrega.</small></div>';
+      }
+
+      const zap = linkWhatsapp(`Olá! Fiz o pedido #${codigo} no cardápio.`);
+      $('tela-sucesso').innerHTML = `<div class="estado" style="padding-bottom:8px">
+          <div class="ok-icone" aria-hidden="true">✓</div>
+          <h2 id="titulo-sucesso" tabindex="-1">Pedido enviado!</h2>
+          <p style="margin-bottom:0">Pedido <strong>#${esc(codigo)}</strong> · Total <strong>${total}</strong><br>A cozinha já recebeu e vai falar com você pelo WhatsApp.</p>
+        </div>
+        ${pagamento}
+        ${zap ? `<a class="btn sec bloco-btn" href="${esc(zap)}" target="_blank" rel="noopener noreferrer">Falar com a loja no WhatsApp</a>` : ''}
+        <button type="button" class="btn bloco-btn" data-novo style="margin-bottom:24px">Fazer novo pedido</button>`;
+      alternarTelas('sucesso');
+      $('titulo-sucesso').focus({ preventScroll: true });
+    }
+
+    async function copiarChave(botao) {
+      const texto = $('pix-chave').textContent;
+      try {
+        await navigator.clipboard.writeText(texto);
+      } catch (e) {
+        const faixa = document.createRange();
+        faixa.selectNodeContents($('pix-chave'));
+        const sel = window.getSelection();
+        sel.removeAllRanges(); sel.addRange(faixa);
+        try { document.execCommand('copy'); } catch (e2) { /* o texto fica selecionado para copiar à mão */ }
+      }
+      botao.textContent = 'Chave copiada ✓';
+      setTimeout(() => { botao.textContent = 'Copiar chave Pix'; }, 2500);
+    }
+
     // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
+    let enviando = false;
     async function finalizarPedido() {
+      if (enviando) return;
+
       const select = $('select-bairro');
       const nome = $('cli-nome').value.trim();
       const fone = $('cli-fone').value.replace(/\D/g, '');
       const endereco = $('cli-endereco').value.trim();
       const optionSelecionada = select.options[select.selectedIndex];
 
-      if (!select.value) return alert('Selecione seu bairro antes de enviar o pedido.');
-      if (carrinho.length === 0) return alert('Seu carrinho está vazio.');
-      if (nome.length < 2) return alert('Informe seu nome.');
-      if (fone.length < 10 || fone.length > 11) return alert('Informe um WhatsApp válido com DDD.');
-      if (endereco.length < 5) return alert('Informe seu endereço de entrega.');
+      if (carrinho.length === 0) return avisar('Seu carrinho está vazio. Toque no + para adicionar itens.');
+      if (!select.value) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
+      if (nome.length < 2) return campoInvalido('cli-nome', 'Informe o seu nome.');
+      if (fone.length < 10 || fone.length > 11) return campoInvalido('cli-fone', 'Informe um WhatsApp válido com DDD.');
+      if (endereco.length < 5) return campoInvalido('cli-endereco', 'Informe o seu endereço de entrega.');
 
       const forma = formaSelecionada();
-      if (!forma) return alert('Escolha a forma de pagamento.');
+      if (!forma) {
+        $('opcoes-pagto').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return avisar('Escolha a forma de pagamento.');
+      }
 
       // Troco: só para dinheiro, opcional; o backend confere de novo contra o total real
       let troco = null;
@@ -565,13 +762,22 @@
         troco = lerValorEmReais($('cli-troco').value);
         const totalEstimado = calcularSubtotal() + taxaAtual;
         if (troco === null || Math.round(troco * 100) < Math.round(totalEstimado * 100)) {
-          return alert(`O valor para troco deve ser igual ou maior que o total (${brl.format(totalEstimado)}).`);
+          return campoInvalido('cli-troco', `O valor para troco deve ser igual ou maior que o total (${brl.format(totalEstimado)}).`);
         }
       }
 
+      enviando = true;
       const botao = $('btn-enviar');
       botao.disabled = true;
       botao.innerText = 'Enviando...';
+
+      // Servidor gratuito pode estar "dormindo": avisa em vez de parecer travado
+      const dica = setTimeout(() => {
+        botao.innerText = 'Aguarde...';
+        avisar('O servidor estava descansando e pode levar até 1 minuto desta vez. Não feche a página.', 'info');
+      }, 6000);
+      const controle = new AbortController();
+      const limite = setTimeout(() => controle.abort(), 70000);
 
       const payloadPedido = {
         restaurante_id: restauranteInfo.id,
@@ -580,10 +786,7 @@
         endereco_completo: endereco,
         bairro_id: select.value,
         bairro_nome: optionSelecionada ? optionSelecionada.text : null,
-        itens: carrinho.map(item => ({
-          produto_id: item.id,
-          quantidade: item.qtd
-        })),
+        itens: carrinho.map((item) => ({ produto_id: item.id, quantidade: item.qtd })),
         forma_pagamento: forma,
         troco_para: troco,
         observacao_geral: ''
@@ -592,43 +795,36 @@
       try {
         const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payloadPedido)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadPedido),
+          signal: controle.signal
         });
-
-        const resultado = await resposta.json();
-
-        botao.disabled = false;
-        botao.innerText = 'Enviar Pedido';
+        const resultado = await resposta.json().catch(() => ({}));
 
         if (!resposta.ok) {
-          const msgErro = resultado.erro || 'Não foi possível processar seu pedido.';
-          alert(`Atenção: ${msgErro}`);
-
-          if (resposta.status === 422 || resposta.status === 400) {
-            carrinho = [];
-            renderCarrinho();
-            await Promise.all([carregarBairros(), carregarProdutos()]);
-          }
+          await tratarErroPedido(resposta.status, resultado);
           return;
         }
 
         salvarDadosCliente();
-        alert(`Pedido #${resultado.pedido.id.slice(0, 8)} enviado com sucesso! Aguarde o contato da cozinha.`);
+        $('toast').classList.add('hidden');
+        mostrarSucesso(resultado.pedido || {}, forma, troco);
 
         carrinho = [];
         renderCarrinho();
         select.value = '';
         atualizarTaxa();
         limparPagamento();
-
       } catch (error) {
         console.error('[ERRO CONEXÃO]:', error);
+        // Pode ter chegado mesmo sem resposta: avisa para não duplicar o pedido
+        avisar('Não recebemos a confirmação do pedido. Antes de tentar de novo, confira com a loja pelo WhatsApp se ele chegou.');
+      } finally {
+        clearTimeout(dica);
+        clearTimeout(limite);
+        enviando = false;
         botao.disabled = false;
         botao.innerText = 'Enviar Pedido';
-        alert('O servidor está inicializando ou indisponível no momento. Por favor, aguarde alguns segundos e tente novamente.');
       }
     }
 
@@ -666,6 +862,18 @@
       const menos = e.target.closest('[data-menos]');
       if (mais) alterarQtd(mais.dataset.mais, 1);
       if (menos) alterarQtd(menos.dataset.menos, -1);
+    });
+
+    document.addEventListener('click', (e) => {
+      const retry = e.target.closest('[data-retry]');
+      if (retry) {
+        if (retry.dataset.retry === 'produtos') carregarProdutos();
+        else { alternarTelas('pedido'); init(); }
+        return;
+      }
+      const copiar = e.target.closest('[data-copiar]');
+      if (copiar) { copiarChave(copiar); return; }
+      if (e.target.closest('[data-novo]')) alternarTelas('pedido');
     });
 
     init();
