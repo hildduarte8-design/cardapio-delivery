@@ -39,6 +39,47 @@ const STATUS = {
 
 const ENCERRADOS = ['entregue', 'cancelado'];
 
+// Pedido em dinheiro/cartão não espera pagamento antecipado:
+// no banco continua 'pendente_pagamento', mas no painel vira "Novo pedido".
+const STATUS_NOVO_NA_ENTREGA = {
+  rotulo: 'Novo pedido',
+  cor: 'bg-yellow-100 text-yellow-700',
+  prox: 'preparando',
+  acao: 'Aceitar e preparar'
+};
+
+function formaDe(pedido) {
+  return String(pedido.forma_pagamento || '').trim().toLowerCase();
+}
+
+function pagaNaEntrega(pedido) {
+  return (
+    pedido.status === 'pendente_pagamento' &&
+    ['dinheiro', 'cartao', 'cartão'].includes(formaDe(pedido))
+  );
+}
+
+function statusDe(pedido) {
+  if (pagaNaEntrega(pedido)) return STATUS_NOVO_NA_ENTREGA;
+  return STATUS[pedido.status] || null;
+}
+
+function rotuloPagamento(pedido) {
+  const forma = formaDe(pedido);
+
+  if (forma === 'pix') return 'Pix';
+  if (forma === 'cartao' || forma === 'cartão') return 'Cartão na entrega';
+
+  if (forma === 'dinheiro') {
+    const troco = Number(pedido.troco_para) || 0;
+    return troco > 0
+      ? `Dinheiro · troco para ${brl.format(troco)}`
+      : 'Dinheiro · sem troco';
+  }
+
+  return pedido.forma_pagamento || '';
+}
+
 function dataDoPedido(pedido) {
   return pedido.created_at || pedido.criado_em || null;
 }
@@ -238,7 +279,7 @@ export function renderPedidos() {
 
   $('lista-pedidos').innerHTML = lista.length
     ? lista.map((pedido) => {
-        const status = STATUS[pedido.status] || {
+        const status = statusDe(pedido) || {
           rotulo: pedido.status || '—',
           cor: 'bg-gray-100 text-gray-600'
         };
@@ -273,7 +314,7 @@ export function renderPedidos() {
 
             <div class="flex justify-between text-sm">
               <span class="text-xs text-gray-500">
-                ${esc(pedido.forma_pagamento || '')}
+                ${esc(rotuloPagamento(pedido))}
                 · entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}
               </span>
               <strong>${brl.format(Number(pedido.total) || 0)}</strong>
@@ -319,7 +360,9 @@ function textoZap(pedido) {
   const valor = brl.format(Number(pedido.total) || 0);
 
   const mensagens = {
-    pendente_pagamento: `Recebemos seu pedido de ${valor}! Falta só o pagamento via Pix para confirmarmos.`,
+    pendente_pagamento: pagaNaEntrega(pedido)
+      ? `Recebemos seu pedido de ${valor}! Já vamos confirmar e começar o preparo. O pagamento é na entrega (${rotuloPagamento(pedido).toLowerCase()}).`
+      : `Recebemos seu pedido de ${valor}! Falta só o pagamento via Pix para confirmarmos.`,
     pago: 'Pagamento confirmado ✅ Já vamos preparar seu pedido!',
     preparando: 'Seu pedido está em preparo 👨‍🍳',
     saiu_entrega: 'Seu pedido saiu para entrega 🛵',
@@ -375,8 +418,8 @@ function imprimirComanda(pedido) {
         <div class="item"><span>Entrega:</span><span>${brl.format(Number(pedido.taxa_entrega) || 0)}</span></div>
         <hr>
         <div class="item total"><span>TOTAL:</span><span>${brl.format(Number(pedido.total) || 0)}</span></div>
-        <div>Pagamento: ${esc(pedido.forma_pagamento || 'Não informado')}</div>
-        <div>Status: ${esc(STATUS[pedido.status]?.rotulo || pedido.status || '')}</div>
+        <div>Pagamento: ${esc(rotuloPagamento(pedido) || 'Não informado')}</div>
+        <div>Status: ${esc(statusDe(pedido)?.rotulo || pedido.status || '')}</div>
         ${pedido.observacao ? `<hr><b>Observação:</b><div>${esc(pedido.observacao)}</div>` : ''}
       </body>
     </html>
@@ -430,7 +473,7 @@ function configurarEventos() {
     let pedido;
 
     if ((pedido = encontrarPedido('data-avancar'))) {
-      const status = STATUS[pedido.status];
+      const status = statusDe(pedido);
       if (status?.prox) {
         await mudarStatus(
           pedido,
