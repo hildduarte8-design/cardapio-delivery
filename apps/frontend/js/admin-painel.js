@@ -4,12 +4,15 @@ import { sb } from './admin-supabase.js';
 import { state } from './admin-state.js';
 import { $, brl, esc, tratarErro } from './admin-utils.js';
 
-const PERIODOS = { 1: 'Hoje', 7: '7 dias', 30: '30 dias' };
+const PERIODOS = { 1: 'Hoje', 7: '7 dias', 30: '30 dias', mes: 'Mês' };
+const LIMITE_PEDIDOS = 1000;
 const INTERVALO_ATUALIZACAO_MS = 60000;
 
-let periodo = 1;
+let periodo = 1; // 1 | 7 | 30 | 'mes'
+let mesEscolhido = { ano: new Date().getFullYear(), mes: new Date().getMonth() + 1 };
 let pedidos = [];
 let carregando = false;
+let recarregar = false;
 let timer = null;
 
 // ---------- Regras de contagem ----------
@@ -36,6 +39,47 @@ function inicioDoDia(base = new Date(), voltarDias = 0) {
 }
 const chaveDia = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
 
+function intervalo() {
+  if (periodo === 'mes') {
+    return {
+      inicio: new Date(mesEscolhido.ano, mesEscolhido.mes - 1, 1),
+      fim: new Date(mesEscolhido.ano, mesEscolhido.mes, 1)
+    };
+  }
+  return { inicio: inicioDoDia(new Date(), periodo - 1), fim: null };
+}
+
+const chaveMes = (ano, mes) => `${ano}-${String(mes).padStart(2, '0')}`;
+const ehMesAtual = () => {
+  const n = new Date();
+  return mesEscolhido.ano === n.getFullYear() && mesEscolhido.mes === n.getMonth() + 1;
+};
+
+function nomeDoMes() {
+  const t = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+    .format(new Date(mesEscolhido.ano, mesEscolhido.mes - 1, 1));
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
+function deslocarMes(delta) {
+  const d = new Date(mesEscolhido.ano, mesEscolhido.mes - 1 + delta, 1);
+  const hoje = new Date();
+  if (d > new Date(hoje.getFullYear(), hoje.getMonth(), 1)) return; // sem meses futuros
+  mesEscolhido = { ano: d.getFullYear(), mes: d.getMonth() + 1 };
+  carregarPainel();
+}
+
+function escolherMes(texto) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(texto || ''));
+  if (!m) return;
+  const ano = Number(m[1]), mes = Number(m[2]);
+  if (mes < 1 || mes > 12 || ano < 2020) return;
+  const hoje = new Date();
+  if (new Date(ano, mes - 1, 1) > new Date(hoje.getFullYear(), hoje.getMonth(), 1)) return;
+  mesEscolhido = { ano, mes };
+  carregarPainel();
+}
+
 function rotuloDia(d, curto) {
   if (curto) return new Intl.DateTimeFormat('pt-BR', { weekday: 'short' }).format(d).replace('.', '');
   return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -47,17 +91,21 @@ function compacto(v) {
 
 // ---------- Dados ----------
 export async function carregarPainel() {
-  if (!sb || !state.rest || carregando) return;
+  if (!sb || !state.rest) return;
+  if (carregando) { recarregar = true; return; } // pedido de nova busca enquanto outra roda
   carregando = true;
   try {
-    const desde = inicioDoDia(new Date(), Math.max(periodo, 7) - 1);
-    const { data, error } = await sb
+    const { inicio, fim } = intervalo();
+    const desde = periodo === 'mes' ? inicio : inicioDoDia(new Date(), Math.max(periodo, 7) - 1);
+    let consulta = sb
       .from('pedidos')
       .select('id, status, total, created_at, forma_pagamento, bairro_id, itens')
       .eq('restaurante_id', state.rest.id)
-      .gte('created_at', desde.toISOString())
+      .gte('created_at', desde.toISOString());
+    if (fim) consulta = consulta.lt('created_at', fim.toISOString());
+    const { data, error } = await consulta
       .order('created_at', { ascending: false })
-      .limit(1000);
+      .limit(LIMITE_PEDIDOS);
 
     if (error) {
       tratarErro(error, 'Não foi possível carregar o painel.');
@@ -69,13 +117,17 @@ export async function carregarPainel() {
     renderPainel();
   } finally {
     carregando = false;
+    if (recarregar) { recarregar = false; carregarPainel(); }
   }
 }
 
 // ---------- Cálculo ----------
 function calcular() {
-  const inicio = inicioDoDia(new Date(), periodo - 1);
-  const noPeriodo = pedidos.filter((p) => new Date(p.created_at) >= inicio);
+  const { inicio, fim } = intervalo();
+  const noPeriodo = pedidos.filter((p) => {
+    const d = new Date(p.created_at);
+    return d >= inicio && (!fim || d < fim);
+  });
   const vendas = noPeriodo.filter(ehVenda);
   const faturamento = vendas.reduce((s, p) => s + valor(p), 0);
 
@@ -122,18 +174,28 @@ function barras(colunas) {
   }).join('') + '</div>';
 }
 
-function graficoPorDia() {
-  const dias = periodo === 1 ? 7 : periodo;
-  const passo = dias > 14 ? 5 : 1;
-  const colunas = [];
-  for (let i = dias - 1; i >= 0; i--) {
-    const dia = inicioDoDia(new Date(), i);
-    const total = pedidos.filter((p) => ehVenda(p) && chaveDia(new Date(p.created_at)) === chaveDia(dia))
-      .reduce((s, p) => s + valor(p), 0);
-    const posicao = dias - 1 - i;
-    colunas.push({ v: total, titulo: `${rotuloDia(dia, false)}: ${brl.format(total)}`,
-      rotulo: posicao % passo === 0 || i === 0 ? rotuloDia(dia, dias <= 7) : '' });
+function listaDeDias() {
+  if (periodo === 'mes') {
+    const total = new Date(mesEscolhido.ano, mesEscolhido.mes, 0).getDate();
+    return Array.from({ length: total }, (_, i) => new Date(mesEscolhido.ano, mesEscolhido.mes - 1, i + 1));
   }
+  const n = periodo === 1 ? 7 : periodo;
+  return Array.from({ length: n }, (_, i) => inicioDoDia(new Date(), n - 1 - i));
+}
+
+function graficoPorDia() {
+  const dias = listaDeDias();
+  const passo = dias.length > 14 ? 5 : 1;
+  const colunas = dias.map((dia, pos) => {
+    const total = pedidos
+      .filter((p) => ehVenda(p) && chaveDia(new Date(p.created_at)) === chaveDia(dia))
+      .reduce((soma, p) => soma + valor(p), 0);
+    return {
+      v: total,
+      titulo: `${rotuloDia(dia, false)}: ${brl.format(total)}`,
+      rotulo: pos % passo === 0 || pos === dias.length - 1 ? rotuloDia(dia, dias.length <= 7) : ''
+    };
+  });
   return barras(colunas);
 }
 
@@ -157,11 +219,11 @@ const lista = (itens, vazio) => itens.length
 // ---------- Tela ----------
 function renderPainel() {
   const r = calcular();
-  const rotuloPeriodo = periodo === 1 ? 'hoje' : `nos últimos ${periodo} dias`;
+  const rotuloPeriodo = periodo === 1 ? 'hoje' : periodo === 'mes' ? `em ${nomeDoMes()}` : `nos últimos ${periodo} dias`;
   const hoje = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
 
   const periodos = Object.entries(PERIODOS).map(([dias, nome]) =>
-    `<button type="button" class="dash-btn" data-periodo="${dias}" aria-pressed="${Number(dias) === periodo}">${nome}</button>`).join('');
+    `<button type="button" class="dash-btn" data-periodo="${dias}" aria-pressed="${String(dias) === String(periodo)}">${nome}</button>`).join('');
 
   const totalPix = r.aPix.reduce((s, p) => s + valor(p), 0);
 
@@ -171,6 +233,14 @@ function renderPainel() {
       <button type="button" class="dash-btn" data-atualizar>Atualizar</button>
     </div>
     <div class="dash-periodos">${periodos}</div>
+    ${periodo === 'mes' ? `<div class="dash-mes">
+      <button type="button" class="dash-btn" data-mes-delta="-1" aria-label="Mês anterior">◄</button>
+      <label class="dash-mes-rotulo">📅 ${esc(nomeDoMes())}
+        <input type="month" value="${chaveMes(mesEscolhido.ano, mesEscolhido.mes)}" max="${chaveMes(new Date().getFullYear(), new Date().getMonth() + 1)}" data-mes-input aria-label="Escolher mês" />
+      </label>
+      <button type="button" class="dash-btn" data-mes-delta="1" aria-label="Próximo mês" ${ehMesAtual() ? 'disabled' : ''}>►</button>
+    </div>` : ''}
+    ${pedidos.length >= LIMITE_PEDIDOS ? '<p class="dash-aviso dash-atencao">Há muitos pedidos no período: o painel considera só os 1.000 mais recentes, então os números podem estar incompletos.</p>' : ''}
 
     <div class="dash-grade">
       <div class="dash-k"><span class="dash-l">Faturamento</span><span class="dash-n">${brl.format(r.faturamento)}</span></div>
@@ -182,7 +252,7 @@ function renderPainel() {
     </div>
 
     <div class="dash-bloco">
-      <h3>${periodo === 1 ? 'Faturamento dos últimos 7 dias' : `Faturamento por dia (${PERIODOS[periodo]})`}</h3>
+      <h3>${periodo === 1 ? 'Faturamento dos últimos 7 dias' : periodo === 'mes' ? `Faturamento por dia (${esc(nomeDoMes())})` : `Faturamento por dia (${PERIODOS[periodo]})`}</h3>
       ${graficoPorDia()}
     </div>
     ${periodo === 1 ? `<div class="dash-bloco"><h3>Vendas por hora (hoje)</h3>${graficoPorHora(r.vendas)}</div>` : ''}
@@ -212,8 +282,15 @@ export function inicializarAbaPainel() {
   $('painel-conteudo').addEventListener('click', (e) => {
     const botaoPeriodo = e.target.closest('[data-periodo]');
     if (botaoPeriodo) {
-      periodo = Number(botaoPeriodo.dataset.periodo);
+      const escolhido = botaoPeriodo.dataset.periodo;
+      periodo = escolhido === 'mes' ? 'mes' : Number(escolhido);
       carregarPainel();
+      return;
+    }
+    const delta = e.target.closest('[data-mes-delta]');
+    if (delta) { if (!delta.disabled) deslocarMes(Number(delta.dataset.mesDelta)); return; }
+    if (e.target.matches('[data-mes-input]')) {
+      try { if (e.target.showPicker) e.target.showPicker(); } catch (erro) { /* navegador sem suporte */ }
       return;
     }
     if (e.target.closest('[data-atualizar]')) { carregarPainel(); return; }
@@ -221,5 +298,9 @@ export function inicializarAbaPainel() {
       const aba = document.querySelector('[data-aba="pedidos"]');
       if (aba) aba.click();
     }
+  });
+
+  $('painel-conteudo').addEventListener('change', (e) => {
+    if (e.target.matches('[data-mes-input]')) escolherMes(e.target.value);
   });
 }
