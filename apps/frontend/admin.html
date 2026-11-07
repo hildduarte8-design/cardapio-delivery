@@ -587,6 +587,76 @@
       border-radius: 12px;
       margin-bottom: 14px;
     }
+
+    /* ===== Layout responsivo: abas embaixo no celular, menu lateral no computador ===== */
+    .shell { position: relative; max-width: 760px; margin: 0 auto; padding: 16px 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
+    .conteudo-admin { min-width: 0; }
+
+    /* Celular: o menu vira um cartão no topo (nome + Sair) e as abas ficam fixas embaixo */
+    .lateral { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding: 14px 16px; background: var(--card); border: 1px solid var(--borda); border-radius: 16px; }
+    .lateral .admin-header { flex: 1; min-width: 0; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; }
+    .nav-abas { position: fixed; left: 0; right: 0; bottom: 0; z-index: 40; grid-template-columns: repeat(5, 1fr); gap: 0; margin: 0; padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px)); background: var(--card); border-top: 1px solid var(--borda); box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.35); }
+    .nav-tab { min-height: 48px; padding: 8px 2px; background: transparent; border: 0; border-radius: 10px; box-shadow: none; font-size: 12px; color: var(--suave); }
+    .nav-tab.ativa { background: transparent; color: var(--dourado); box-shadow: none; }
+    .nav-tab.ativa::before { content: ""; position: absolute; top: -6px; left: 28%; right: 28%; height: 3px; border-radius: 0 0 3px 3px; background: var(--dourado); }
+    .nav-tab.ativa .tab-badge { background: var(--vermelho); color: #fff; }
+    .rot-longo { display: none; }
+    .toast { bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
+
+    /* Painel: cartões e blocos */
+    .dash-grade { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+    .dash-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .k-vermelho .dash-n { color: var(--vermelho); }
+    .k-dourado .dash-n { color: var(--dourado); }
+    .k-laranja .dash-n { color: var(--laranja); }
+    .k-verde .dash-n { color: var(--verde); }
+    .dash-topo-direita { display: flex; align-items: center; gap: 12px; }
+    .dash-loja { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 800; }
+    .dash-loja::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+    .dash-loja.aberta { color: var(--verde); }
+    .dash-loja.fechada { color: var(--vermelho); }
+    .dash-blocos { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+    .dash-blocos .dash-bloco { margin-bottom: 0; }
+    .dash-alertas { order: -1; }
+    .dash-alertas .dash-aviso:last-child { margin-bottom: 0; }
+
+    @media (min-width: 1024px) {
+      .shell { display: grid; grid-template-columns: 240px minmax(0, 1fr); max-width: none; margin: 0; padding: 0; min-height: 100vh; }
+      .lateral { position: sticky; top: 0; height: 100vh; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 20px; margin: 0; padding: 26px 16px; border: 0; border-right: 1px solid var(--borda); border-radius: 0; background: var(--bg); }
+      .lateral .admin-header { flex: none; }
+      .lateral .admin-rest-nome { white-space: normal; font-size: 21px; color: var(--dourado); }
+      .nav-abas { position: static; display: flex; flex-direction: column; gap: 4px; padding: 0; background: none; border: 0; box-shadow: none; }
+      .nav-tab { display: flex; align-items: center; justify-content: space-between; min-height: 0; padding: 11px 12px; text-align: left; font-size: 14px; }
+      .nav-tab:hover { background: var(--card-hover); color: var(--texto); }
+      .nav-tab.ativa { background: var(--card-alt); color: var(--texto); }
+      .nav-tab.ativa::before { display: none; }
+      .rot-curto { display: none; }
+      .rot-longo { display: inline; }
+      .btn-sair { margin-top: auto; align-self: flex-start; }
+      .conteudo-admin { width: 100%; max-width: 1180px; padding: 28px 32px 48px; }
+      .toast { bottom: 24px; }
+      #lista-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0 14px; align-items: start; }
+      #lista-pedidos > * { margin-top: 0 !important; }
+      #lista-pedidos > .painel-vazio { grid-column: 1 / -1; }
+      #aba-produtos, #aba-entrega, #aba-config { max-width: 760px; }
+      .dash-blocos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .dash-alertas { order: 0; }
+      .dash-n { font-size: 26px; }
+    }
+
+    /* ===== Aba Clientes (vitrine) e 6 abas no celular ===== */
+    .tag-breve { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; background: var(--amarelo-bg); color: var(--amarelo); border: 1px solid rgba(251, 191, 36, 0.3); }
+    .lista-futuro { list-style: none; display: flex; flex-direction: column; gap: 12px; font-size: 13.5px; line-height: 1.45; color: var(--suave); }
+    .lista-futuro li { position: relative; padding-left: 18px; }
+    .lista-futuro li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--dourado); }
+    .lista-futuro strong { color: var(--texto); }
+    .nav-abas { grid-template-columns: repeat(6, 1fr); }
+    .nav-tab { font-size: 11px; }
+    .nav-tab .tab-badge { position: absolute; top: 2px; right: 2px; margin: 0; }
+    @media (min-width: 1024px) {
+      .nav-tab { font-size: 14px; }
+      .nav-tab .tab-badge { position: static; margin-left: auto; }
+    }
   </style>
 </head>
 <body>
@@ -633,33 +703,38 @@
   </div>
 
   <!-- Tela do Painel Admin -->
-  <div id="tela-admin" class="hidden wrap">
+  <div id="tela-admin" class="hidden shell">
 
-    <!-- Cabeçalho -->
-    <header class="admin-header">
-      <div class="admin-rest-info">
-        <h1 id="rest-nome" class="admin-rest-nome">Lanchonete</h1>
-        <a id="rest-link" href="#" target="_blank" rel="noopener noreferrer" class="admin-rest-link">
-          Ver cardápio ↗
-        </a>
-      </div>
+    <!-- Menu: no celular vira o topo + abas embaixo; no computador vira a barra lateral -->
+    <aside class="lateral">
+      <header class="admin-header">
+        <div class="admin-rest-info">
+          <h1 id="rest-nome" class="admin-rest-nome">Lanchonete</h1>
+          <a id="rest-link" href="#" target="_blank" rel="noopener noreferrer" class="admin-rest-link">
+            Ver cardápio ↗
+          </a>
+        </div>
+      </header>
+
+      <nav id="abas" class="nav-abas" aria-label="Seções do painel">
+        <button data-aba="painel" class="nav-tab">Painel</button>
+        <button data-aba="pedidos" class="nav-tab ativa" aria-current="page">
+          Pedidos<span id="badge-pedidos" class="hidden tab-badge"></span>
+        </button>
+        <button data-aba="produtos" class="nav-tab">Cardápio</button>
+        <button data-aba="clientes" class="nav-tab">Clientes</button>
+        <button data-aba="entrega" class="nav-tab">Entrega</button>
+        <button data-aba="config" class="nav-tab"><span class="rot-curto">Conta</span><span class="rot-longo">Configurações</span></button>
+      </nav>
+
       <button id="btn-sair" class="btn-sair">Sair</button>
-    </header>
+    </aside>
+
+    <main class="conteudo-admin">
 
     <p id="sem-acesso" class="hidden aviso-banner">
       Este usuário não está vinculado a nenhum restaurante.
     </p>
-
-    <!-- Navegação por Abas -->
-    <nav id="abas" class="nav-abas" aria-label="Seções do painel">
-      <button data-aba="painel" class="nav-tab">Painel</button>
-      <button data-aba="pedidos" class="nav-tab ativa" aria-current="page">
-        Pedidos<span id="badge-pedidos" class="hidden tab-badge"></span>
-      </button>
-      <button data-aba="produtos" class="nav-tab">Produtos</button>
-      <button data-aba="entrega" class="nav-tab">Entrega</button>
-      <button data-aba="config" class="nav-tab">Conta</button>
-    </nav>
 
     <!-- ================= ABA PAINEL (números do dia) ================= -->
     <div id="aba-painel" class="hidden">
@@ -748,6 +823,20 @@
       <div id="lista-produtos"></div>
     </div>
 
+    <!-- ================= ABA CLIENTES (em construção) ================= -->
+    <div id="aba-clientes" class="hidden">
+      <section class="secao-admin">
+        <h2 class="secao-titulo"><span>Clientes</span><span class="tag-breve">Em breve</span></h2>
+        <p class="secao-desc">Esta área está sendo preparada. Vai reunir:</p>
+        <ul class="lista-futuro">
+          <li><strong>Lista de clientes</strong> com contador de pedidos a partir de R$ 25. A cada 10 compras, o cliente ganha um brinde ou um desconto, à escolha dele.</li>
+          <li><strong>Clientes sumidos</strong>: alerta de quem parou de pedir, com botão para chamar no WhatsApp com mensagem personalizada pelo nome e um desconto para voltar.</li>
+          <li><strong>Datas comemorativas</strong>: lembretes das datas e mensagens personalizadas com convite para pedir, enviadas para os clientes escolhidos.</li>
+          <li><strong>Campanhas</strong> como almoço de domingo e jantar, com limite diário de contatos para evitar bloqueio no WhatsApp.</li>
+        </ul>
+      </section>
+    </div>
+
     <!-- ================= ABA ENTREGA ================= -->
     <div id="aba-entrega" class="hidden">
       <section class="secao-admin">
@@ -810,6 +899,7 @@
       </section>
     </div>
 
+    </main>
   </div>
 
   <!-- Toast de Notificações -->
