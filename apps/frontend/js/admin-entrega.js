@@ -8,6 +8,7 @@ export function preencherRestaurante() {
 
   $('r-nome').value = state.rest.nome || '';
   $('r-whatsapp').value = state.rest.whatsapp || '';
+  $('r-chave-pix').value = state.rest.chave_pix || '';
   $('r-taxa-base').value = state.rest.taxa_base ?? '';
   $('r-valor-km').value = state.rest.valor_km ?? '';
   $('r-lat').value = state.rest.loja_lat ?? '';
@@ -21,7 +22,12 @@ async function salvarRestaurante() {
   const latitude = num($('r-lat').value);
   const longitude = num($('r-lon').value);
 
+  const chavePix = $('r-chave-pix').value.trim();
+
   if (nome.length < 2) return aviso('Informe o nome');
+  if (chavePix.length > 100 || /[\u0000-\u001f<>]/.test(chavePix)) {
+    return aviso('Chave Pix inválida: use até 100 caracteres, sem < ou >.');
+  }
   if (!(taxaBase >= 0) || !(valorKm >= 0)) {
     return aviso('Taxa base e valor por km são obrigatórios');
   }
@@ -45,7 +51,8 @@ async function salvarRestaurante() {
       valor_km: valorKm,
       loja_lat: latitude,
       loja_lon: longitude,
-      whatsapp: $('r-whatsapp').value.replace(/\D/g, '') || null
+      whatsapp: $('r-whatsapp').value.replace(/\D/g, '') || null,
+      chave_pix: chavePix || null
     },
     'Dados salvos'
   );
