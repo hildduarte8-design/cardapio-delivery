@@ -10,7 +10,7 @@ import { carregarBairros, preencherRestaurante, inicializarEntrega } from './adm
 let inicializacaoEmAndamento = false;
 
 function mostrarAba(nome) {
-  ['painel', 'pedidos', 'produtos', 'entrega', 'config'].forEach((aba) => {
+  ['painel', 'pedidos', 'produtos', 'clientes', 'entrega', 'config'].forEach((aba) => {
     $(`aba-${aba}`).classList.toggle('hidden', aba !== nome);
 
     const botao = document.querySelector(`[data-aba="${aba}"]`);
@@ -37,7 +37,7 @@ function mostrarSemAcesso() {
   $('sem-acesso').classList.remove('hidden');
   $('abas').classList.add('hidden');
 
-  ['pedidos', 'produtos', 'entrega', 'config'].forEach((aba) => {
+  ['painel', 'pedidos', 'produtos', 'clientes', 'entrega', 'config'].forEach((aba) => {
     $(`aba-${aba}`).classList.add('hidden');
   });
 }
