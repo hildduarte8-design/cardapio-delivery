@@ -488,6 +488,14 @@
     .dash-btn:hover { background: var(--card-hover); }
     .dash-periodos { display: flex; gap: 8px; margin-bottom: 12px; }
     .dash-btn[aria-pressed="true"] { background: var(--dourado); border-color: var(--dourado); color: #16171A; }
+    .dash-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .dash-mes { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px; }
+    .dash-mes .dash-btn { min-width: 44px; padding: 0; }
+    .dash-mes-rotulo { position: relative; display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid var(--borda-suave); background: var(--card); color: var(--dourado); font-size: 14px; font-weight: 800; cursor: pointer; }
+    .dash-mes-rotulo input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+    .btn-pdf { width: 100%; height: 44px; margin-bottom: 12px; border-radius: 10px; border: 1px solid var(--dourado); background: transparent; color: var(--dourado); font-size: 13.5px; font-weight: 800; }
+    .btn-pdf:hover { background: rgba(201, 162, 75, 0.1); }
+    .btn-pdf:disabled { opacity: .6; cursor: not-allowed; }
     .dash-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
     .dash-k { display: flex; flex-direction: column; gap: 2px; text-align: left; background: var(--card); border: 1px solid var(--borda); border-radius: 14px; padding: 14px; color: inherit; min-height: 44px; }
     button.dash-k:hover { background: var(--card-hover); }
@@ -734,6 +742,8 @@
           <button id="btn-cadastrar" class="btn-destaque">Cadastrar produto</button>
         </form>
       </section>
+
+      <button id="btn-pdf-cardapio" type="button" class="btn-pdf">📄 Baixar cardápio em PDF</button>
 
       <div id="lista-produtos"></div>
     </div>
