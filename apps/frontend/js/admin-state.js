@@ -5,7 +5,9 @@ export const state = {
   produtos: [],
   bairros: [],
   pedidos: [],
-  filtroPedidos: 'ativos',
+  filtroPedidos: 'ativos',       // 'ativos' | 'encerrados'
+  filtroStatus: 'todos',         // 'todos' | 'acao' | 'preparando' | 'saiu_entrega' | 'encerrados'
+  processandoPedidoId: null,     // ID do pedido em atualização (protege contra clique duplo)
   idsVistos: null,
   canalPedidos: null,
   timerPedidos: null,
