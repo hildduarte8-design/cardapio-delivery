@@ -15,6 +15,7 @@ import {
 } from './src/services/frete.js';
 
 import { criarPedido } from './src/controllers/pedidosController.js';
+import { criarPedidoManual } from './src/controllers/pedidosManualController.js';
 
 // ==========================================
 // 1. CONFIGURAÇÃO INICIAL
@@ -290,7 +291,11 @@ app.post('/api/frete/cotar', async (req, res) => {
 // 7. CRIAÇÃO DE PEDIDOS
 // ==========================================
 
+// Pedido do cliente pelo cardápio público (sem autenticação).
 app.post('/api/pedidos', criarPedido);
+
+// Pedido manual lançado pelo lojista no painel (requer token JWT).
+app.post('/api/pedidos/manual', criarPedidoManual);
 
 // ==========================================
 // 8. ROTA NÃO ENCONTRADA
