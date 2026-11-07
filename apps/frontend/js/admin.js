@@ -3,23 +3,26 @@ import { state } from './admin-state.js';
 import { $, aviso, tratarErro } from './admin-utils.js';
 import { carregarPedidos, iniciarPedidos, pararPedidos, inicializarPedidos } from './admin-pedidos.js';
 import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
+import { abrirAbaPainel, fecharAbaPainel, inicializarAbaPainel } from './admin-painel.js';
 import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
 
 let inicializacaoEmAndamento = false;
 
 function mostrarAba(nome) {
-  ['pedidos', 'produtos', 'entrega', 'config'].forEach((aba) => {
+  ['painel', 'pedidos', 'produtos', 'entrega', 'config'].forEach((aba) => {
     $(`aba-${aba}`).classList.toggle('hidden', aba !== nome);
 
     const botao = document.querySelector(`[data-aba="${aba}"]`);
     if (botao) {
-      botao.className =
-        'py-2 rounded-lg text-sm font-bold border ' +
-        (aba === nome
-          ? 'bg-orange-600 text-white border-orange-600'
-          : 'bg-white text-gray-700');
+      botao.classList.toggle('ativa', aba === nome);
+      if (aba === nome) botao.setAttribute('aria-current', 'page');
+      else botao.removeAttribute('aria-current');
     }
   });
+
+  // O painel só busca números enquanto está aberto
+  if (nome === 'painel') abrirAbaPainel();
+  else fecharAbaPainel();
 }
 
 function configurarNavegacao() {
@@ -68,7 +71,10 @@ async function iniciarPainel() {
     esconderSemAcesso();
 
     $('rest-nome').innerText = state.rest.nome;
-    $('rest-link').innerText = `Cardápio: index.html?r=${state.rest.slug}`;
+    const linkCardapio = `index.html?r=${encodeURIComponent(state.rest.slug)}`;
+    const elLink = $('rest-link');
+    elLink.href = linkCardapio;
+    elLink.innerText = `Cardápio: index.html?r=${state.rest.slug}`;
 
     preencherRestaurante();
     mostrarAba('pedidos');
@@ -109,6 +115,7 @@ async function checarSessao() {
     await iniciarPainel();
   } else {
     pararPedidos();
+    fecharAbaPainel();
     state.rest = null;
   }
 }
@@ -144,6 +151,7 @@ function configurarLogin() {
 
     await sb.auth.signOut();
     pararPedidos();
+    fecharAbaPainel();
     state.rest = null;
     await checarSessao();
   });
@@ -189,6 +197,7 @@ function inicializar() {
   inicializarPedidos();
   inicializarProdutos();
   inicializarEntrega();
+  inicializarAbaPainel();
   configurarNavegacao();
   configurarLogin();
   configurarConta();
@@ -196,6 +205,7 @@ function inicializar() {
   window.addEventListener('admin:session-expired', async () => {
     if (sb) await sb.auth.signOut();
     pararPedidos();
+    fecharAbaPainel();
     state.rest = null;
     await checarSessao();
   });
