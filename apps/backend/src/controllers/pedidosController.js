@@ -1,62 +1,17 @@
+// Rota /api/pedidos — pedido feito pelo cliente no cardápio público.
 import { supabaseAdmin } from '../config/supabase.js';
 import { calcularFrete, FreteError } from '../services/frete.js';
-
-const MAX_ITENS = 30;
-const MAX_QTD_POR_ITEM = 50;
-const MAX_OBSERVACAO = 250;
-
-function sanitizarTexto(valor, min = 0, max = 255) {
-  if (typeof valor !== 'string') return null;
-
-  const texto = valor.trim();
-
-  if (texto.length < min || texto.length > max) return null;
-
-  return texto;
-}
-
-function paraCentavos(valor) {
-  const numero = Number(valor);
-
-  if (!Number.isFinite(numero) || numero < 0) return null;
-
-  return Math.round((numero + Number.EPSILON) * 100);
-}
-
-function deCentavos(valor) {
-  return valor / 100;
-}
-
-function normalizarTelefone(valor) {
-  if (typeof valor !== 'string' && typeof valor !== 'number') return '';
-
-  return String(valor).replace(/\D/g, '');
-}
-
-function coordenadasValidas(lat, lon) {
-  if (lat === undefined || lon === undefined || lat === null || lon === null) {
-    return false;
-  }
-
-  const latitude = Number(lat);
-  const longitude = Number(lon);
-
-  return (
-    Number.isFinite(latitude) &&
-    Number.isFinite(longitude) &&
-    latitude >= -90 &&
-    latitude <= 90 &&
-    longitude >= -180 &&
-    longitude <= 180
-  );
-}
-
-function respostaErro(res, status, erro, codigo) {
-  return res.status(status).json({
-    erro,
-    ...(codigo ? { codigo } : {})
-  });
-}
+import {
+  MAX_ITENS,
+  MAX_QTD_POR_ITEM,
+  MAX_OBSERVACAO,
+  sanitizarTexto,
+  paraCentavos,
+  deCentavos,
+  normalizarTelefone,
+  coordenadasValidas,
+  respostaErro
+} from '../utils/pedidosUtils.js';
 
 /**
  * Factory para permitir testes sem conexão real com o Supabase.
@@ -340,9 +295,7 @@ export function criarControladorPedidos({
         MAX_OBSERVACAO
       );
 
-      // 9. Payload: somente campos do contrato do banco.
-      // bairro e telefone alternativo são resolvidos no frontend, não gravados
-      // como colunas extras sem confirmação no schema.
+      // 9. Payload final
       const novoPedidoPayload = {
         restaurante_id: restaurante.id,
         cliente_nome: nome,
@@ -358,7 +311,9 @@ export function criarControladorPedidos({
         itens: itensValidados,
         forma_pagamento: pagamento,
         troco_para: trocoCentavos === null ? null : deCentavos(trocoCentavos),
-        observacao: observacaoFinal || null
+        observacao: observacaoFinal || null,
+        origem: 'cardapio',
+        tipo_atendimento: 'entrega'
       };
 
       const { data: pedidoCriado, error: insertErro } = await db
