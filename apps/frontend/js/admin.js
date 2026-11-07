@@ -4,6 +4,7 @@ import { $, aviso, tratarErro } from './admin-utils.js';
 import { carregarPedidos, iniciarPedidos, pararPedidos, inicializarPedidos } from './admin-pedidos.js';
 import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
 import { abrirAbaPainel, fecharAbaPainel, inicializarAbaPainel } from './admin-painel.js';
+import { inicializarCardapioPdf } from './admin-cardapio-pdf.js';
 import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
 
 let inicializacaoEmAndamento = false;
@@ -198,6 +199,7 @@ function inicializar() {
   inicializarProdutos();
   inicializarEntrega();
   inicializarAbaPainel();
+  inicializarCardapioPdf();
   configurarNavegacao();
   configurarLogin();
   configurarConta();
