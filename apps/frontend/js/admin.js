@@ -6,6 +6,7 @@ import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
 import { abrirAbaPainel, fecharAbaPainel, inicializarAbaPainel } from './admin-painel.js';
 import { inicializarCardapioPdf } from './admin-cardapio-pdf.js';
 import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
+import { preencherIdentidade, inicializarIdentidade } from './admin-identidade.js';
 
 let inicializacaoEmAndamento = false;
 
@@ -78,6 +79,7 @@ async function iniciarPainel() {
     elLink.innerText = `Cardápio: index.html?r=${state.rest.slug}`;
 
     preencherRestaurante();
+    preencherIdentidade();
     mostrarAba('pedidos');
 
     await Promise.all([
@@ -198,6 +200,7 @@ function inicializar() {
   inicializarPedidos();
   inicializarProdutos();
   inicializarEntrega();
+  inicializarIdentidade();
   inicializarAbaPainel();
   inicializarCardapioPdf();
   configurarNavegacao();
