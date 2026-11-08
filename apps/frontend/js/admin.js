@@ -2,6 +2,7 @@ import { sb, configurado } from './admin-supabase.js';
 import { state } from './admin-state.js';
 import { $, aviso, tratarErro } from './admin-utils.js';
 import { carregarPedidos, iniciarPedidos, pararPedidos, inicializarPedidos } from './admin-pedidos.js';
+import { inicializarPedidoManual } from './admin-pedido-manual.js';
 import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
 import { abrirAbaPainel, fecharAbaPainel, inicializarAbaPainel } from './admin-painel.js';
 import { inicializarCardapioPdf } from './admin-cardapio-pdf.js';
@@ -198,6 +199,7 @@ function configurarConta() {
 
 function inicializar() {
   inicializarPedidos();
+  inicializarPedidoManual();
   inicializarProdutos();
   inicializarEntrega();
   inicializarIdentidade();
