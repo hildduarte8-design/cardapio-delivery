@@ -8,12 +8,13 @@ import { abrirAbaPainel, fecharAbaPainel, inicializarAbaPainel } from './admin-p
 import { inicializarCardapioPdf } from './admin-cardapio-pdf.js';
 import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
 import { preencherIdentidade, inicializarIdentidade } from './admin-identidade.js';
+import { abrirAbaCustos, inicializarCustos } from './admin-custos.js';
 
 let inicializacaoEmAndamento = false;
 
 // Telas que ficam dentro da Gestão: na barra, o destaque vai para o botão Gestão
-const TELAS_DA_GESTAO = ['entrega', 'config'];
-const TODAS_AS_ABAS = ['painel', 'pedidos', 'produtos', 'clientes', 'gestao', 'entrega', 'config'];
+const TELAS_DA_GESTAO = ['custos', 'entrega', 'config'];
+const TODAS_AS_ABAS = ['painel', 'pedidos', 'produtos', 'clientes', 'gestao', 'custos', 'entrega', 'config'];
 
 function mostrarAba(nome) {
   const destaque = TELAS_DA_GESTAO.includes(nome) ? 'gestao' : nome;
@@ -33,6 +34,8 @@ function mostrarAba(nome) {
   // O painel só busca números enquanto está aberto
   if (nome === 'painel') abrirAbaPainel();
   else fecharAbaPainel();
+
+  if (nome === 'custos') abrirAbaCustos();
 }
 
 function configurarNavegacao() {
@@ -216,6 +219,7 @@ function inicializar() {
   inicializarIdentidade();
   inicializarAbaPainel();
   inicializarCardapioPdf();
+  inicializarCustos();
   configurarNavegacao();
   configurarLogin();
   configurarConta();
