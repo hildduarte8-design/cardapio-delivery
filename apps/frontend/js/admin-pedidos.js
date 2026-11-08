@@ -64,8 +64,31 @@ function pagaNaEntrega(pedido) {
   );
 }
 
+function ehRetirada(pedido) {
+  return pedido.tipo_atendimento === 'retirada';
+}
+
+function ehManual(pedido) {
+  return pedido.origem === 'manual';
+}
+
+function descontoDe(pedido) {
+  const valor = Number(pedido.desconto);
+  return Number.isFinite(valor) && valor > 0 ? valor : 0;
+}
+
+// Na retirada não existe "saiu para entrega": do preparo vai direto para entregue ao cliente
+const STATUS_PREPARANDO_RETIRADA = {
+  rotulo: 'Em preparo',
+  classe: 'badge-laranja',
+  btnClasse: 'btn-verde',
+  prox: 'entregue',
+  acao: 'Entregue ao cliente'
+};
+
 function statusDe(pedido) {
   if (pagaNaEntrega(pedido)) return STATUS_NOVO_NA_ENTREGA;
+  if (ehRetirada(pedido) && pedido.status === 'preparando') return STATUS_PREPARANDO_RETIRADA;
   return STATUS[pedido.status] || null;
 }
 
@@ -138,6 +161,7 @@ function telefoneDoPedido(pedido) {
 }
 
 function nomeBairroPedido(pedido) {
+  if (ehRetirada(pedido)) return 'Retirada no balcão';
   if (pedido.bairro) return pedido.bairro;
 
   const bairro = state.bairros.find(
@@ -406,6 +430,7 @@ export function renderPedidos() {
           <div class="card-cliente">
             <h3 class="cliente-nome">${esc(pedido.cliente_nome)}</h3>
             <div class="cliente-meta">
+              ${ehManual(pedido) ? '<span class="tag-origem">Manual</span>' : ''}
               <span class="pedido-hora">${esc(hora(dataDoPedido(pedido)))}</span>
               ${badgeTempoHTML}
               <span class="pedido-cod">#${esc(codigo(pedido))}</span>
@@ -419,10 +444,15 @@ export function renderPedidos() {
         <ul class="lista-itens">${itensHTML}</ul>
 
         <div class="card-endereco">
-          <span class="end-icone">📍</span>
-          <span class="end-texto">
-            <strong>${esc(nomeBairroPedido(pedido))}</strong> — ${esc(pedido.endereco_completo)}
-          </span>
+          ${
+            ehRetirada(pedido)
+              ? `<span class="end-icone">🏪</span>
+                 <span class="end-texto"><strong>Retirada no balcão</strong></span>`
+              : `<span class="end-icone">📍</span>
+                 <span class="end-texto">
+                   <strong>${esc(nomeBairroPedido(pedido))}</strong> — ${esc(pedido.endereco_completo)}
+                 </span>`
+          }
         </div>
 
         ${pedido.observacao ? `
@@ -434,7 +464,15 @@ export function renderPedidos() {
         <div class="card-financeiro">
           <div class="pagto-info">
             <span class="pagto-forma">${esc(rotuloPagamento(pedido))}</span>
-            <span class="pagto-taxa">entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}</span>
+            <span class="pagto-taxa">${
+              ehRetirada(pedido)
+                ? 'sem entrega'
+                : `entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}`
+            }${
+              descontoDe(pedido) > 0
+                ? ` · desconto −${brl.format(descontoDe(pedido))}${pedido.desconto_motivo ? ` (${esc(pedido.desconto_motivo)})` : ''}`
+                : ''
+            }</span>
           </div>
           <strong class="pagto-total">${brl.format(Number(pedido.total) || 0)}</strong>
         </div>
@@ -508,6 +546,11 @@ function textoZap(pedido) {
     cancelado: 'Seu pedido foi cancelado. Qualquer dúvida, é só responder aqui.'
   };
 
+  // Retirada: avisa que está pronto (o pedido fica em preparo até a retirada)
+  if (ehRetirada(pedido) && pedido.status === 'preparando') {
+    return `Olá ${nome}! ${state.rest.nome}: Seu pedido de ${valor} está pronto, pode retirar no balcão! 🙌`;
+  }
+
   return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}`;
 }
 
@@ -543,18 +586,32 @@ function imprimirComanda(pedido) {
       </head>
       <body>
         <h1>${esc(state.rest.nome)}</h1>
-        <div>Pedido #${esc(codigo(pedido))} · ${esc(hora(dataDoPedido(pedido)))}</div>
+        <div>Pedido #${esc(codigo(pedido))} · ${esc(hora(dataDoPedido(pedido)))}${ehManual(pedido) ? ' · Manual' : ''}</div>
         <hr>
         <div><b>Cliente:</b> ${esc(pedido.cliente_nome)}</div>
         <div><b>WhatsApp:</b> ${esc(telefoneDoPedido(pedido) || 'Não informado')}</div>
-        <div><b>Bairro:</b> ${esc(nomeBairroPedido(pedido))}</div>
-        <div><b>Endereço:</b> ${esc(pedido.endereco_completo)}</div>
+        ${
+          ehRetirada(pedido)
+            ? '<div><b>RETIRADA NO BALCÃO</b></div>'
+            : `<div><b>Bairro:</b> ${esc(nomeBairroPedido(pedido))}</div>
+               <div><b>Endereço:</b> ${esc(pedido.endereco_completo)}</div>`
+        }
         <hr>
         <b>ITENS DO PEDIDO</b>
         ${linhas}
         <hr>
         <div class="item"><span>Subtotal:</span><span>${brl.format(Number(pedido.subtotal) || 0)}</span></div>
-        <div class="item"><span>Entrega:</span><span>${brl.format(Number(pedido.taxa_entrega) || 0)}</span></div>
+        ${
+          ehRetirada(pedido)
+            ? ''
+            : `<div class="item"><span>Entrega:</span><span>${brl.format(Number(pedido.taxa_entrega) || 0)}</span></div>`
+        }
+        ${
+          descontoDe(pedido) > 0
+            ? `<div class="item"><span>Desconto:</span><span>-${brl.format(descontoDe(pedido))}</span></div>
+               ${pedido.desconto_motivo ? `<div class="obs">${esc(pedido.desconto_motivo)}</div>` : ''}`
+            : ''
+        }
         <hr>
         <div class="item total"><span>TOTAL:</span><span>${brl.format(Number(pedido.total) || 0)}</span></div>
         <div>Pagamento: ${esc(rotuloPagamento(pedido) || 'Não informado')}</div>
