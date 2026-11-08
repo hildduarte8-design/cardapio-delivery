@@ -638,7 +638,7 @@
       #lista-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0 14px; align-items: start; }
       #lista-pedidos > * { margin-top: 0 !important; }
       #lista-pedidos > .painel-vazio { grid-column: 1 / -1; }
-      #aba-produtos, #aba-gestao, #aba-entrega, #aba-config { max-width: 760px; }
+      #aba-produtos, #aba-gestao, #aba-custos, #aba-entrega, #aba-config { max-width: 760px; }
       .dash-blocos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .dash-alertas { order: 0; }
       .dash-n { font-size: 26px; }
@@ -777,6 +777,15 @@
     .gestao-breve strong { color: var(--texto); }
     .btn-voltar { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; margin-bottom: 12px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--dourado); background: transparent; border: 1px solid var(--borda); }
     .btn-voltar:hover { border-color: var(--dourado); background: rgba(201, 162, 75, 0.08); }
+
+    /* ===== Financeiro ===== */
+    .custos-mes-linha { display: flex; gap: 8px; }
+    .custos-mes-linha .input-padrao { flex: 1; min-width: 0; }
+    .custos-mes-linha .dash-btn { flex: none; min-width: 48px; padding: 0 12px; }
+    .custo-linha { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+    .custo-info { min-width: 0; }
+    .custo-acoes { display: flex; gap: 8px; margin-top: 8px; }
+    .dash-bloco .custo-linha h4 { margin: 0; }
   </style>
 </head>
 <body>
@@ -963,6 +972,14 @@
         <h2 class="secao-titulo">Gestão</h2>
         <p class="secao-desc">O que você usa menos no dia a dia fica aqui.</p>
         <div class="gestao-lista">
+          <button type="button" data-aba="custos" class="gestao-item">
+            <span class="gestao-icone" aria-hidden="true">💰</span>
+            <span class="gestao-texto">
+              <strong>Financeiro</strong>
+              <span>Vendas, despesas e resultado do mês</span>
+            </span>
+            <span class="gestao-seta" aria-hidden="true">›</span>
+          </button>
           <button type="button" data-aba="entrega" class="gestao-item">
             <span class="gestao-icone" aria-hidden="true">🛵</span>
             <span class="gestao-texto">
@@ -980,8 +997,16 @@
             <span class="gestao-seta" aria-hidden="true">›</span>
           </button>
         </div>
-        <p class="gestao-breve">Em breve aqui: <strong>Financeiro</strong> e <strong>Estoque</strong>.</p>
+        <p class="gestao-breve">Em breve aqui: <strong>Estoque</strong>.</p>
       </section>
+    </div>
+
+    <!-- ================= ABA FINANCEIRO (dentro de Gestão) ================= -->
+    <div id="aba-custos" class="hidden">
+      <button type="button" data-aba="gestao" class="btn-voltar">‹ Gestão</button>
+      <div id="custos-conteudo">
+        <p class="dash-vazio">Carregando...</p>
+      </div>
     </div>
 
     <!-- ================= ABA ENTREGA ================= -->
