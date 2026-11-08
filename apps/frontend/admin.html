@@ -638,7 +638,7 @@
       #lista-pedidos { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 0 14px; align-items: start; }
       #lista-pedidos > * { margin-top: 0 !important; }
       #lista-pedidos > .painel-vazio { grid-column: 1 / -1; }
-      #aba-produtos, #aba-entrega, #aba-config { max-width: 760px; }
+      #aba-produtos, #aba-gestao, #aba-entrega, #aba-config { max-width: 760px; }
       .dash-blocos { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .dash-alertas { order: 0; }
       .dash-n { font-size: 26px; }
@@ -650,8 +650,8 @@
     .lista-futuro li { position: relative; padding-left: 18px; }
     .lista-futuro li::before { content: ""; position: absolute; left: 2px; top: 8px; width: 6px; height: 6px; border-radius: 50%; background: var(--dourado); }
     .lista-futuro strong { color: var(--texto); }
-    .nav-abas { grid-template-columns: repeat(6, 1fr); }
-    .nav-tab { font-size: 11px; }
+    .nav-abas { grid-template-columns: repeat(5, 1fr); }
+    .nav-tab { font-size: 12px; }
     .nav-tab .tab-badge { position: absolute; top: 2px; right: 2px; margin: 0; }
     @media (min-width: 1024px) {
       .nav-tab { font-size: 14px; }
@@ -763,6 +763,20 @@
       .npm-overlay { align-items: stretch; }
       .npm-painel { border-left: 1px solid var(--borda); border-right: 1px solid var(--borda); }
     }
+
+    /* ===== Aba Gestão ===== */
+    .gestao-lista { display: flex; flex-direction: column; gap: 8px; }
+    .gestao-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 12px 14px; text-align: left; border-radius: 12px; background: var(--bg); border: 1px solid var(--borda); transition: border-color 0.15s, background 0.15s; }
+    .gestao-item:hover { border-color: var(--dourado); background: var(--card-hover); }
+    .gestao-icone { flex: none; font-size: 24px; }
+    .gestao-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .gestao-texto strong { font-size: 15px; font-weight: 800; color: var(--texto); }
+    .gestao-texto span { font-size: 12.5px; color: var(--suave); }
+    .gestao-seta { flex: none; font-size: 24px; color: var(--dourado); }
+    .gestao-breve { margin-top: 14px; font-size: 12.5px; color: var(--suave); }
+    .gestao-breve strong { color: var(--texto); }
+    .btn-voltar { display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; margin-bottom: 12px; border-radius: 10px; font-size: 13px; font-weight: 700; color: var(--dourado); background: transparent; border: 1px solid var(--borda); }
+    .btn-voltar:hover { border-color: var(--dourado); background: rgba(201, 162, 75, 0.08); }
   </style>
 </head>
 <body>
@@ -829,8 +843,7 @@
         </button>
         <button data-aba="produtos" class="nav-tab">Cardápio</button>
         <button data-aba="clientes" class="nav-tab">Clientes</button>
-        <button data-aba="entrega" class="nav-tab">Entrega</button>
-        <button data-aba="config" class="nav-tab"><span class="rot-curto">Conta</span><span class="rot-longo">Configurações</span></button>
+        <button data-aba="gestao" class="nav-tab">Gestão</button>
       </nav>
 
       <button id="btn-sair" class="btn-sair">Sair</button>
@@ -944,8 +957,36 @@
       </section>
     </div>
 
+    <!-- ================= ABA GESTÃO (atalhos para o que se usa menos) ================= -->
+    <div id="aba-gestao" class="hidden">
+      <section class="secao-admin">
+        <h2 class="secao-titulo">Gestão</h2>
+        <p class="secao-desc">O que você usa menos no dia a dia fica aqui.</p>
+        <div class="gestao-lista">
+          <button type="button" data-aba="entrega" class="gestao-item">
+            <span class="gestao-icone" aria-hidden="true">🛵</span>
+            <span class="gestao-texto">
+              <strong>Entrega</strong>
+              <span>Dados da loja, Pix, bairros e taxas</span>
+            </span>
+            <span class="gestao-seta" aria-hidden="true">›</span>
+          </button>
+          <button type="button" data-aba="config" class="gestao-item">
+            <span class="gestao-icone" aria-hidden="true">⚙️</span>
+            <span class="gestao-texto">
+              <strong>Conta</strong>
+              <span>Logo, banner, cores do cardápio e senha</span>
+            </span>
+            <span class="gestao-seta" aria-hidden="true">›</span>
+          </button>
+        </div>
+        <p class="gestao-breve">Em breve aqui: <strong>Financeiro</strong> e <strong>Estoque</strong>.</p>
+      </section>
+    </div>
+
     <!-- ================= ABA ENTREGA ================= -->
     <div id="aba-entrega" class="hidden">
+      <button type="button" data-aba="gestao" class="btn-voltar">‹ Gestão</button>
       <section class="secao-admin">
         <h2 class="secao-titulo">Dados da loja</h2>
         <div style="display:flex; flex-direction:column; gap:10px;">
@@ -994,6 +1035,7 @@
 
     <!-- ================= ABA CONTA ================= -->
     <div id="aba-config" class="hidden">
+      <button type="button" data-aba="gestao" class="btn-voltar">‹ Gestão</button>
 
       <!-- Imagens da loja -->
       <section class="secao-admin">
