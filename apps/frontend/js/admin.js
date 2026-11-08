@@ -11,16 +11,23 @@ import { preencherIdentidade, inicializarIdentidade } from './admin-identidade.j
 
 let inicializacaoEmAndamento = false;
 
-function mostrarAba(nome) {
-  ['painel', 'pedidos', 'produtos', 'clientes', 'entrega', 'config'].forEach((aba) => {
-    $(`aba-${aba}`).classList.toggle('hidden', aba !== nome);
+// Telas que ficam dentro da Gestão: na barra, o destaque vai para o botão Gestão
+const TELAS_DA_GESTAO = ['entrega', 'config'];
+const TODAS_AS_ABAS = ['painel', 'pedidos', 'produtos', 'clientes', 'gestao', 'entrega', 'config'];
 
-    const botao = document.querySelector(`[data-aba="${aba}"]`);
-    if (botao) {
-      botao.classList.toggle('ativa', aba === nome);
-      if (aba === nome) botao.setAttribute('aria-current', 'page');
-      else botao.removeAttribute('aria-current');
-    }
+function mostrarAba(nome) {
+  const destaque = TELAS_DA_GESTAO.includes(nome) ? 'gestao' : nome;
+
+  TODAS_AS_ABAS.forEach((aba) => {
+    $(`aba-${aba}`).classList.toggle('hidden', aba !== nome);
+  });
+
+  // Só os botões da barra (os atalhos dentro da Gestão não entram aqui)
+  document.querySelectorAll('#abas [data-aba]').forEach((botao) => {
+    const ativo = botao.dataset.aba === destaque;
+    botao.classList.toggle('ativa', ativo);
+    if (ativo) botao.setAttribute('aria-current', 'page');
+    else botao.removeAttribute('aria-current');
   });
 
   // O painel só busca números enquanto está aberto
@@ -29,9 +36,13 @@ function mostrarAba(nome) {
 }
 
 function configurarNavegacao() {
-  $('abas').addEventListener('click', (evento) => {
+  // Escuta o painel inteiro: vale para a barra, para os atalhos da Gestão e para o "‹ Gestão"
+  $('tela-admin').addEventListener('click', (evento) => {
     const botao = evento.target.closest('[data-aba]');
-    if (botao) mostrarAba(botao.dataset.aba);
+    if (!botao) return;
+
+    mostrarAba(botao.dataset.aba);
+    window.scrollTo({ top: 0, behavior: 'instant' });
   });
 }
 
@@ -39,7 +50,7 @@ function mostrarSemAcesso() {
   $('sem-acesso').classList.remove('hidden');
   $('abas').classList.add('hidden');
 
-  ['painel', 'pedidos', 'produtos', 'clientes', 'entrega', 'config'].forEach((aba) => {
+  TODAS_AS_ABAS.forEach((aba) => {
     $(`aba-${aba}`).classList.add('hidden');
   });
 }
