@@ -834,7 +834,7 @@
         itens: carrinho.map((item) => ({ produto_id: item.id, quantidade: item.qtd, ...(item.adicionais && item.adicionais.length ? { adicionais: item.adicionais.map((a) => a.id) } : {}) })),
         forma_pagamento: forma,
         troco_para: troco,
-        observacao_geral: ''
+        observacao_geral: ($('obs-geral') ? $('obs-geral').value.trim() : '')
       };
 
       try {
