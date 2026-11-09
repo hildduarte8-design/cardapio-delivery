@@ -1,6 +1,7 @@
 import { sb } from './admin-supabase.js';
 import { state } from './admin-state.js';
 import { $, brl, esc, aviso, tratarErro, atualizar, achar } from './admin-utils.js';
+import { montarMensagemCancelamento } from './admin-cancelamento-whatsapp.js';
 
 const STATUS = {
   pendente_pagamento: {
