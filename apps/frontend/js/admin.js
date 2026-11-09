@@ -9,6 +9,7 @@ import { inicializarCardapioPdf } from './admin-cardapio-pdf.js';
 import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
 import { preencherIdentidade, inicializarIdentidade } from './admin-identidade.js';
 import { abrirAbaCustos, inicializarCustos } from './admin-custos.js';
+import './admin-fases.js';
 
 let inicializacaoEmAndamento = false;
 
