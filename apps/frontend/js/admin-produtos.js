@@ -25,8 +25,9 @@ export async function carregarProdutos() {
     return;
   }
 
-  state.produtos = data || [];
+   state.produtos = data || [];
   renderProdutos();
+  document.dispatchEvent(new CustomEvent('admin:produtos-carregados'));
 }
 
 function renderProdutos() {
