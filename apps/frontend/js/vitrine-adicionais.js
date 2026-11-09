@@ -276,43 +276,67 @@ $('btn-enviar').addEventListener('click', (e) => {
   }
 }, true);
 
-/* ===== Carrinho flutuante ===== */
+/* ===== Sacola em tela separada ===== */
 (function () {
   const barra = $('barra-carrinho');
   const botao = $('btn-enviar');
+  const corpo = document.body;
 
   const s = document.createElement('style');
-  s.textContent = '#secao-carrinho{scroll-margin-top:130px}';
+  s.textContent = `
+    body:not(.sacola) #conteudo > .bloco, body:not(.sacola) #sac-topo { display: none; }
+    body.sacola #topo, body.sacola #barra-busca, body.sacola #lista-produtos { display: none; }
+    #sac-topo { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 8px; background: var(--fundo); padding: 10px 0; border-bottom: 1px solid var(--borda); }
+    #sac-topo h2 { font: 700 20px Fraunces, Georgia, serif; }
+    #sac-voltar { width: 44px; height: 44px; border: 0; border-radius: 50%; background: #fff; border: 1px solid var(--borda); font-size: 20px; }
+  `;
   document.head.appendChild(s);
 
-  const noFormulario = () =>
-    $('select-bairro').getBoundingClientRect().top < window.innerHeight - 80;
+  const topo = document.createElement('div');
+  topo.id = 'sac-topo';
+  topo.innerHTML = '<button type="button" id="sac-voltar" aria-label="Voltar ao cardápio">←</button><h2>Minha sacola</h2>';
+  $('conteudo').prepend(topo);
 
   function rotulo() {
-    if (botao.disabled) return;
-    botao.textContent = noFormulario() ? 'Enviar Pedido' : 'Ver meu pedido';
+    const sac = corpo.classList.contains('sacola');
+    const txt = $('qtd-itens').previousSibling;
+    if (txt) txt.textContent = sac ? 'Total com entrega (' : 'Seu pedido (';
+    if (!botao.disabled) botao.textContent = sac ? 'Enviar Pedido' : 'Ver sacola';
   }
 
   function mostrar() {
     const naLoja = !$('conteudo').classList.contains('hidden');
+    if (carrinho.length === 0) corpo.classList.remove('sacola');
     barra.classList.toggle('hidden', !naLoja || carrinho.length === 0);
     rotulo();
+  }
+
+  function abrirSacola() {
+    corpo.classList.add('sacola');
+    history.pushState({ sac: 1 }, '');
+    window.scrollTo({ top: 0 });
+    mostrar();
   }
 
   const renderOriginal = renderCarrinho;
   renderCarrinho = function () { renderOriginal(); mostrar(); };
 
   const telasOriginal = alternarTelas;
-  alternarTelas = function (t) { telasOriginal(t); mostrar(); };
+  alternarTelas = function (t) { corpo.classList.remove('sacola'); telasOriginal(t); mostrar(); };
 
   botao.addEventListener('click', (e) => {
-    if (!noFormulario()) {
+    if (!corpo.classList.contains('sacola')) {
       e.stopImmediatePropagation();
-      $('secao-carrinho').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      abrirSacola();
     }
   }, true);
 
-  window.addEventListener('scroll', rotulo, { passive: true });
-  window.addEventListener('resize', rotulo);
+  $('sac-voltar').addEventListener('click', () => history.back());
+  window.addEventListener('popstate', () => {
+    corpo.classList.remove('sacola');
+    window.scrollTo({ top: 0 });
+    mostrar();
+  });
+
   mostrar();
 })();
