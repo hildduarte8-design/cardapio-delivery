@@ -340,12 +340,17 @@ export function renderPedidos() {
     btn.setAttribute('aria-pressed', ativo ? 'true' : 'false');
   });
 
-  // Atualiza ícone do som
+ // Atualiza ícone do som (só o ícone; o texto fica na dica e no leitor de tela)
   if ($('btn-som')) {
-    $('btn-som').innerText = state.somLigado ? '🔔 Som ativado' : '🔕 Som mudo';
-    $('btn-som').classList.toggle('mudo', !state.somLigado);
+    const btnSom = $('btn-som');
+    const rotuloSom = state.somLigado
+      ? 'Som de novo pedido ligado (toque para silenciar)'
+      : 'Som mudo (toque para ligar)';
+    btnSom.innerText = state.somLigado ? '🔔' : '🔕';
+    btnSom.title = rotuloSom;
+    btnSom.setAttribute('aria-label', rotuloSom);
+    btnSom.classList.toggle('mudo', !state.somLigado);
   }
-
   // Filtra e ordena a lista
   let lista = [];
   if (state.filtroStatus === 'encerrados') {
