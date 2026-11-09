@@ -101,7 +101,9 @@ const corsOptions = {
     'Authorization'
   ],
 
+  maxAge: 86400,
   optionsSuccessStatus: 204
+};
 };
 
 // O CORS precisa vir antes das rotas e do rate limit.
