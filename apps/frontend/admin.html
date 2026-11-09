@@ -786,6 +786,86 @@
     .custo-info { min-width: 0; }
     .custo-acoes { display: flex; gap: 8px; margin-top: 8px; }
     .dash-bloco .custo-linha h4 { margin: 0; }
+    /* ===== Fases dos pedidos: abas que se expandem ===== */
+.filtros-scroll.fases {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  overflow: visible;
+  padding: 10px 4px 6px;
+}
+
+.filtros-scroll.fases .filtro-chip {
+  position: relative;
+  flex: 0 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  min-width: 40px;
+  height: 42px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #3a3a3a;
+  background: #262626;
+  color: #cfcfcf;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background .2s ease, color .2s ease, padding .2s ease, gap .2s ease;
+}
+
+.filtros-scroll.fases .fase-icone {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.filtros-scroll.fases .fase-nome {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-width .25s ease, opacity .2s ease;
+}
+
+/* Aba ativa: dourada e mostrando o nome */
+.filtros-scroll.fases .filtro-chip.ativo {
+  gap: 6px;
+  padding: 0 12px;
+  background: var(--dourado, #d4a437);
+  border-color: var(--dourado, #d4a437);
+  color: #1a1a1a;
+}
+.filtros-scroll.fases .filtro-chip.ativo .fase-nome {
+  max-width: 90px;
+  opacity: 1;
+}
+
+/* Contador: bolinha no canto da aba fechada */
+.filtros-scroll.fases .chip-contador {
+  position: absolute;
+  top: -6px;
+  right: -3px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #f1f1f1;
+  color: #1a1a1a;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* Contador dentro da aba ativa */
+.filtros-scroll.fases .filtro-chip.ativo .chip-contador {
+  position: static;
+  margin-left: 2px;
+  background: #1a1a1a;
+  color: var(--dourado, #d4a437);
+}
   </style>
 </head>
 <body>
