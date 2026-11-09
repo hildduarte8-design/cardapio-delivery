@@ -3,6 +3,13 @@ import { state } from './admin-state.js';
 import { $, brl, esc, aviso, tratarErro, atualizar, achar } from './admin-utils.js';
 import { montarMensagemCancelamento } from './admin-cancelamento-whatsapp.js';
 
+// Nome do botão de WhatsApp conforme a situação do pedido
+function rotuloAvisoZap(pedido) {
+  if (pedido.status === 'cancelado') return 'Explicar cancelamento';
+  if (ehRetirada(pedido) && pedido.status === 'preparando') return 'Avisar que está pronto';
+  return 'Avisar cliente';
+}
+
 const STATUS = {
   pendente_pagamento: {
     rotulo: 'Aguardando Pix',
@@ -492,8 +499,8 @@ export function renderPedidos() {
               `
               : '<span class="espaco-acao"></span>'
           }
-          <button data-zap="${esc(pedido.id)}" class="btn-acao-sec btn-zap" title="Enviar WhatsApp">
-            💬 WhatsApp
+                    <button data-zap="${esc(pedido.id)}" class="btn-acao-sec btn-zap" title="Avisar o cliente pelo WhatsApp">
+            💬 ${rotuloAvisoZap(pedido)}
           </button>
           <button data-imprimir="${esc(pedido.id)}" class="btn-acao-sec btn-comanda" title="Imprimir comanda térmica" aria-label="Imprimir comanda">
             🖨️
