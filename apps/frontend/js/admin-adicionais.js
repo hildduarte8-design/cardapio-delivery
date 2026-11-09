@@ -18,6 +18,9 @@ let urlPrevia = null;
 let eventosConfigurados = false;
 
 const acharAdicional = (id) => adicionais.find((item) => item.id === id);
+export function listarAdicionais() {
+  return adicionais;
+}
 
 /* ===== Carregar e desenhar ===== */
 
@@ -117,7 +120,9 @@ function renderAdicionais() {
         </div>
       </div>
     `).join('')
-    : '<p class="text-sm text-gray-500">Nenhum adicional cadastrado ainda.</p>';
+       : '<p class="text-sm text-gray-500">Nenhum adicional cadastrado ainda.</p>';
+
+  document.dispatchEvent(new CustomEvent('admin:adicionais-renderizados'));
 }
 
 /* ===== Alterações ===== */
