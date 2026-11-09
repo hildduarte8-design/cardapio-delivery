@@ -119,6 +119,24 @@
     .pix-chave { display: block; word-break: break-all; font: 700 16px ui-monospace, Menlo, monospace; background: var(--fundo); border-radius: 10px; padding: 12px; margin: 8px 0; user-select: all; }
     .pix-box small { display: block; color: var(--suave); font-size: 12.5px; }
     .card .desc{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+    /* ===== Visual comercial (parte 1) ===== */
+.topo{padding:44px 0 4px;display:flex;flex-direction:column}
+.topo:has(#area-banner img){padding-top:0}
+#area-banner{order:1;margin:0 -16px}
+#area-banner .banner{margin:0;border-radius:0;height:150px}
+.loja{order:2;position:relative;display:block;text-align:center;background:#fff;border:1px solid var(--borda);border-radius:20px;padding:42px 16px 16px;box-shadow:0 6px 20px rgba(0,0,0,.08);z-index:1}
+.topo:has(#area-banner img) .loja{margin-top:-22px}
+.loja .logo-box{position:absolute;top:-36px;left:50%;transform:translateX(-50%);width:72px;height:72px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.loja h1{font-size:22px}
+.loja p{font-size:13px;margin-top:4px}
+
+.cat{font-size:20px;margin:26px 0 4px}
+.card{background:transparent;border:0;border-bottom:1px solid var(--borda);border-radius:0;padding:14px 0;margin:0}
+.card .foto{width:96px;height:96px;border-radius:12px}
+.card h4{font-size:16px}
+.card .preco{font-size:16px;margin-top:8px}
+.card .add{position:absolute;right:-4px;bottom:10px;width:38px;height:38px;border-radius:50%;font-size:22px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.card:not(:has(.foto)) .info{padding-right:48px}
   </style>
 </head>
 <body>
