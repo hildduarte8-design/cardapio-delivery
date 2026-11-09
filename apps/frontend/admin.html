@@ -897,6 +897,26 @@
 .filtros-scroll.fases {
   padding: 10px 0 6px;
 }
+
+    /* ===== Contadores das fases: zerado some, Ação chama atenção ===== */
+.filtros-scroll.fases .chip-contador.zerado {
+  display: none;
+}
+
+/* Ação com pedido esperando: laranja */
+.filtros-scroll.fases .filtro-chip.tem-acao:not(.ativo) {
+  border-color: #e8903a;
+}
+.filtros-scroll.fases .filtro-chip.tem-acao:not(.ativo) .chip-contador {
+  background: #f0883e;
+  color: #1a1a1a;
+}
+
+/* Encerrados não é tarefa pendente: contador discreto */
+.filtros-scroll.fases .filtro-chip[data-status-filtro="encerrados"]:not(.ativo) .chip-contador {
+  background: #3a3a3a;
+  color: #bdbdbd;
+}
   </style>
 </head>
 <body>
