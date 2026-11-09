@@ -110,14 +110,24 @@ function renderProdutos() {
           </button>
         </div>
 
-        <button
-          type="button"
-          data-adicionais="${esc(produto.id)}"
-          class="px-3 py-2 text-xs font-bold rounded-lg border"
-          style="width:100%;margin-top:8px"
-        >
-          ➕ Adicionais
-        </button>
+                <div style="display:flex;gap:8px;margin-top:8px">
+          <button
+            type="button"
+            data-editar="${esc(produto.id)}"
+            class="px-3 py-2 text-xs font-bold rounded-lg border"
+            style="flex:1"
+          >
+            ✏️ Editar
+          </button>
+          <button
+            type="button"
+            data-adicionais="${esc(produto.id)}"
+            class="px-3 py-2 text-xs font-bold rounded-lg border"
+            style="flex:1"
+          >
+            ➕ Adicionais
+          </button>
+        </div>
       </div>
     `).join('')
         : '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
