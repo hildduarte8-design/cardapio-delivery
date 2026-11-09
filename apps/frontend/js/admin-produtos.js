@@ -1,6 +1,14 @@
 import { sb } from './admin-supabase.js';
 import { state } from './admin-state.js';
 import { $, brl, esc, num, aviso, tratarErro, atualizar, achar } from './admin-utils.js';
+import { enviarImagem, removerImagem } from './admin-upload-imagem.js';
+
+const BUCKET_FOTOS = 'imagens-restaurantes';
+
+const ESTILO_MINIATURA =
+  'width:56px;height:56px;flex:none;border-radius:12px;overflow:hidden;border:1px solid #3a3a3a;' +
+  'background:#2a2a2a;color:#9a9a9a;padding:0;display:flex;align-items:center;' +
+  'justify-content:center;font-size:22px;cursor:pointer;';
 
 export async function carregarProdutos() {
   if (!state.rest || !sb) return;
@@ -30,12 +38,33 @@ function renderProdutos() {
     ? state.produtos.map((produto) => `
       <div class="p-3 border rounded-xl ${produto.disponivel ? 'bg-white' : 'bg-gray-50 border-gray-300'}">
         <div class="flex justify-between items-start gap-2">
-          <div class="min-w-0 ${produto.disponivel ? '' : 'opacity-60'}">
-            <h3 class="font-bold text-sm">${esc(produto.nome)}</h3>
-            <p class="text-xs text-gray-500">
-              ${esc(produto.categoria || 'Geral')}
-              ${produto.descricao ? ` • ${esc(produto.descricao)}` : ''}
-            </p>
+          <div class="flex items-start gap-3 min-w-0">
+            <button
+              type="button"
+              data-foto="${esc(produto.id)}"
+              style="${ESTILO_MINIATURA}"
+              title="${produto.imagem_url ? 'Trocar foto' : 'Adicionar foto'}"
+              aria-label="${produto.imagem_url ? 'Trocar foto de' : 'Adicionar foto a'} ${esc(produto.nome)}"
+            >
+              ${
+                produto.imagem_url
+                  ? `<img src="${esc(produto.imagem_url)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" />`
+                  : '📷'
+              }
+            </button>
+
+            <div class="min-w-0 ${produto.disponivel ? '' : 'opacity-60'}">
+              <h3 class="font-bold text-sm">${esc(produto.nome)}</h3>
+              <p class="text-xs text-gray-500">
+                ${esc(produto.categoria || 'Geral')}
+                ${produto.descricao ? ` • ${esc(produto.descricao)}` : ''}
+              </p>
+              ${
+                produto.imagem_url
+                  ? `<button type="button" data-foto-remover="${esc(produto.id)}" class="text-xs text-gray-500" style="text-decoration:underline;background:none;border:0;padding:0;margin-top:4px;cursor:pointer">Remover foto</button>`
+                  : ''
+              }
+            </div>
           </div>
           <span class="shrink-0 text-xs font-bold px-2 py-0.5 rounded-full ${
             produto.disponivel
@@ -119,6 +148,7 @@ async function excluirProduto(id) {
   state.produtos = state.produtos.filter((item) => item.id !== produto.id);
   aviso('Item excluído');
   renderProdutos();
+  await removerImagem(sb, BUCKET_FOTOS, produto.imagem_url);
 }
 
 async function salvarPreco(input) {
@@ -149,6 +179,125 @@ async function salvarPreco(input) {
   }
 }
 
+/* ===== Fotos ===== */
+
+let enviandoFoto = false;
+let produtoDaFoto = null;
+let inputFoto = null;
+let urlPrevia = null;
+
+async function trocarFoto(produto, arquivo) {
+  if (enviandoFoto) return;
+  enviandoFoto = true;
+  aviso('Enviando foto...');
+
+  try {
+    const novaUrl = await enviarImagem(sb, {
+      bucket: BUCKET_FOTOS,
+      restauranteId: state.rest.id,
+      pasta: 'produtos',
+      arquivo
+    });
+
+    const resultado = await atualizar(
+      'produtos',
+      produto.id,
+      { imagem_url: novaUrl },
+      'Foto atualizada'
+    );
+
+    if (!resultado) {
+      await removerImagem(sb, BUCKET_FOTOS, novaUrl);
+      return;
+    }
+
+    const antiga = produto.imagem_url;
+    produto.imagem_url = resultado.imagem_url;
+    renderProdutos();
+    await removerImagem(sb, BUCKET_FOTOS, antiga);
+  } catch (erro) {
+    aviso(erro.message || 'Não foi possível enviar a foto.');
+  } finally {
+    enviandoFoto = false;
+  }
+}
+
+async function removerFoto(id) {
+  const produto = achar(state.produtos, id);
+  if (!produto || !produto.imagem_url) return;
+  if (!confirm(`Remover a foto de "${produto.nome}"?`)) return;
+
+  const antiga = produto.imagem_url;
+  const resultado = await atualizar(
+    'produtos',
+    produto.id,
+    { imagem_url: null },
+    'Foto removida'
+  );
+
+  if (resultado) {
+    produto.imagem_url = null;
+    renderProdutos();
+    await removerImagem(sb, BUCKET_FOTOS, antiga);
+  }
+}
+
+function criarInputFoto() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'image/*';
+  input.hidden = true;
+  input.id = 'input-foto-produto';
+
+  input.addEventListener('change', async () => {
+    const arquivo = input.files && input.files[0];
+    input.value = '';
+    const produto = produtoDaFoto;
+    produtoDaFoto = null;
+    if (arquivo && produto) await trocarFoto(produto, arquivo);
+  });
+
+  document.body.appendChild(input);
+  return input;
+}
+
+// Campo de foto no formulário de cadastro (inserido acima do botão)
+function prepararCampoFoto() {
+  const botao = $('btn-cadastrar');
+  if (!botao || $('p-foto')) return;
+
+  botao.insertAdjacentHTML('beforebegin', `
+    <div style="margin-bottom:12px">
+      <label for="p-foto" class="text-xs text-gray-500" style="display:block;margin-bottom:6px;font-weight:600">Foto (opcional)</label>
+      <input id="p-foto" type="file" accept="image/*" class="text-xs" style="width:100%" />
+      <img id="p-foto-previa" alt="Prévia da foto" style="display:none;width:96px;height:96px;object-fit:cover;border-radius:12px;margin-top:8px" />
+    </div>
+  `);
+}
+
+function limparPrevia() {
+  const img = $('p-foto-previa');
+  if (urlPrevia) {
+    URL.revokeObjectURL(urlPrevia);
+    urlPrevia = null;
+  }
+  if (img) {
+    img.removeAttribute('src');
+    img.style.display = 'none';
+  }
+}
+
+function mostrarPrevia(arquivo) {
+  limparPrevia();
+  const img = $('p-foto-previa');
+  if (!img || !arquivo) return;
+  urlPrevia = URL.createObjectURL(arquivo);
+  img.src = urlPrevia;
+  img.style.display = 'block';
+}
+
+/* ===== Cadastro ===== */
+
 async function cadastrarProduto(evento) {
   evento.preventDefault();
 
@@ -161,6 +310,25 @@ async function cadastrarProduto(evento) {
   const botao = $('btn-cadastrar');
   botao.disabled = true;
 
+  // Envia a foto primeiro (se houver)
+  const arquivo = $('p-foto')?.files?.[0] || null;
+  let imagemUrl = null;
+
+  if (arquivo) {
+    try {
+      aviso('Enviando foto...');
+      imagemUrl = await enviarImagem(sb, {
+        bucket: BUCKET_FOTOS,
+        restauranteId: state.rest.id,
+        pasta: 'produtos',
+        arquivo
+      });
+    } catch (erro) {
+      botao.disabled = false;
+      return aviso(erro.message || 'Não foi possível enviar a foto.');
+    }
+  }
+
   const { error } = await sb
     .from('produtos')
     .insert([{
@@ -169,28 +337,45 @@ async function cadastrarProduto(evento) {
       preco,
       disponivel: true,
       categoria: $('p-categoria').value.trim() || 'Geral',
-      descricao: $('p-descricao').value.trim() || null
+      descricao: $('p-descricao').value.trim() || null,
+      imagem_url: imagemUrl
     }]);
 
   botao.disabled = false;
 
   if (error) {
+    if (imagemUrl) await removerImagem(sb, BUCKET_FOTOS, imagemUrl);
     tratarErro(error, 'Erro ao cadastrar.');
     return;
   }
 
   $('form-produto').reset();
+  limparPrevia();
   aviso('Produto cadastrado');
   await carregarProdutos();
 }
 
 function configurarEventos() {
+  prepararCampoFoto();
+  inputFoto = criarInputFoto();
+
   $('lista-produtos').addEventListener('click', async (evento) => {
     const alternar = evento.target.closest('[data-toggle]');
     const excluir = evento.target.closest('[data-del]');
+    const foto = evento.target.closest('[data-foto]');
+    const fotoRemover = evento.target.closest('[data-foto-remover]');
 
     if (alternar) await alternarDisponibilidade(alternar.dataset.toggle);
     if (excluir) await excluirProduto(excluir.dataset.del);
+    if (fotoRemover) await removerFoto(fotoRemover.dataset.fotoRemover);
+
+    if (foto) {
+      const produto = achar(state.produtos, foto.dataset.foto);
+      if (produto) {
+        produtoDaFoto = produto;
+        inputFoto.click();
+      }
+    }
   });
 
   $('lista-produtos').addEventListener('change', async (evento) => {
@@ -198,6 +383,14 @@ function configurarEventos() {
       await salvarPreco(evento.target);
     }
   });
+
+  $('form-produto').addEventListener('change', (evento) => {
+    if (evento.target.id === 'p-foto') {
+      mostrarPrevia(evento.target.files && evento.target.files[0]);
+    }
+  });
+
+  $('form-produto').addEventListener('reset', limparPrevia);
 
   $('form-produto').addEventListener('submit', cadastrarProduto);
 
