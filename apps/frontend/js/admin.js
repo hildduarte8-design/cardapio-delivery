@@ -5,6 +5,7 @@ import { carregarPedidos, iniciarPedidos, pararPedidos, inicializarPedidos } fro
 import { inicializarPedidoManual } from './admin-pedido-manual.js';
 import { carregarProdutos, inicializarProdutos } from './admin-produtos.js';
 import { inicializarAdicionais } from './admin-adicionais.js';
+import { inicializarVinculoAdicionais } from './admin-adicionais-vinculo.js';
 import { abrirAbaPainel, fecharAbaPainel, inicializarAbaPainel } from './admin-painel.js';
 import { inicializarCardapioPdf } from './admin-cardapio-pdf.js';
 import { carregarBairros, preencherRestaurante, inicializarEntrega } from './admin-entrega.js';
@@ -218,6 +219,7 @@ function inicializar() {
   inicializarPedidoManual();
   inicializarProdutos();
   inicializarAdicionais();
+  inicializarVinculoAdicionais();
   inicializarEntrega();
   inicializarIdentidade();
   inicializarAbaPainel();
