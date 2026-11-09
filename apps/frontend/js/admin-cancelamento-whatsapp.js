@@ -6,7 +6,7 @@ function somenteDigitos(v) {
 
 // Aceita (33) 99999-8888, 33999998888, +55 33 99999-8888 etc.
 export function normalizarTelefoneBR(valor) {
-  let d = somenteDigitos(valor);
+  const d = somenteDigitos(valor);
   if (d.startsWith('55') && (d.length === 12 || d.length === 13)) return d;
   if (d.length === 10 || d.length === 11) return '55' + d;
   return null; // inválido
@@ -14,12 +14,12 @@ export function normalizarTelefoneBR(valor) {
 
 export function montarMensagemCancelamento(pedido, opcoes = {}) {
   const loja = opcoes.loja || 'Pastel e Batata Imperial';
-  const nomeCompleto = String(pedido.cliente_nome || pedido.nome || '').trim();
+  const nomeCompleto = String(opcoes.nome ?? pedido.cliente_nome ?? pedido.nome ?? '').trim();
   const primeiroNome = nomeCompleto.split(/\s+/)[0];
   const saudacao = primeiroNome ? `Olá, ${primeiroNome}! Tudo bem? 😊` : 'Olá! Tudo bem? 😊';
   const numero = pedido.numero || pedido.codigo || '';
   const refPedido = numero ? `o seu pedido #${numero}` : 'o seu pedido';
-  const motivo = String(opcoes.motivo || '').trim();
+  const motivo = String(opcoes.motivo || '').trim().replace(/[.\s]+$/, '');
 
   const linhas = [
     saudacao,
