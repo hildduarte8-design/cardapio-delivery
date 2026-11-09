@@ -106,12 +106,23 @@ function renderProdutos() {
             data-del="${esc(produto.id)}"
             class="px-3 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-600 border-red-200"
           >
-            Excluir
+                        Excluir
           </button>
         </div>
+
+        <button
+          type="button"
+          data-adicionais="${esc(produto.id)}"
+          class="px-3 py-2 text-xs font-bold rounded-lg border"
+          style="width:100%;margin-top:8px"
+        >
+          ➕ Adicionais
+        </button>
       </div>
     `).join('')
-    : '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
+        : '<p class="text-sm text-gray-500">Nenhum produto cadastrado ainda.</p>';
+
+  document.dispatchEvent(new CustomEvent('admin:produtos-renderizados'));
 }
 
 async function alternarDisponibilidade(id) {
