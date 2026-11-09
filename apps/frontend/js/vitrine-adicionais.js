@@ -340,3 +340,183 @@ $('btn-enviar').addEventListener('click', (e) => {
 
   mostrar();
 })();
+
+
+/* ===== Sacola estilo app (itens, observação, sugestões, resumo, pagamento) ===== */
+(function () {
+  const corpo = document.body;
+  const botao = $('btn-enviar');
+
+  const s = document.createElement('style');
+  s.textContent = `
+    #sac-topo h2{flex:1;text-align:center;font-size:17px}
+    #sac-limpar{min-width:60px;height:44px;border:0;background:none;color:var(--cor);font-weight:800;font-size:14px}
+    .it{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--borda)}
+    .it:last-child{border-bottom:0}
+    .it img{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;background:var(--borda)}
+    .it-info{flex:1;min-width:0}
+    .it-info strong{display:block;font-size:14.5px}
+    .it-info small{display:block;font-size:12px;color:var(--suave)}
+    .it-pr{font-weight:800;font-size:14px;margin-top:2px}
+    .it .qtd button{width:36px;height:36px}
+    .obs-topo{display:flex;justify-content:space-between;align-items:center}
+    #obs-btn{border:0;background:none;color:var(--cor);font-weight:800;min-height:44px;padding:0 4px}
+    #obs-geral{margin-top:8px}
+    .sug-lista{display:flex;gap:10px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px}
+    .sug-lista::-webkit-scrollbar{display:none}
+    .sug-c{flex:none;width:120px;position:relative}
+    .sug-c img,.sug-c .sem{width:120px;height:90px;border-radius:12px;object-fit:cover;background:var(--borda);display:block}
+    .sug-c b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13px;margin-top:6px;line-height:1.2}
+    .sug-c span{font-size:13px;font-weight:800}
+    .sug-c button{position:absolute;top:48px;right:6px;width:36px;height:36px;border-radius:50%;border:0;background:var(--cor);color:var(--cor-texto);font-size:20px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+    .res-l{display:flex;justify-content:space-between;padding:5px 0;font-size:14px;color:var(--suave)}
+    .res-l.tot{color:var(--texto);font-weight:800;font-size:17px;border-top:1px solid var(--borda);margin-top:6px;padding-top:10px}
+    #pg-trocar{border:0;background:none;color:var(--cor);font-weight:800;min-height:44px;padding:0 4px}
+    body.sacola #barra-carrinho .wrap > div:first-child{display:none}
+    body.sacola #btn-enviar{width:100%}
+  `;
+  document.head.appendChild(s);
+
+  /* 1. Cabeçalho da sacola: ← Título Limpar */
+  const limpar = document.createElement('button');
+  limpar.type = 'button'; limpar.id = 'sac-limpar'; limpar.textContent = 'Limpar';
+  $('sac-topo').appendChild(limpar);
+  limpar.addEventListener('click', () => {
+    if (confirm('Esvaziar a sacola?')) { carrinho = []; renderCarrinho(); }
+  });
+  $('secao-carrinho').querySelector('h2').textContent = 'Itens do pedido';
+
+  /* 3. Observação */
+  const obs = document.createElement('section');
+  obs.className = 'bloco'; obs.id = 'obs-bloco';
+  obs.innerHTML = '<div class="obs-topo"><strong>Alguma observação?</strong><button type="button" id="obs-btn">Adicionar</button></div>' +
+    '<textarea id="obs-geral" class="entrada hidden" rows="2" maxlength="200" placeholder="Ex.: sem cebola, não buzinar"></textarea>';
+
+  /* 7. Combine com seu pedido */
+  const sug = document.createElement('section');
+  sug.className = 'bloco sug hidden'; sug.id = 'sug';
+  sug.innerHTML = '<h2>Combine com seu pedido</h2><div class="sug-lista" id="sug-lista"></div>';
+
+  $('secao-carrinho').after(sug);
+  $('secao-carrinho').after(obs);
+
+  $('obs-btn').addEventListener('click', () => {
+    const t = $('obs-geral');
+    const abrir = t.classList.contains('hidden');
+    t.classList.toggle('hidden', !abrir);
+    $('obs-btn').textContent = abrir ? 'Ocultar' : 'Adicionar';
+    if (abrir) t.focus();
+  });
+
+  function limparObs() {
+    $('obs-geral').value = '';
+    $('obs-geral').classList.add('hidden');
+    $('obs-btn').textContent = 'Adicionar';
+  }
+
+  /* 4. Resumo de valores */
+  const res = document.createElement('section');
+  res.className = 'bloco'; res.id = 'resumo';
+  res.innerHTML = '<h2>Resumo de valores</h2>' +
+    '<div class="res-l"><span>Subtotal</span><span id="res-sub"></span></div>' +
+    '<div class="res-l"><span>Taxa de entrega</span><span id="res-taxa"></span></div>' +
+    '<div class="res-l tot"><span>Total</span><span id="res-total"></span></div>';
+  $('conteudo').appendChild(res);
+
+  const totalGeral = () => calcularSubtotal() + (carrinho.length ? taxaAtual : 0);
+
+  function atualizarResumo() {
+    $('res-sub').textContent = brl.format(calcularSubtotal());
+    $('res-taxa').textContent = !$('select-bairro').value ? 'Escolha o bairro' : (taxaAtual > 0 ? brl.format(taxaAtual) : 'Grátis');
+    $('res-total').textContent = brl.format(totalGeral());
+  }
+
+  /* 5. Pagamento com "Trocar" */
+  const pg = document.createElement('div');
+  pg.id = 'pg-resumo'; pg.className = 'opcao hidden';
+  pg.innerHTML = '<span style="flex:1"><strong id="pg-nome"></strong><small id="pg-sub"></small></span><button type="button" id="pg-trocar">Trocar</button>';
+  $('opcoes-pagto').before(pg);
+  let pgAberto = true;
+
+  function syncPagto() {
+    const f = formaSelecionada();
+    if (!f) pgAberto = true;
+    const resumir = !!f && !pgAberto;
+    pg.classList.toggle('hidden', !resumir);
+    $('opcoes-pagto').classList.toggle('hidden', resumir);
+    if (resumir) {
+      const lab = document.querySelector('input[name="pagto"]:checked').closest('label');
+      $('pg-nome').textContent = lab.querySelector('strong').textContent;
+      $('pg-sub').textContent = lab.querySelector('small').textContent;
+    }
+  }
+  $('opcoes-pagto').addEventListener('change', () => { pgAberto = false; syncPagto(); });
+  $('pg-trocar').addEventListener('click', () => { pgAberto = true; syncPagto(); });
+
+  /* 2. Itens com foto */
+  function desenharItens() {
+    $('lista-carrinho').innerHTML = carrinho.map((i) => {
+      const p = produtos.find((x) => String(x.id) === String(i.id));
+      const foto = p && urlImagemValida(p.imagem_url) ? `<img src="${esc(p.imagem_url)}" alt="" loading="lazy">` : '';
+      return `<div class="it">${foto}
+        <div class="it-info">
+          <strong>${esc(i.nome)}</strong>
+          ${i.adicionais && i.adicionais.length ? `<small>+ ${i.adicionais.map((a) => esc(a.nome)).join(', ')}</small>` : ''}
+          <div class="it-pr">${brl.format(i.preco * i.qtd)}</div>
+        </div>
+        <div class="qtd">
+          <button type="button" data-menos="${esc(i.chave || i.id)}" aria-label="Diminuir ${esc(i.nome)}">−</button>
+          <span>${i.qtd}</span>
+          <button type="button" data-mais="${esc(i.chave || i.id)}" aria-label="Aumentar ${esc(i.nome)}">+</button>
+        </div></div>`;
+    }).join('');
+  }
+
+  function desenharSugestoes() {
+    const noCarrinho = new Set(carrinho.map((i) => String(i.id)));
+    const cats = new Set(carrinho.map((i) => {
+      const p = produtos.find((x) => String(x.id) === String(i.id));
+      return p ? (p.categoria || 'Geral') : '';
+    }));
+    const pref = /bebida|suco|refri|sobremesa|doce|acompanh|por[çc]/i;
+    const lista = produtos
+      .filter((p) => !noCarrinho.has(String(p.id)) && !cats.has(p.categoria || 'Geral'))
+      .sort((a, b) => pref.test(b.categoria || '') - pref.test(a.categoria || ''))
+      .slice(0, 8);
+    $('sug').classList.toggle('hidden', lista.length === 0);
+    $('sug-lista').innerHTML = lista.map((p) => `
+      <div class="sug-c">
+        ${urlImagemValida(p.imagem_url) ? `<img src="${esc(p.imagem_url)}" alt="" loading="lazy">` : '<div class="sem"></div>'}
+        <b>${esc(p.nome)}</b><span>${brl.format(parseFloat(p.preco) || 0)}</span>
+        <button type="button" data-sug="${esc(p.id)}" aria-label="Adicionar ${esc(p.nome)}">+</button>
+      </div>`).join('');
+  }
+  $('sug').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-sug]');
+    if (b) adicionarCarrinho(b.dataset.sug);
+  });
+
+  /* 6. Botão fixo: Enviar pedido · R$ */
+  function ajustarBotao() {
+    if (botao.disabled) return;
+    const d = corpo.classList.contains('sacola') ? 'Enviar pedido · ' + brl.format(totalGeral()) : 'Ver sacola';
+    if (botao.textContent !== d) botao.textContent = d;
+  }
+  new MutationObserver(ajustarBotao).observe(botao, { childList: true, characterData: true, subtree: true });
+
+  /* Ligações */
+  const r0 = renderCarrinho;
+  renderCarrinho = function () { r0(); desenharItens(); desenharSugestoes(); syncPagto(); ajustarBotao(); };
+
+  const t0 = atualizarTotal;
+  atualizarTotal = function () { t0(); atualizarResumo(); ajustarBotao(); };
+
+  const l0 = limparPagamento;
+  limparPagamento = function () { l0(); syncPagto(); };
+
+  const a0 = alternarTelas;
+  alternarTelas = function (t) { if (t === 'sucesso') limparObs(); a0(t); ajustarBotao(); };
+
+  syncPagto();
+  atualizarResumo();
+})();
