@@ -13,6 +13,7 @@ import { carregarBairros, preencherRestaurante, inicializarEntrega } from './adm
 import { preencherIdentidade, inicializarIdentidade } from './admin-identidade.js';
 import { abrirAbaCustos, inicializarCustos } from './admin-custos.js';
 import './admin-fases.js';
+import './admin-editar.js';
 
 let inicializacaoEmAndamento = false;
 
