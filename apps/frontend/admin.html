@@ -901,22 +901,32 @@
         </button>
       </div>
 
-      <!-- Filtros por Status no Celular -->
-      <div class="filtros-scroll" role="group" aria-label="Filtrar pedidos por etapa">
-        <button data-status-filtro="todos" class="filtro-chip ativo" aria-pressed="true">
-          Todos <span id="chip-num-todos" class="chip-contador">0</span>
+        <!-- Fases dos pedidos: abas com ícone (a ativa se expande) -->
+      <div class="filtros-scroll fases" role="group" aria-label="Filtrar pedidos por etapa">
+        <button data-status-filtro="todos" class="filtro-chip ativo" aria-pressed="true" title="Todos">
+          <span class="fase-icone" aria-hidden="true">📋</span>
+          <span class="fase-nome">Todos</span>
+          <span id="chip-num-todos" class="chip-contador">0</span>
         </button>
-        <button data-status-filtro="acao" class="filtro-chip" aria-pressed="false">
-          ⚡ Ação <span id="chip-num-acao" class="chip-contador">0</span>
+        <button data-status-filtro="acao" class="filtro-chip" aria-pressed="false" title="Ação">
+          <span class="fase-icone" aria-hidden="true">⚡</span>
+          <span class="fase-nome">Ação</span>
+          <span id="chip-num-acao" class="chip-contador">0</span>
         </button>
-        <button data-status-filtro="preparando" class="filtro-chip" aria-pressed="false">
-          👨‍🍳 Preparo <span id="chip-num-preparo" class="chip-contador">0</span>
+        <button data-status-filtro="preparando" class="filtro-chip" aria-pressed="false" title="Preparo">
+          <span class="fase-icone" aria-hidden="true">👨‍🍳</span>
+          <span class="fase-nome">Preparo</span>
+          <span id="chip-num-preparo" class="chip-contador">0</span>
         </button>
-        <button data-status-filtro="saiu_entrega" class="filtro-chip" aria-pressed="false">
-          🛵 Entrega <span id="chip-num-entrega" class="chip-contador">0</span>
+        <button data-status-filtro="saiu_entrega" class="filtro-chip" aria-pressed="false" title="Entrega">
+          <span class="fase-icone" aria-hidden="true">🛵</span>
+          <span class="fase-nome">Entrega</span>
+          <span id="chip-num-entrega" class="chip-contador">0</span>
         </button>
-        <button data-status-filtro="encerrados" class="filtro-chip" aria-pressed="false">
-          Encerrados <span id="chip-num-encerrados" class="chip-contador">0</span>
+        <button data-status-filtro="encerrados" class="filtro-chip" aria-pressed="false" title="Encerrados">
+          <span class="fase-icone" aria-hidden="true">✅</span>
+          <span class="fase-nome">Encerrados</span>
+          <span id="chip-num-encerrados" class="chip-contador">0</span>
         </button>
       </div>
 
