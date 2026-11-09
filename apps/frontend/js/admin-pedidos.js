@@ -555,6 +555,15 @@ function textoZap(pedido) {
   return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}`;
 }
 
+  // Cancelado: mensagem amigável com o motivo (se houver)
+  if (pedido.status === 'cancelado') {
+    return montarMensagemCancelamento(pedido, {
+      nome,
+      loja: state.rest.nome,
+      motivo: pedido.cancelamento_motivo,
+    });
+  }
+
 // Impressão da comanda 58mm idêntica à versão validada
 function imprimirComanda(pedido) {
   const linhas = itensDe(pedido).map((item) => {
