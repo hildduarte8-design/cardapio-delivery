@@ -547,14 +547,6 @@ function textoZap(pedido) {
     cancelado: 'Seu pedido foi cancelado. Qualquer dúvida, é só responder aqui.'
   };
 
-  // Retirada: avisa que está pronto (o pedido fica em preparo até a retirada)
-  if (ehRetirada(pedido) && pedido.status === 'preparando') {
-    return `Olá ${nome}! ${state.rest.nome}: Seu pedido de ${valor} está pronto, pode retirar no balcão! 🙌`;
-  }
-
-  return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}`;
-}
-
   // Cancelado: mensagem amigável com o motivo (se houver)
   if (pedido.status === 'cancelado') {
     return montarMensagemCancelamento(pedido, {
@@ -563,6 +555,14 @@ function textoZap(pedido) {
       motivo: pedido.cancelamento_motivo,
     });
   }
+
+  // Retirada: avisa que está pronto (o pedido fica em preparo até a retirada)
+  if (ehRetirada(pedido) && pedido.status === 'preparando') {
+    return `Olá ${nome}! ${state.rest.nome}: Seu pedido de ${valor} está pronto, pode retirar no balcão! 🙌`;
+  }
+
+  return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}`;
+}
 
 // Impressão da comanda 58mm idêntica à versão validada
 function imprimirComanda(pedido) {
