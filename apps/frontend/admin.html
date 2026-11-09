@@ -866,13 +866,7 @@
   background: #1a1a1a;
   color: var(--dourado, #d4a437);
 }
-    /* ===== Limpeza do topo da aba Pedidos ===== */
-
-/* Cartões de resumo repetiam as abas: escondidos (para voltar, apague esta regra) */
-#aba-pedidos .metricas-grid {
-  display: none;
-}
-
+   
 /* Barra de controle: Novo pedido ocupa o espaço, Som vira botão compacto */
 #aba-pedidos .barra-controle-pedidos {
   display: flex;
@@ -1004,26 +998,7 @@
 
     <!-- ================= ABA PEDIDOS ================= -->
     <div id="aba-pedidos">
-      <!-- Mini resumo (Ação em Primeiro Lugar) -->
-      <section class="metricas-grid" aria-label="Resumo dos pedidos">
-        <div class="metrica-card destaque-acao">
-          <div id="metrica-acao" class="metrica-val">0</div>
-          <div class="metrica-label">⚡ Ação</div>
-        </div>
-        <div class="metrica-card">
-          <div id="metrica-preparo" class="metrica-val">0</div>
-          <div class="metrica-label">👨‍🍳 Preparo</div>
-        </div>
-        <div class="metrica-card">
-          <div id="metrica-entrega" class="metrica-val">0</div>
-          <div class="metrica-label">🛵 Em rota</div>
-        </div>
-        <div class="metrica-card">
-          <div id="metrica-total" class="metrica-val">0</div>
-          <div class="metrica-label">Total ativos</div>
-        </div>
-      </section>
-
+      
       <!-- Barra de Controle (Novo pedido e Som) -->
       <div class="barra-controle-pedidos">
         <button id="btn-novo-pedido" type="button" class="btn-novo-pedido">＋ Novo pedido</button>
