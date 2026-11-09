@@ -322,12 +322,6 @@ export function renderPedidos() {
     badge.classList.toggle('hidden', contTodosAtivos === 0);
   }
 
-  // Atualiza métricas do topo (Dashboard rápido)
-  if ($('metrica-acao')) $('metrica-acao').innerText = contAcao;
-  if ($('metrica-preparo')) $('metrica-preparo').innerText = contPreparo;
-  if ($('metrica-entrega')) $('metrica-entrega').innerText = contEntrega;
-  if ($('metrica-total')) $('metrica-total').innerText = contTodosAtivos;
-
   // Atualiza números nos chips de filtro
   const chipNum = (id, n) => {
     const el = $(id);
