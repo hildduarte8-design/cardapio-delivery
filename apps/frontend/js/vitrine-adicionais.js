@@ -21,13 +21,13 @@ const vtAdicionaisDe = (id) => vtAdicionais[id] || [];
   const s = document.createElement('style');
   s.textContent = `
     .card { cursor: pointer; }
-    .dt-fundo { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; }
-    .dt-folha { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 480px; max-height: 92vh; background: var(--fundo); border-radius: 20px 20px 0 0; overflow: hidden; }
+    .dt-fundo { position: fixed; inset: 0; z-index: 40; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .dt-folha { position: relative; display: flex; flex-direction: column; width: 100%; max-width: 440px; max-height: 90vh; background: var(--fundo); color: var(--texto); border-radius: 20px; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
     .dt-rolagem { overflow-y: auto; flex: 1; }
-    .dt-foto { display: block; width: 100%; height: 200px; object-fit: cover; background: var(--borda); }
+    .dt-foto { display: block; width: 100%; height: auto; max-height: 48vh; object-fit: contain; background: var(--borda); }
     .dt-corpo { padding: 16px; }
     .dt-corpo h2 { font: 700 21px/1.2 Fraunces, Georgia, serif; }
-    .dt-corpo .dt-desc { font-size: 14px; color: var(--suave); margin-top: 6px; }
+    .dt-corpo .dt-desc { font-size: 14px; color: var(--suave); margin-top: 6px; white-space: pre-line; }
     .dt-corpo .dt-preco { font-size: 18px; font-weight: 800; margin-top: 10px; }
     .dt-fechar { position: absolute; top: 10px; right: 10px; z-index: 2; width: 44px; height: 44px; border: 0; border-radius: 50%; background: rgba(22,23,26,.75); color: #fff; font-size: 20px; }
     .dt-titulo-ad { font: 700 16px Fraunces, Georgia, serif; margin: 18px 0 8px; }
