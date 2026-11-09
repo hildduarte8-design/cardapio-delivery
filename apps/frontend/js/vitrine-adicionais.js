@@ -275,3 +275,44 @@ $('btn-enviar').addEventListener('click', (e) => {
     avisar('Modo teste: o envio de pedidos com adicionais ainda não está liberado.', 'info');
   }
 }, true);
+
+/* ===== Carrinho flutuante ===== */
+(function () {
+  const barra = $('barra-carrinho');
+  const botao = $('btn-enviar');
+
+  const s = document.createElement('style');
+  s.textContent = '#secao-carrinho{scroll-margin-top:130px}';
+  document.head.appendChild(s);
+
+  const noFormulario = () =>
+    $('select-bairro').getBoundingClientRect().top < window.innerHeight - 80;
+
+  function rotulo() {
+    if (botao.disabled) return;
+    botao.textContent = noFormulario() ? 'Enviar Pedido' : 'Ver meu pedido';
+  }
+
+  function mostrar() {
+    const naLoja = !$('conteudo').classList.contains('hidden');
+    barra.classList.toggle('hidden', !naLoja || carrinho.length === 0);
+    rotulo();
+  }
+
+  const renderOriginal = renderCarrinho;
+  renderCarrinho = function () { renderOriginal(); mostrar(); };
+
+  const telasOriginal = alternarTelas;
+  alternarTelas = function (t) { telasOriginal(t); mostrar(); };
+
+  botao.addEventListener('click', (e) => {
+    if (!noFormulario()) {
+      e.stopImmediatePropagation();
+      $('secao-carrinho').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, true);
+
+  window.addEventListener('scroll', rotulo, { passive: true });
+  window.addEventListener('resize', rotulo);
+  mostrar();
+})();
