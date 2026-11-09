@@ -866,6 +866,37 @@
   background: #1a1a1a;
   color: var(--dourado, #d4a437);
 }
+    /* ===== Limpeza do topo da aba Pedidos ===== */
+
+/* Cartões de resumo repetiam as abas: escondidos (para voltar, apague esta regra) */
+#aba-pedidos .metricas-grid {
+  display: none;
+}
+
+/* Barra de controle: Novo pedido ocupa o espaço, Som vira botão compacto */
+#aba-pedidos .barra-controle-pedidos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#aba-pedidos .btn-novo-pedido {
+  flex: 1 1 auto;
+}
+#aba-pedidos .btn-som-toggle {
+  flex: 0 0 auto;
+  width: auto;
+  height: 40px;
+  padding: 0 12px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: .85;
+}
+
+/* Alinha a faixa de abas com a margem dos outros blocos */
+.filtros-scroll.fases {
+  padding: 10px 0 6px;
+}
   </style>
 </head>
 <body>
