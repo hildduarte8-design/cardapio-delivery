@@ -21,6 +21,18 @@ const MAX_MOTIVO_DESCONTO = 60;
 const ENDERECO_RETIRADA = 'Retirada no balcão';
 
 /**
+ * Dispara uma consulta ao banco já (sem esperar) e devolve uma promessa que NUNCA rejeita:
+ * se der falha de rede, vira { data: null, error } igual aos outros erros do Supabase.
+ * Assim várias consultas rodam ao mesmo tempo e o resultado é lido onde era lido antes.
+ */
+function iniciar(consulta) {
+  return Promise.resolve(consulta).then(
+    (resultado) => resultado,
+    (erro) => ({ data: null, error: { message: erro?.message || 'falha na consulta' } })
+  );
+}
+
+/**
  * Identifica o usuário logado pelo token do Supabase (cabeçalho Authorization: Bearer ...).
  * Devolve { id } ou null. Qualquer falha vira "não autenticado".
  */
@@ -88,13 +100,63 @@ export function criarControladorPedidoManual({
         return respostaErro(res, 400, 'ID do restaurante é obrigatório.', 'RESTAURANTE_INVALIDO');
       }
 
+      const tempoInicio = Date.now();
+
+      // Consultas independentes saem TODAS juntas (antes eram uma esperando a outra).
+      // As validações e as mensagens de erro abaixo continuam na mesma ordem de antes.
+      const consultaVinculo = iniciar(
+        db
+          .from('restaurante_usuarios')
+          .select('restaurante_id')
+          .eq('user_id', usuario.id)
+          .eq('restaurante_id', restauranteId)
+          .maybeSingle()
+      );
+
+      const consultaRestaurante = iniciar(
+        db
+          .from('restaurantes')
+          .select('id, nome, ativo, loja_lat, loja_lon, taxa_base, valor_km, raio_max_km')
+          .eq('id', restauranteId)
+          .maybeSingle()
+      );
+
+      const idsPrevios = Array.isArray(itens)
+        ? [
+            ...new Set(
+              itens
+                .slice(0, MAX_ITENS)
+                .map((item) => (item && typeof item === 'object' ? item.produto_id || item.id : null))
+                .filter((id) => typeof id === 'string' && id.trim())
+                .map((id) => id.trim())
+            )
+          ]
+        : [];
+
+      const consultaProdutos = idsPrevios.length
+        ? iniciar(
+            db
+              .from('produtos')
+              .select('id, nome, preco, disponivel, restaurante_id')
+              .in('id', idsPrevios)
+              .eq('restaurante_id', restauranteId)
+          )
+        : null;
+
+      const consultaBairro =
+        typeof bairro_id === 'string' && bairro_id.trim()
+          ? iniciar(
+              db
+                .from('bairros')
+                .select('id, nome, taxa, restaurante_id, ativo')
+                .eq('id', bairro_id.trim())
+                .eq('restaurante_id', restauranteId)
+                .maybeSingle()
+            )
+          : null;
+
       // 2. O usuário precisa estar vinculado a ESTE restaurante
-      const { data: vinculo, error: vinculoErro } = await db
-        .from('restaurante_usuarios')
-        .select('restaurante_id')
-        .eq('user_id', usuario.id)
-        .eq('restaurante_id', restauranteId)
-        .maybeSingle();
+      const { data: vinculo, error: vinculoErro } = await consultaVinculo;
 
       if (vinculoErro) {
         console.error('[PEDIDO MANUAL] Erro ao consultar vínculo:', vinculoErro.message);
@@ -150,11 +212,7 @@ export function criarControladorPedidoManual({
       }
 
       // 4. Restaurante
-      const { data: restaurante, error: restErro } = await db
-        .from('restaurantes')
-        .select('id, nome, ativo, loja_lat, loja_lon, taxa_base, valor_km, raio_max_km')
-        .eq('id', restauranteId)
-        .maybeSingle();
+      const { data: restaurante, error: restErro } = await consultaRestaurante;
 
       if (restErro) {
         console.error('[PEDIDO MANUAL] Erro ao consultar restaurante:', restErro.message);
@@ -199,11 +257,14 @@ export function criarControladorPedidoManual({
 
       const idsProdutos = [...new Set(itensNormalizados.map((item) => item.produto_id))];
 
-      const { data: produtosBanco, error: produtosErro } = await db
-        .from('produtos')
-        .select('id, nome, preco, disponivel, restaurante_id')
-        .in('id', idsProdutos)
-        .eq('restaurante_id', restaurante.id);
+      const { data: produtosBanco, error: produtosErro } = await (consultaProdutos ||
+        iniciar(
+          db
+            .from('produtos')
+            .select('id, nome, preco, disponivel, restaurante_id')
+            .in('id', idsProdutos)
+            .eq('restaurante_id', restaurante.id)
+        ));
 
       if (produtosErro) {
         console.error('[PEDIDO MANUAL] Erro ao consultar produtos:', produtosErro.message);
@@ -265,12 +326,7 @@ export function criarControladorPedidoManual({
       let taxaCentavos = 0;
 
       if (ehEntrega) {
-        const { data: bairroBanco, error: bairroErro } = await db
-          .from('bairros')
-          .select('id, nome, taxa, restaurante_id, ativo')
-          .eq('id', bairro_id.trim())
-          .eq('restaurante_id', restaurante.id)
-          .maybeSingle();
+        const { data: bairroBanco, error: bairroErro } = await consultaBairro;
 
         if (bairroErro) {
           console.error('[PEDIDO MANUAL] Erro ao consultar bairro:', bairroErro.message);
@@ -414,6 +470,9 @@ export function criarControladorPedidoManual({
         tipo_atendimento: tipo
       };
 
+      const tempoValidacao = Date.now() - tempoInicio;
+      const tempoAntesInsert = Date.now();
+
       const { data: pedidoCriado, error: insertErro } = await db
         .from('pedidos')
         .insert([novoPedidoPayload])
@@ -424,6 +483,10 @@ export function criarControladorPedidoManual({
         console.error('[PEDIDO MANUAL] Erro ao inserir pedido:', insertErro?.message);
         return respostaErro(res, 500, 'Falha ao registrar pedido no banco de dados.', 'ERRO_PERSISTENCIA');
       }
+
+      console.log(
+        `[PEDIDO MANUAL] tempos: validação=${tempoValidacao}ms, gravação=${Date.now() - tempoAntesInsert}ms, total=${Date.now() - tempoInicio}ms`
+      );
 
       return res.status(201).json({
         sucesso: true,
