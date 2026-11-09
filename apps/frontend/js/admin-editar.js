@@ -174,9 +174,6 @@ function incluirBotoesAdicionais() {
 /* ===== Ligações ===== */
 
 document.addEventListener('click', (e) => {
-  const produto = e.target.closest('#lista-produtos [data-editar]');
-  if (produto) return editarProduto(produto.dataset.editar);
-
   const adicional = e.target.closest('#lista-adicionais [data-ad-editar]');
   if (adicional) return editarAdicional(adicional.dataset.adEditar);
 });
