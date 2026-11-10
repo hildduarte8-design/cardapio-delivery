@@ -296,6 +296,45 @@ export async function carregarPedidos() {
     return;
   }
 
+  // Alarme repetido: toca a cada 8 segundos enquanto houver pedido esperando atendimento
+const STATUS_ALERTA = ['pendente_pagamento', 'pago']; // mesmos status da aba "Ação"
+const INTERVALO_ALARME_MS = 8000;
+const IDADE_MAX_ALARME_MS = 3 * 60 * 60 * 1000; // ignora pedidos com mais de 3 horas
+
+function pedidosQuePedemAtencao() {
+  return (state.pedidos || []).filter((pedido) => {
+    if (!STATUS_ALERTA.includes(pedido.status)) return false;
+    const criado = new Date(dataDoPedido(pedido) || 0).getTime();
+    return Date.now() - criado < IDADE_MAX_ALARME_MS;
+  });
+}
+
+function pararAlarme() {
+  if (state.timerAlarme) {
+    clearInterval(state.timerAlarme);
+    state.timerAlarme = null;
+  }
+}
+
+function atualizarAlarme() {
+  const precisa = state.somLigado && pedidosQuePedemAtencao().length > 0;
+
+  if (!precisa) {
+    pararAlarme();
+    return;
+  }
+
+  if (state.timerAlarme) return;
+
+  state.timerAlarme = setInterval(() => {
+    if (!state.somLigado || pedidosQuePedemAtencao().length === 0) {
+      pararAlarme();
+      return;
+    }
+    beep();
+  }, INTERVALO_ALARME_MS);
+}
+  
   const lista = (data || []).sort((a, b) => {
     return new Date(dataDoPedido(b) || 0) - new Date(dataDoPedido(a) || 0);
   });
@@ -309,7 +348,8 @@ export async function carregarPedidos() {
   }
 
   state.idsVistos = new Set(lista.map((pedido) => String(pedido.id)));
-  state.pedidos = lista;
+    state.pedidos = lista;
+  atualizarAlarme();
   renderPedidos();
 }
 
@@ -345,7 +385,7 @@ export function pararPedidos() {
       console.warn('Erro ao encerrar canal de pedidos:', error);
     }
   }
-
+  pararAlarme();
   state.canalPedidos = null;
   clearInterval(state.timerPedidos);
   state.timerPedidos = null;
@@ -809,9 +849,10 @@ function configurarEventos() {
         return;
       }
 
-      if (evento.target.closest('#btn-som')) {
+  if (evento.target.closest('#btn-som')) {
         state.somLigado = !state.somLigado;
         desbloquearAudio();
+        atualizarAlarme();
         renderPedidos();
         if (state.somLigado) beep();
       }
