@@ -14,6 +14,7 @@ import {
   normalizarTelefone,
   respostaErro
 } from '../utils/pedidosUtils.js';
+import { registrarClienteESelo } from '../utils/clientesSelos.js';
 
 const FORMAS_PAGAMENTO = ['pix', 'dinheiro', 'cartao'];
 const TIPOS_ATENDIMENTO = ['entrega', 'retirada'];
@@ -490,6 +491,20 @@ export function criarControladorPedidoManual({
         `[PEDIDO MANUAL] tempos: validação=${tempoValidacao}ms, gravação=${Date.now() - tempoAntesInsert}ms, total=${Date.now() - tempoInicio}ms`
       );
 
+            // Selo de fidelidade: conta subtotal menos desconto (sem taxa de entrega)
+      if (telefone && telefone.length >= 10 && telefone.length <= 13) {
+        const valorSelo = deCentavos(Math.max(0, subtotalCentavos - descontoCentavos));
+
+        await registrarClienteESelo(db, {
+          restauranteId: restaurante.id,
+          nome,
+          telefone,
+          endereco,
+          total: valorSelo,
+          retirada: tipo === 'retirada'
+        });
+      }
+      
       return res.status(201).json({
         sucesso: true,
         mensagem: 'Pedido registrado com sucesso!',
