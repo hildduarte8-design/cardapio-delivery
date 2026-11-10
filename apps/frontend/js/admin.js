@@ -15,6 +15,7 @@ import { abrirAbaCustos, inicializarCustos } from './admin-custos.js';
 import './admin-fases.js';
 import './admin-editar.js';
 import './admin-produtos-ordem.js';
+import './admin-destaque.js';
 
 let inicializacaoEmAndamento = false;
 
