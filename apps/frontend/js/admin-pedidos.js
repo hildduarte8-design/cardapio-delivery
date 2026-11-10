@@ -280,23 +280,7 @@ function beepSintetico() {
   }
 }
 
-export async function carregarPedidos() {
-  if (!state.rest || !sb) return;
-
-  // Os 100 pedidos MAIS RECENTES (sem a ordenação, o banco devolveria 100 quaisquer)
-  const { data, error } = await sb
-    .from('pedidos')
-    .select('*')
-    .eq('restaurante_id', state.rest.id)
-    .order('created_at', { ascending: false })
-    .limit(100);
-
-  if (error) {
-    tratarErro(error, 'Erro ao carregar pedidos.');
-    return;
-  }
-
-  // Alarme repetido: toca a cada 8 segundos enquanto houver pedido esperando atendimento
+// Alarme repetido: toca a cada 8 segundos enquanto houver pedido esperando atendimento
 const STATUS_ALERTA = ['pendente_pagamento', 'pago']; // mesmos status da aba "Ação"
 const INTERVALO_ALARME_MS = 8000;
 const IDADE_MAX_ALARME_MS = 3 * 60 * 60 * 1000; // ignora pedidos com mais de 3 horas
@@ -334,7 +318,23 @@ function atualizarAlarme() {
     beep();
   }, INTERVALO_ALARME_MS);
 }
-  
+
+export async function carregarPedidos() {
+  if (!state.rest || !sb) return;
+
+  // Os 100 pedidos MAIS RECENTES (sem a ordenação, o banco devolveria 100 quaisquer)
+  const { data, error } = await sb
+    .from('pedidos')
+    .select('*')
+    .eq('restaurante_id', state.rest.id)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (error) {
+    tratarErro(error, 'Erro ao carregar pedidos.');
+    return;
+  }
+
   const lista = (data || []).sort((a, b) => {
     return new Date(dataDoPedido(b) || 0) - new Date(dataDoPedido(a) || 0);
   });
@@ -348,7 +348,7 @@ function atualizarAlarme() {
   }
 
   state.idsVistos = new Set(lista.map((pedido) => String(pedido.id)));
-    state.pedidos = lista;
+  state.pedidos = lista;
   atualizarAlarme();
   renderPedidos();
 }
