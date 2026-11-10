@@ -283,7 +283,7 @@ function beepSintetico() {
 // Alarme repetido: toca a cada 8 segundos enquanto houver pedido esperando atendimento
 const STATUS_ALERTA = ['pendente_pagamento', 'pago']; // mesmos status da aba "Ação"
 const INTERVALO_ALARME_MS = 8000;
-const IDADE_MAX_ALARME_MS = 3 * 60 * 60 * 1000; // ignora pedidos com mais de 3 horas
+const IDADE_MAX_ALARME_MS = 60 * 60 * 1000; // ignora pedidos com mais de 1 hora
 
 function pedidosQuePedemAtencao() {
   return (state.pedidos || []).filter((pedido) => {
