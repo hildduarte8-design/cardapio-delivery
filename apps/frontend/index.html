@@ -137,6 +137,15 @@
 .card .preco{font-size:16px;margin-top:8px}
 .card .add{position:absolute;right:-4px;bottom:10px;width:38px;height:38px;border-radius:50%;font-size:22px;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 .card:not(:has(.foto)) .info{padding-right:48px}
+.dest-lista{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;margin:0 -16px;padding:0 16px 6px}
+.dest-lista::-webkit-scrollbar{display:none}
+.dest-c{flex:none;width:128px;text-align:left;background:none;border:0;padding:0;color:inherit}
+.dest-c img,.dest-c .sem{display:block;width:128px;height:128px;border-radius:16px;object-fit:cover;background:var(--borda)}
+.dest-p{display:block;margin-top:8px;font-size:14px;font-weight:800}
+.dest-p s,.card .preco s{font-weight:600;font-size:12.5px;color:var(--suave)}
+.dest-p .promo,.card .preco .promo{color:#067647}
+.dest-n{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;line-height:1.25;margin-top:2px}
+    
   </style>
 </head>
 <body>
@@ -429,8 +438,8 @@
       const consulta = (colunas) => supabaseClient.from('produtos').select(colunas)
         .eq('restaurante_id', restauranteInfo.id).eq('disponivel', true).order('categoria').order('nome');
 
-      let resp = await consulta('id, nome, descricao, preco, categoria, imagem_url, ordem');
-      if (resp.error) resp = await consulta('id, nome, descricao, preco, categoria, ordem');
+      let resp = await consulta('id, nome, descricao, preco, categoria, imagem_url, ordem, preco_promocional, destaque');
+      if (resp.error) resp = await consulta('id, nome, descricao, preco, categoria, ordem, preco_promocional, destaque');
       const { data, error } = resp;
 
       if (error) {
@@ -449,10 +458,30 @@
       return true;
     }
 
+        function aplicarPromocao(lista) {
+      return lista.map((p) => {
+        const promo = Number(p.preco_promocional), base = Number(p.preco);
+        return promo > 0 && promo < base ? { ...p, preco: promo, preco_original: base } : p;
+      });
+    }
+
+    function htmlDestaques() {
+      const ds = produtos.filter((p) => p.destaque).slice(0, 6);
+      if (!ds.length) return '';
+      return '<h3 class="cat" style="margin-top:18px">Destaques</h3><div class="dest-lista">' + ds.map((p) => {
+        const foto = urlImagemValida(p.imagem_url)
+          ? `<img src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async">` : '<div class="sem"></div>';
+        const preco = p.preco_original
+          ? `<s>${brl.format(parseFloat(p.preco_original))}</s> <span class="promo">${brl.format(parseFloat(p.preco))}</span>`
+          : brl.format(parseFloat(p.preco) || 0);
+        return `<button type="button" class="dest-c" data-dest="${esc(p.id)}">${foto}<span class="dest-p">${preco}</span><span class="dest-n">${esc(p.nome)}</span></button>`;
+      }).join('') + '</div>';
+    }
+        
         function ordenarVitrine(lista) {
       const cats = Array.isArray(restauranteInfo.ordem_categorias) ? restauranteInfo.ordem_categorias : [];
       const pos = (c) => { const i = cats.indexOf(c || 'Geral'); return i === -1 ? 9999 : i; };
-      return [...lista].sort((a, b) =>
+      return aplicarPromocao(lista).sort((a, b) =>
         pos(a.categoria) - pos(b.categoria) ||
         String(a.categoria || 'Geral').localeCompare(String(b.categoria || 'Geral'), 'pt-BR') ||
         (a.ordem || 0) - (b.ordem || 0) ||
@@ -484,7 +513,7 @@
       $('chips').innerHTML = [...grupos.keys()].map((cat, i) =>
         `<button type="button" class="chip" data-cat="${i}" aria-pressed="${cat === categoriaAtiva}">${esc(cat)}</button>`).join('');
 
-      let html = '', i = 0;
+     let html = termo ? '' : htmlDestaques(), i = 0;
       for (const [cat, lista] of grupos) {
         html += `<h3 class="cat" id="cat-${i}">${esc(cat)}</h3>`;
         for (const p of lista) {
@@ -496,7 +525,7 @@
               <div class="info">
                 <h4>${esc(p.nome)}</h4>
                 ${p.descricao ? `<p class="desc">${esc(p.descricao)}</p>` : ''}
-                <p class="preco">${brl.format(parseFloat(p.preco) || 0)}</p>
+                                <p class="preco">${p.preco_original ? `<s>${brl.format(parseFloat(p.preco_original))}</s> <span class="promo">${brl.format(parseFloat(p.preco) || 0)}</span>` : brl.format(parseFloat(p.preco) || 0)}</p>
               </div>
               ${foto}
               <button type="button" class="add" data-add="${esc(p.id)}" aria-label="Adicionar ${esc(p.nome)} ao carrinho">
@@ -509,7 +538,14 @@
       container.innerHTML = html;
       atualizarBadges();
     }
-    
+
+        $('lista-produtos').addEventListener('click', (e) => {
+      const d = e.target.closest('[data-dest]');
+      if (!d) return;
+      const p = produtos.find((x) => String(x.id) === String(d.dataset.dest));
+      if (!p) return;
+      if (typeof vtAbrir === 'function') vtAbrir(p); else adicionarCarrinho(p.id);
+    });
     $('lista-produtos').addEventListener('error', (e) => {
       if (e.target && e.target.classList && e.target.classList.contains('foto')) e.target.remove();
     }, true);
