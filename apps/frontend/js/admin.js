@@ -17,6 +17,7 @@ import './admin-editar.js';
 import './admin-produtos-ordem.js';
 import './admin-destaque.js';
 import './admin-clientes.js';
+import './admin-selos-relatorio.js';
 
 let inicializacaoEmAndamento = false;
 
