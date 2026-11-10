@@ -12,6 +12,7 @@ import {
   coordenadasValidas,
   respostaErro
 } from '../utils/pedidosUtils.js';
+import { registrarClienteESelo } from '../utils/clientesSelos.js';
 
 /**
  * Factory para permitir testes sem conexão real com o Supabase.
@@ -331,6 +332,15 @@ export function criarControladorPedidos({
         return respostaErro(res, 500, 'Falha ao registrar pedido no banco de dados.', 'ERRO_PERSISTENCIA');
       }
 
+            await registrarClienteESelo(db, {
+        restauranteId: restaurante.id,
+        nome,
+        telefone,
+        endereco,
+        total: deCentavos(totalCentavos),
+        retirada
+      });
+      
       return res.status(201).json({
         sucesso: true,
         mensagem: 'Pedido registrado com sucesso!',
