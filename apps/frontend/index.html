@@ -320,7 +320,7 @@
     async function carregarRestaurante(slug) {
       const base = 'id, slug, nome, ativo';
       const camadas = [
-        base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp, chave_pix',
+        base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp, chave_pix, ordem_categorias',
         base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp',
         base + ', logo_url, banner_url, cor_primaria, cor_secundaria',
         base
@@ -429,8 +429,8 @@
       const consulta = (colunas) => supabaseClient.from('produtos').select(colunas)
         .eq('restaurante_id', restauranteInfo.id).eq('disponivel', true).order('categoria').order('nome');
 
-      let resp = await consulta('id, nome, descricao, preco, categoria, imagem_url');
-      if (resp.error) resp = await consulta('id, nome, descricao, preco, categoria');
+      let resp = await consulta('id, nome, descricao, preco, categoria, imagem_url, ordem');
+      if (resp.error) resp = await consulta('id, nome, descricao, preco, categoria, ordem');
       const { data, error } = resp;
 
       if (error) {
@@ -444,11 +444,21 @@
         $('chips').innerHTML = '';
         return true;
       }
-      produtos = data;
+      produtos = ordenarVitrine(data);
       renderProdutos();
       return true;
     }
 
+        function ordenarVitrine(lista) {
+      const cats = Array.isArray(restauranteInfo.ordem_categorias) ? restauranteInfo.ordem_categorias : [];
+      const pos = (c) => { const i = cats.indexOf(c || 'Geral'); return i === -1 ? 9999 : i; };
+      return [...lista].sort((a, b) =>
+        pos(a.categoria) - pos(b.categoria) ||
+        String(a.categoria || 'Geral').localeCompare(String(b.categoria || 'Geral'), 'pt-BR') ||
+        (a.ordem || 0) - (b.ordem || 0) ||
+        String(a.nome).localeCompare(String(b.nome), 'pt-BR'));
+    }
+    
     const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
     function renderProdutos() {
