@@ -76,8 +76,8 @@ function htmlPreco(p, tamanho) {
   if (promo === null) {
     return `<span style="font-size:${tamanho}px;font-weight:800;color:#0F172A;">${esc(brl.format(base))}</span>`;
   }
-  return `<s style="font-size:12px;color:#64748B;">${esc(brl.format(base))}</s><br>` +
-    `<span style="font-size:${tamanho}px;font-weight:800;color:#067647;">${esc(brl.format(promo))}</span>`;
+  return `<span style="font-size:${tamanho}px;font-weight:800;color:#067647;">${esc(brl.format(promo))}</span> ` +
+    `<s style="font-size:12px;color:#94A3B8;">${esc(brl.format(base))}</s>`;
 }
 
 function ordenar(produtos, ordemCategorias) {
@@ -167,7 +167,7 @@ export function montarCardapio({ nome, cor, link, data, produtos, imagensOk, wha
     </div>
   </div>`;
 
-  return `<div style="width:720px;padding:8px;background:#FFFFFF;color:#1E293B;font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;">
+  return `<div style="width:480px;padding:8px;background:#FFFFFF;color:#1E293B;font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;">
     ${capa}
     ${blocoDestaques}
     ${blocos}
@@ -203,7 +203,7 @@ async function gerarPdf() {
 
     const base = new URL('.', location.href).href;
     const link = `${base}?r=${encodeURIComponent(rest.slug)}`;
-    const qr = await gerarQr(link);
+    const qr = '';
 
     const html = montarCardapio({
       nome: rest.nome,
@@ -224,11 +224,11 @@ async function gerarPdf() {
 
     await carregarScript(HTML2PDF_URL, () => window.html2pdf);
     await window.html2pdf().set({
-      margin: [8, 8, 8, 8],
+      margin: [4, 4, 4, 4],
       filename: `Cardapio_${rest.slug}.pdf`,
       image: { type: 'jpeg', quality: 0.95 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      jsPDF: { unit: 'mm', format: [100, 177.8], orientation: 'portrait' },
       pagebreak: { mode: ['css', 'legacy'], avoid: ['.pdf-item', 'h3'] }
     }).from(pagina.firstElementChild).save();
 
