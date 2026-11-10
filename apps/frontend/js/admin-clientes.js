@@ -1,11 +1,12 @@
 import { sb } from './admin-supabase.js';
 import { state } from './admin-state.js';
-import { $, esc, aviso, tratarErro, atualizar, achar } from './admin-utils.js';
+import { $, esc, aviso, tratarErro, achar } from './admin-utils.js';
 
 const META = 10;
 let clientes = [];
 let busca = '';
 let carregando = false;
+let ajustando = false;
 
 const digitos = (t) => String(t || '').replace(/\D/g, '');
 const normalizar = (t) => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -70,8 +71,8 @@ function render() {
         <div style="height:8px;border-radius:6px;background:#1f1f1f;margin-top:4px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:#C9A24B;"></div></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:10px;align-items:center;">
-        <button type="button" data-selo="${esc(c.id)}" data-d="-1" style="${BTN}" aria-label="Tirar um selo">−</button>
-        <button type="button" data-selo="${esc(c.id)}" data-d="1" style="${BTN}" aria-label="Dar um selo">+</button>
+        <button type="button" data-selo="${esc(c.id)}" data-d="-1" style="${BTN}" aria-label="Tirar um selo (pede motivo)">−</button>
+        <button type="button" data-selo="${esc(c.id)}" data-d="1" style="${BTN}" aria-label="Dar um selo (pede motivo)">+</button>
         ${selos >= META ? `<button type="button" data-resgatar="${esc(c.id)}" style="${BTN}flex:1;background:#C9A24B;color:#16171A;border-color:#C9A24B;font-size:14px;">🎁 Resgatar brinde</button>` : '<span style="flex:1"></span>'}
       </div>
     </div>`;
@@ -93,27 +94,41 @@ async function carregar() {
   render();
 }
 
-async function mudarSelos(id, novo, msg) {
-  const c = achar(clientes, id);
-  if (!c) return;
-  const valor = Math.max(0, Math.min(99, novo));
-  if (valor === (c.selos_fidelidade || 0)) return;
-  const r = await atualizar('clientes', c.id, { selos_fidelidade: valor }, msg);
-  if (r) { c.selos_fidelidade = r.selos_fidelidade; render(); }
+// Ajuste sempre pela função do banco (registra histórico e exige motivo)
+async function ajustar(c, delta, motivo, tipo, msg) {
+  if (ajustando) return;
+  ajustando = true;
+  const { data, error } = await sb.rpc('ajustar_selos', {
+    p_cliente_id: c.id,
+    p_delta: delta,
+    p_motivo: motivo,
+    p_tipo: tipo
+  });
+  ajustando = false;
+  if (error) return tratarErro(error, 'Não foi possível ajustar os selos.');
+  c.selos_fidelidade = data;
+  render();
+  aviso(msg);
 }
 
 document.addEventListener('click', async (e) => {
   const s = e.target.closest('[data-selo]');
   if (s) {
     const c = achar(clientes, s.dataset.selo);
-    if (c) await mudarSelos(c.id, (c.selos_fidelidade || 0) + Number(s.dataset.d), 'Selos atualizados');
+    if (!c) return;
+    const delta = Number(s.dataset.d);
+    if (delta < 0 && (c.selos_fidelidade || 0) <= 0) return;
+    const motivo = prompt(`Motivo para ${delta > 0 ? 'DAR' : 'TIRAR'} 1 selo de ${c.nome || 'este cliente'} (obrigatório):`);
+    if (motivo === null) return;
+    if (motivo.trim().length < 3) { aviso('Informe o motivo para ajustar o selo.'); return; }
+    await ajustar(c, delta, motivo.trim(), 'manual', 'Selos atualizados');
     return;
   }
   const r = e.target.closest('[data-resgatar]');
   if (r) {
     const c = achar(clientes, r.dataset.resgatar);
     if (c && confirm(`Resgatar o brinde de ${c.nome || 'este cliente'}? Isso desconta ${META} selos.`)) {
-      await mudarSelos(c.id, (c.selos_fidelidade || 0) - META, 'Brinde resgatado');
+      await ajustar(c, -META, 'Brinde resgatado', 'resgate', 'Brinde resgatado');
     }
   }
 });
