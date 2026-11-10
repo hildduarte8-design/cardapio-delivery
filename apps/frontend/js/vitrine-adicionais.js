@@ -520,3 +520,60 @@ $('btn-enviar').addEventListener('click', (e) => {
   syncPagto();
   atualizarResumo();
 })();
+
+
+/* ===== Entrega / Retirada ===== */
+let modoEntrega = 'entrega';
+(function () {
+  const s = document.createElement('style');
+  s.textContent = `
+    #abas-ent{display:flex;gap:8px;margin-bottom:14px}
+    #abas-ent button{flex:1;height:44px;border-radius:999px;border:1px solid #E4DCCB;background:#fff;font-weight:800;font-size:15px}
+    #abas-ent button[aria-pressed="true"]{background:var(--cor);border-color:var(--cor);color:var(--cor-texto)}
+    #ret-info{font-size:14px;color:var(--suave);background:var(--fundo);border-radius:12px;padding:12px}
+    body:not(.retirada) #ret-info{display:none}
+    body.retirada label[for="select-bairro"], body.retirada #select-bairro, body.retirada #select-bairro ~ .meta,
+    body.retirada label[for="cli-endereco"], body.retirada #cli-endereco{display:none}
+  `;
+  document.head.appendChild(s);
+
+  const sec = $('select-bairro').closest('.bloco');
+  const titulo = sec.querySelector('h2');
+  titulo.textContent = 'Como receber?';
+
+  const abas = document.createElement('div');
+  abas.id = 'abas-ent';
+  abas.innerHTML = '<button type="button" data-modo="entrega" aria-pressed="true">Entrega</button>' +
+                   '<button type="button" data-modo="retirada" aria-pressed="false">Retirada</button>';
+  const info = document.createElement('p');
+  info.id = 'ret-info';
+  info.textContent = 'Você retira o pedido no balcão da loja. Sem taxa de entrega.';
+  titulo.after(abas);
+  abas.after(info);
+
+  const taxa0 = atualizarTaxa;
+  atualizarTaxa = function () {
+    taxa0();
+    if (modoEntrega === 'retirada') {
+      taxaAtual = 0;
+      $('val-taxa').innerText = brl.format(0);
+      atualizarTotal();
+    }
+  };
+
+  const total0 = atualizarTotal;
+  atualizarTotal = function () {
+    total0();
+    const r = document.getElementById('res-taxa');
+    if (modoEntrega === 'retirada' && r) r.textContent = 'Grátis';
+  };
+
+  abas.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-modo]');
+    if (!b) return;
+    modoEntrega = b.dataset.modo;
+    document.body.classList.toggle('retirada', modoEntrega === 'retirada');
+    abas.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    atualizarTaxa();
+  });
+})();
