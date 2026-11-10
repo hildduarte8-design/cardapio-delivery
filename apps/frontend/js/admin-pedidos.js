@@ -196,21 +196,34 @@ function beep() {
   if (!state.somLigado || !state.audioCtx) return;
 
   try {
-    const tempo = state.audioCtx.currentTime;
+    const ctx = state.audioCtx;
+    const inicio = ctx.currentTime;
 
-    [0, 0.25].forEach((atraso) => {
-      const oscilador = state.audioCtx.createOscillator();
-      const ganho = state.audioCtx.createGain();
+    // Campainha: 4 toques alternando duas notas
+    const notas = [
+      { freq: 988, atraso: 0 },
+      { freq: 784, atraso: 0.3 },
+      { freq: 988, atraso: 0.6 },
+      { freq: 784, atraso: 0.9 }
+    ];
 
-      oscilador.frequency.value = 880;
-      ganho.gain.setValueAtTime(0.2, tempo + atraso);
-      ganho.gain.exponentialRampToValueAtTime(0.001, tempo + atraso + 0.2);
+    notas.forEach(({ freq, atraso }) => {
+      const oscilador = ctx.createOscillator();
+      const ganho = ctx.createGain();
+
+      oscilador.type = 'square';
+      oscilador.frequency.value = freq;
+      ganho.gain.setValueAtTime(0.6, inicio + atraso);
+      ganho.gain.exponentialRampToValueAtTime(0.001, inicio + atraso + 0.28);
 
       oscilador.connect(ganho);
-      ganho.connect(state.audioCtx.destination);
-      oscilador.start(tempo + atraso);
-      oscilador.stop(tempo + atraso + 0.2);
+      ganho.connect(ctx.destination);
+      oscilador.start(inicio + atraso);
+      oscilador.stop(inicio + atraso + 0.3);
     });
+
+    // Vibração, nos celulares que permitem
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
   } catch (error) {
     console.warn('Falha ao reproduzir aviso sonoro.', error);
   }
