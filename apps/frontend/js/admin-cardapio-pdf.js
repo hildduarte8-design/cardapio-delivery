@@ -105,69 +105,55 @@ export function montarCardapio({ nome, cor, link, data, produtos, imagensOk, wha
     grupos.get(categoria).push(p);
   });
 
-  // Capa
-  const banner = ok.has(bannerUrl)
-    ? `background:${destaque} url('${esc(bannerUrl)}') center/cover no-repeat;`
-    : `background:${destaque};`;
-  const logo = ok.has(logoUrl)
-    ? `<div style="width:88px;height:88px;margin:-44px auto 0;position:relative;z-index:1;border-radius:50%;border:4px solid #FFFFFF;background:#FFFFFF url('${esc(logoUrl)}') center/cover no-repeat;"></div>`
-    : '<div style="height:16px;"></div>';
-  const capa = `<div style="margin-bottom:14px;">
-    <div style="height:${ok.has(bannerUrl) ? 170 : 70}px;border-radius:14px;${banner}"></div>
-    ${ok.has(bannerUrl) ? logo : ''}
-    <div style="text-align:center;padding-top:${ok.has(bannerUrl) ? 8 : 12}px;">
-      <h1 style="margin:0;font-size:28px;color:#0F172A;">${esc(nome)}</h1>
-      <p style="margin:5px 0 0;font-size:13px;color:#64748B;">Cardápio · atualizado em ${esc(data)}${fone ? ' · WhatsApp ' + esc(fone) : ''}</p>
+  const temBanner = ok.has(bannerUrl);
+  const capa = `<div style="margin-bottom:12px;">
+    <div style="height:${temBanner ? 100 : 40}px;border-radius:10px;background:${destaque}${temBanner ? ` url('${esc(bannerUrl)}') center/cover no-repeat` : ''};"></div>
+    ${ok.has(logoUrl) ? `<div style="width:60px;height:60px;margin:-30px auto 0;position:relative;border-radius:50%;border:3px solid #FFFFFF;background:#FFFFFF url('${esc(logoUrl)}') center/cover no-repeat;"></div>` : ''}
+    <div style="text-align:center;padding-top:8px;">
+      <h1 style="margin:0;font-size:20px;line-height:1.2;color:#0F172A;">${esc(nome)}</h1>
+      <p style="margin:4px 0 0;font-size:11px;color:#64748B;">Cardápio · atualizado em ${esc(data)}${fone ? '<br>WhatsApp ' + esc(fone) : ''}</p>
     </div>
   </div>`;
 
-  // Destaques
+  const titulo = (texto) => `<h3 style="margin:0 0 2px;padding:6px 10px;border-radius:6px;background:${destaque};color:${textoDestaque};font-size:13px;text-transform:uppercase;">${esc(texto)}</h3>`;
+
   const dest = lista.filter((p) => p.destaque).slice(0, 6);
-  const blocoDestaques = dest.length ? `<div class="pdf-item" style="margin-bottom:18px;">
-    <h3 style="margin:0 0 10px;padding:8px 12px;border-radius:8px;background:${destaque};color:${textoDestaque};font-size:17px;text-transform:uppercase;">Destaques</h3>
-    <div style="display:flex;flex-wrap:wrap;justify-content:center;gap:12px;">
-      ${dest.map((p) => `<div style="width:216px;">
-        <div style="height:140px;border-radius:12px;background:#E2E8F0${ok.has(p.imagem_url) ? ` url('${esc(p.imagem_url)}') center/cover no-repeat` : ''};"></div>
-        <div style="margin-top:6px;font-size:14px;line-height:1.25;color:#0F172A;"><strong>${esc(p.nome)}</strong></div>
-        <div style="margin-top:3px;">${htmlPreco(p, 15)}</div>
+  const blocoDestaques = dest.length ? `<div class="pdf-item" style="margin-bottom:14px;">
+    ${titulo('Destaques')}
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">
+      ${dest.map((p) => `<div style="width:calc(50% - 5px);">
+        <div style="height:84px;border-radius:8px;background:#E2E8F0${ok.has(p.imagem_url) ? ` url('${esc(p.imagem_url)}') center/cover no-repeat` : ''};"></div>
+        <div style="margin-top:4px;font-size:12px;line-height:1.2;color:#0F172A;"><strong>${esc(p.nome)}</strong></div>
+        <div style="margin-top:2px;">${htmlPreco(p, 12)}</div>
       </div>`).join('')}
     </div>
   </div>` : '';
 
-  // Categorias e produtos
-  const blocos = [...grupos.entries()].map(([categoria, itensDaCategoria]) => {
-    const itens = itensDaCategoria.map((p) => {
-      const foto = ok.has(p.imagem_url)
-        ? `<img src="${esc(p.imagem_url)}" crossorigin="anonymous" style="width:80px;height:80px;border-radius:10px;object-fit:cover;flex-shrink:0;" alt="">`
-        : '';
-      return `<div class="pdf-item" style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px dashed #CBD5E1;">
-        <div style="display:flex;align-items:flex-start;gap:12px;flex:1;min-width:0;">
-          ${foto}
-          <div style="min-width:0;">
-            <strong style="display:block;font-size:16px;color:#0F172A;line-height:1.25;">${esc(p.nome)}</strong>
-            ${p.descricao ? `<span style="display:block;margin-top:3px;font-size:13px;color:#475569;line-height:1.4;">${esc(p.descricao)}</span>` : ''}
-          </div>
-        </div>
-        <div style="text-align:right;white-space:nowrap;">${htmlPreco(p, 17)}</div>
-      </div>`;
-    }).join('');
-
-    return `<div style="margin-bottom:16px;">
-      <h3 style="margin:16px 0 4px;padding:8px 12px;border-radius:8px;background:${destaque};color:${textoDestaque};font-size:17px;text-transform:uppercase;">${esc(categoria)}</h3>
-      ${itens}
+  const item = (p) => {
+    const foto = ok.has(p.imagem_url)
+      ? `<img src="${esc(p.imagem_url)}" crossorigin="anonymous" style="width:56px;height:56px;border-radius:8px;object-fit:cover;flex-shrink:0;" alt="">`
+      : '';
+    return `<div class="pdf-item" style="display:flex;align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px dashed #CBD5E1;">
+      ${foto}
+      <div style="flex:1;min-width:0;">
+        <strong style="display:block;font-size:13px;color:#0F172A;line-height:1.2;">${esc(p.nome)}</strong>
+        ${p.descricao ? `<span style="display:block;margin-top:2px;font-size:10.5px;color:#475569;line-height:1.35;">${esc(p.descricao)}</span>` : ''}
+        <div style="margin-top:3px;">${htmlPreco(p, 13)}</div>
+      </div>
     </div>`;
+  };
+
+  const blocos = [...grupos.entries()].map(([categoria, itens]) => {
+    const [primeiro, ...resto] = itens.map(item);
+    return `<div style="margin-bottom:12px;"><div class="pdf-item">${titulo(categoria)}${primeiro}</div>${resto.join('')}</div>`;
   }).join('');
 
-  // Rodapé com QR Code
-  const rodape = `<div class="pdf-item" style="display:flex;align-items:center;justify-content:center;gap:14px;margin-top:18px;padding-top:12px;border-top:3px solid #E2E8F0;">
-    ${qr ? `<img src="${qr}" style="width:84px;height:84px;" alt="QR Code">` : ''}
-    <div style="font-size:13px;color:#475569;line-height:1.5;">
-      <strong style="font-size:15px;color:#0F172A;">Faça seu pedido</strong><br>
-      ${esc(link)}${fone ? `<br>WhatsApp ${esc(fone)}` : ''}
-    </div>
+  const rodape = `<div class="pdf-item" style="margin-top:14px;padding-top:10px;border-top:2px solid #E2E8F0;text-align:center;font-size:11px;color:#475569;line-height:1.5;">
+    <strong style="font-size:13px;color:#0F172A;">Faça seu pedido</strong><br>
+    <span style="word-break:break-all;">${esc(link)}</span>${fone ? `<br>WhatsApp ${esc(fone)}` : ''}
   </div>`;
 
-  return `<div style="width:480px;padding:8px;background:#FFFFFF;color:#1E293B;font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;">
+  return `<div style="width:100%;padding:0;background:#FFFFFF;color:#1E293B;font-family:Arial,Helvetica,sans-serif;box-sizing:border-box;">
     ${capa}
     ${blocoDestaques}
     ${blocos}
