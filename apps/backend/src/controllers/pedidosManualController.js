@@ -137,7 +137,7 @@ export function criarControladorPedidoManual({
         ? iniciar(
             db
               .from('produtos')
-              .select('id, nome, preco, disponivel, restaurante_id')
+              .select('id, nome, preco, preco_promocional, disponivel, restaurante_id')
               .in('id', idsPrevios)
               .eq('restaurante_id', restauranteId)
           )
@@ -261,7 +261,7 @@ export function criarControladorPedidoManual({
         iniciar(
           db
             .from('produtos')
-            .select('id, nome, preco, disponivel, restaurante_id')
+            .select('id, nome, preco, preco_promocional, disponivel, restaurante_id')
             .in('id', idsProdutos)
             .eq('restaurante_id', restaurante.id)
         ));
@@ -292,7 +292,9 @@ export function criarControladorPedidoManual({
           return respostaErro(res, 422, `O produto "${produto.nome}" está indisponível.`, 'PRODUTO_INDISPONIVEL');
         }
 
-        const precoCentavos = paraCentavos(produto.preco);
+        const promo = Number(produto.preco_promocional);
+        const precoVenda = promo > 0 && promo < Number(produto.preco) ? produto.preco_promocional : produto.preco;
+        const precoCentavos = paraCentavos(precoVenda);
 
         if (precoCentavos === null || precoCentavos <= 0) {
           console.error('[PEDIDO MANUAL] Produto com preço inválido:', produto.id);
