@@ -136,7 +136,7 @@ export function criarControladorPedidos({
 
       const { data: produtosBanco, error: produtosErro } = await db
         .from('produtos')
-        .select('id, nome, preco, disponivel, restaurante_id')
+        .select('id, nome, preco, preco_promocional, disponivel, restaurante_id')
         .in('id', idsProdutos)
         .eq('restaurante_id', restaurante.id);
 
@@ -172,7 +172,9 @@ export function criarControladorPedidos({
           );
         }
 
-        const precoCentavos = paraCentavos(produto.preco);
+        const promo = Number(produto.preco_promocional);
+        const precoVenda = promo > 0 && promo < Number(produto.preco) ? produto.preco_promocional : produto.preco;
+        const precoCentavos = paraCentavos(precoVenda);
 
         if (precoCentavos === null || precoCentavos <= 0) {
           console.error('[PEDIDO] Produto com preço inválido:', produto.id);
