@@ -184,9 +184,11 @@ function desbloquearAudio() {
     state.audioCtx = state.audioCtx ||
       new (window.AudioContext || window.webkitAudioContext)();
 
-    if (state.audioCtx.state === 'suspended') {
+        if (state.audioCtx.state === 'suspended') {
       state.audioCtx.resume();
     }
+
+    carregarSom();
   } catch (error) {
     console.warn('Áudio não disponível neste navegador.', error);
   }
