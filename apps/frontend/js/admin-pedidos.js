@@ -192,7 +192,56 @@ function desbloquearAudio() {
   }
 }
 
+let bufferSom = null;
+let carregandoSom = null;
+
+async function carregarSom() {
+  if (bufferSom || carregandoSom || !state.audioCtx) return;
+
+  carregandoSom = fetch('/sons/novo-pedido.mp3')
+    .then((resposta) => {
+      if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+      return resposta.arrayBuffer();
+    })
+    .then((dados) => state.audioCtx.decodeAudioData(dados))
+    .then((buffer) => {
+      bufferSom = buffer;
+    })
+    .catch((error) => {
+      console.warn('Não foi possível carregar o som de pedido.', error);
+    })
+    .finally(() => {
+      carregandoSom = null;
+    });
+}
+
 function beep() {
+  if (!state.somLigado || !state.audioCtx) return;
+
+  if (!bufferSom) {
+    carregarSom();
+    beepSintetico();
+    return;
+  }
+
+  try {
+    const origem = state.audioCtx.createBufferSource();
+    const ganho = state.audioCtx.createGain();
+
+    origem.buffer = bufferSom;
+    ganho.gain.value = 1;
+    origem.connect(ganho);
+    ganho.connect(state.audioCtx.destination);
+    origem.start();
+
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  } catch (error) {
+    console.warn('Falha ao tocar o som.', error);
+    beepSintetico();
+  }
+}
+
+function beepSintetico() {
   if (!state.somLigado || !state.audioCtx) return;
 
   try {
