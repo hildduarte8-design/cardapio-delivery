@@ -792,10 +792,10 @@
       const optionSelecionada = select.options[select.selectedIndex];
 
       if (carrinho.length === 0) return avisar('Seu carrinho está vazio. Toque no + para adicionar itens.');
-      if (!select.value) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
+      if (modoEntrega === 'entrega' && !select.value) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
       if (nome.length < 2) return campoInvalido('cli-nome', 'Informe o seu nome.');
       if (fone.length < 10 || fone.length > 11) return campoInvalido('cli-fone', 'Informe um WhatsApp válido com DDD.');
-      if (endereco.length < 5) return campoInvalido('cli-endereco', 'Informe o seu endereço de entrega.');
+      if (modoEntrega === 'entrega' && endereco.length < 5) return campoInvalido('cli-endereco', 'Informe o seu endereço de entrega.');
 
       const forma = formaSelecionada();
       if (!forma) {
@@ -836,6 +836,13 @@
         troco_para: troco,
         observacao_geral: ($('obs-geral') ? $('obs-geral').value.trim() : '')
       };
+
+            payloadPedido.tipo_atendimento = modoEntrega;
+      if (modoEntrega === 'retirada') {
+        payloadPedido.bairro_id = null;
+        payloadPedido.bairro_nome = null;
+        payloadPedido.endereco_completo = 'Retirada no balcão';
+      }
 
       try {
         const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos`, {
