@@ -337,7 +337,7 @@ export function criarControladorPedidos({
         nome,
         telefone,
         endereco,
-        total: deCentavos(totalCentavos),
+        total: deCentavos(subtotalCentavos),
         retirada
       });
       
