@@ -85,6 +85,15 @@ function descontoDe(pedido) {
   return Number.isFinite(valor) && valor > 0 ? valor : 0;
 }
 
+// Pix novo: primeiro o lojista só aceita (para o alarme); o status só muda ao confirmar o pagamento
+const STATUS_PIX_NOVO = {
+  rotulo: 'Novo pedido (Pix)',
+  classe: 'badge-laranja-vivo',
+  btnClasse: 'btn-verde',
+  soAceitar: true,
+  acao: 'Aceitar pedido'
+};
+
 // Na retirada não existe "saiu para entrega": do preparo vai direto para entregue ao cliente
 const STATUS_PREPARANDO_RETIRADA = {
   rotulo: 'Em preparo',
@@ -96,6 +105,7 @@ const STATUS_PREPARANDO_RETIRADA = {
 
 function statusDe(pedido) {
   if (pagaNaEntrega(pedido)) return STATUS_NOVO_NA_ENTREGA;
+  if (pedido.status === 'pendente_pagamento' && !pedido.aceito_em) return STATUS_PIX_NOVO;
   if (ehRetirada(pedido) && pedido.status === 'preparando') return STATUS_PREPARANDO_RETIRADA;
   return STATUS[pedido.status] || null;
 }
@@ -287,6 +297,7 @@ const IDADE_MAX_ALARME_MS = 60 * 60 * 1000; // ignora pedidos com mais de 1 hora
 
 function pedidosQuePedemAtencao() {
   return (state.pedidos || []).filter((pedido) => {
+    if (pedido.aceito_em) return false;
     if (!STATUS_ALERTA.includes(pedido.status)) return false;
     const criado = new Date(dataDoPedido(pedido) || 0).getTime();
     return Date.now() - criado < IDADE_MAX_ALARME_MS;
@@ -589,8 +600,8 @@ export function renderPedidos() {
         </div>
 
         <div class="card-acoes">
-          ${
-            status.prox
+                    ${
+            (status.prox || status.soAceitar)
               ? `
                 <button
                   data-avancar="${esc(pedido.id)}"
@@ -768,22 +779,43 @@ async function mudarStatus(pedido, novoStatus, mensagem) {
   renderPedidos();
 
   try {
-    const resultado = await atualizar(
-      'pedidos',
-      pedido.id,
-      { status: novoStatus },
-      mensagem
-    );
+    const dados = { status: novoStatus };
+    // Qualquer avanço de status também conta como "aceito"
+    if (!pedido.aceito_em) dados.aceito_em = new Date().toISOString();
+
+    const resultado = await atualizar('pedidos', pedido.id, dados, mensagem);
 
     if (resultado) {
       pedido.status = resultado.status;
+      pedido.aceito_em = resultado.aceito_em || dados.aceito_em || pedido.aceito_em;
     }
   } finally {
     state.processandoPedidoId = null;
+    atualizarAlarme();
     renderPedidos();
   }
 }
 
+// Aceitar sem mudar o status (usado no Pix novo): só para o alarme
+async function aceitarPedido(pedido) {
+  if (state.processandoPedidoId) return;
+
+  state.processandoPedidoId = pedido.id;
+  renderPedidos();
+
+  try {
+    const aceitoEm = new Date().toISOString();
+    const resultado = await atualizar('pedidos', pedido.id, { aceito_em: aceitoEm }, 'Pedido aceito');
+
+    if (resultado) {
+      pedido.aceito_em = resultado.aceito_em || aceitoEm;
+    }
+  } finally {
+    state.processandoPedidoId = null;
+    atualizarAlarme();
+    renderPedidos();
+  }
+}
 function configurarEventos() {
   document.addEventListener('click', desbloquearAudio, { once: true });
   document.addEventListener('touchstart', desbloquearAudio, { once: true });
@@ -802,6 +834,10 @@ function configurarEventos() {
 
       if ((pedido = encontrarPedido('data-avancar'))) {
         const status = statusDe(pedido);
+                if (status?.soAceitar) {
+          await aceitarPedido(pedido);
+          return;
+        }
         if (status?.prox) {
           await mudarStatus(
             pedido,
