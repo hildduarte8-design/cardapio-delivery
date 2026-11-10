@@ -577,3 +577,18 @@ let modoEntrega = 'entrega';
     atualizarTaxa();
   });
 })();
+
+
+/* ===== Textos de pagamento na retirada ===== */
+(function () {
+  const entrega = { dinheiro: 'Pague na entrega', cartao: 'Débito ou crédito, na entrega' };
+  const balcao = { dinheiro: 'Pague no balcão', cartao: 'Débito ou crédito, no balcão' };
+  $('abas-ent').addEventListener('click', () => {
+    const mapa = modoEntrega === 'retirada' ? balcao : entrega;
+    document.querySelectorAll('#opcoes-pagto input').forEach((i) => {
+      const t = i.closest('label').querySelector('small');
+      if (t && mapa[i.value]) t.textContent = mapa[i.value];
+    });
+    $('opcoes-pagto').dispatchEvent(new Event('change'));
+  });
+})();
