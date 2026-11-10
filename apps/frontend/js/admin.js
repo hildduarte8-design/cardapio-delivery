@@ -14,6 +14,7 @@ import { preencherIdentidade, inicializarIdentidade } from './admin-identidade.j
 import { abrirAbaCustos, inicializarCustos } from './admin-custos.js';
 import './admin-fases.js';
 import './admin-editar.js';
+import './admin-produtos-ordem.js';
 
 let inicializacaoEmAndamento = false;
 
