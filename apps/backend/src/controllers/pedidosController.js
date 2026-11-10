@@ -36,13 +36,15 @@ export function criarControladorPedidos({
         forma_pagamento,
         troco_para,
         observacao_geral,
-        observacao
+        observacao,
+        tipo_atendimento
       } = req.body || {};
+      const retirada = tipo_atendimento === 'retirada';
 
       // 1. Dados básicos do cliente e do pedido
       const restauranteId = sanitizarTexto(restaurante_id, 1, 50);
       const nome = sanitizarTexto(cliente_nome, 2, 80);
-      const endereco = sanitizarTexto(endereco_completo, 5, 200);
+      const endereco = retirada ? 'Retirada no balcão' : sanitizarTexto(endereco_completo, 5, 200);
       const telefone = normalizarTelefone(cliente_whatsapp || cliente_phone);
 
       if (!restauranteId) {
@@ -71,7 +73,7 @@ export function criarControladorPedidos({
         return respostaErro(res, 400, 'As coordenadas de entrega são inválidas.', 'COORDENADAS_INVALIDAS');
       }
 
-      if (!bairro_id && !temCoordenadas) {
+      if (!retirada && !bairro_id && !temCoordenadas) {
         return respostaErro(
           res,
           400,
@@ -201,7 +203,7 @@ export function criarControladorPedidos({
       // 6. Validação estrita do bairro, sempre consultando o banco
       let bairroConfirmado = null;
 
-      if (bairro_id) {
+      if (!retirada && bairro_id) {
         if (typeof bairro_id !== 'string' || !bairro_id.trim()) {
           return respostaErro(res, 422, 'Bairro inválido.', 'BAIRRO_INVALIDO');
         }
@@ -234,7 +236,7 @@ export function criarControladorPedidos({
       let calculoFrete;
 
       try {
-        calculoFrete = await calcularFreteFn({
+        calculoFrete = retirada ? { taxa: 0, frete_tipo: null, distancia_km: null } : await calcularFreteFn({
           restaurante,
           destino: temCoordenadas
             ? { lat: Number(cliente_lat), lon: Number(cliente_lon) }
@@ -313,7 +315,7 @@ export function criarControladorPedidos({
         troco_para: trocoCentavos === null ? null : deCentavos(trocoCentavos),
         observacao: observacaoFinal || null,
         origem: 'cardapio',
-        tipo_atendimento: 'entrega'
+        tipo_atendimento: retirada ? 'retirada' : 'entrega'
       };
 
       const { data: pedidoCriado, error: insertErro } = await db
