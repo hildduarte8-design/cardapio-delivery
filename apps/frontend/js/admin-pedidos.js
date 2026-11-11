@@ -230,6 +230,13 @@ async function carregarSom() {
 function beep() {
   if (!state.somLigado || !state.audioCtx) return;
 
+  // Se o navegador pausou o áudio, tenta retomar e avisa na tela
+  if (state.audioCtx.state !== 'running') {
+    console.warn('[ALARME] Áudio pausado pelo navegador:', state.audioCtx.state);
+    state.audioCtx.resume().catch(() => {});
+    aviso('🔇 Som bloqueado pelo navegador. Toque na tela para liberar.');
+  }
+
   if (!bufferSom) {
     carregarSom();
     beepSintetico();
@@ -817,8 +824,12 @@ async function aceitarPedido(pedido) {
   }
 }
 function configurarEventos() {
-  document.addEventListener('click', desbloquearAudio, { once: true });
-  document.addEventListener('touchstart', desbloquearAudio, { once: true });
+    // Cada toque tenta liberar o áudio de novo (o navegador pode pausá-lo sozinho)
+  document.addEventListener('click', desbloquearAudio);
+  document.addEventListener('touchstart', desbloquearAudio);
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) desbloquearAudio();
+  });
 
   const listaEl = $('lista-pedidos');
   if (listaEl) {
