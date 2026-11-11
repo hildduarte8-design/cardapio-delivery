@@ -376,6 +376,7 @@
 
       restaurarDadosCliente();
       await Promise.all([carregarBairros(), carregarProdutos()]);
+      restaurarUltimoPedido();
     }
 
     // ---------- PWA Dynamic Manifest ----------
@@ -763,9 +764,10 @@
     }
 
     // ---------- Tela de sucesso (Unificada com melhorias do Index 12 e proteção Pix) ----------
-    function mostrarSucesso(ped, forma, troco) {
+      function mostrarSucesso(ped, forma, troco, restaurado = false) {
       const codigo = String(ped.id || '').slice(-4).toUpperCase();
       const total = brl.format(Number(ped.total) || 0);
+      if (!restaurado) salvarUltimoPedido({ id: ped.id, total: ped.total, forma, troco: troco || null });  
       const chave = restauranteInfo.chave_pix;
       let pagamento;
 
@@ -789,7 +791,10 @@
       const nomeCliente = ($('cli-nome').value || '').trim().split(' ')[0];
       const formaTxt = { pix: 'Pix', dinheiro: 'dinheiro', cartao: 'cartão na entrega' }[forma] || forma;
       const trocoTxt = (forma === 'dinheiro' && troco) ? ` (troco para ${brl.format(troco)})` : '';
-      const mensagemZap = `Oi, tudo bem?${nomeCliente ? ' Sou ' + nomeCliente + '.' : ''} Acabei de fazer o pedido #${codigo} pelo cardápio online: ${total}, pagamento em ${formaTxt}${trocoTxt}. Poderiam confirmar o recebimento, por favor?`;
+            const pixComChave = forma === 'pix' && chavePixValida(chave);
+      const mensagemZap = pixComChave
+        ? `Oi, tudo bem?${nomeCliente ? ' Sou ' + nomeCliente + '.' : ''} Fiz o pedido #${codigo} (${total}) e paguei por Pix. Segue o comprovante.`
+        : `Oi, tudo bem?${nomeCliente ? ' Sou ' + nomeCliente + '.' : ''} Acabei de fazer o pedido #${codigo} pelo cardápio online: ${total}, pagamento em ${formaTxt}${trocoTxt}. Poderiam confirmar o recebimento, por favor?`;
       const zap = linkWhatsapp(mensagemZap);
 
       $('tela-sucesso').innerHTML = `<div class="estado" style="padding-bottom:8px">
@@ -798,7 +803,7 @@
           <p style="margin-bottom:0">Pedido <strong>#${esc(codigo)}</strong> · Total <strong>${total}</strong><br>Seu pedido foi registrado! Aguarde a confirmação da loja pelo WhatsApp.</p>
         </div>
         ${pagamento}
-        ${zap ? `<a class="btn sec bloco-btn" href="${esc(zap)}" target="_blank" rel="noopener noreferrer">Falar com a loja no WhatsApp</a>` : ''}
+        ${zap ? `<a class="btn sec bloco-btn" href="${esc(zap)}" target="_blank" rel="noopener noreferrer">${pixComChave ? 'Enviar comprovante no WhatsApp' : 'Falar com a loja no WhatsApp'}</a>` : ''}
         <button type="button" class="btn bloco-btn" data-novo style="margin-bottom:24px">Fazer novo pedido</button>`;
       alternarTelas('sucesso');
       $('titulo-sucesso').focus({ preventScroll: true });
@@ -806,7 +811,7 @@
       // Se for dinheiro ou cartão, abre o WhatsApp automaticamente após 6 segundos.
       // Se for Pix, NÃO redireciona automaticamente para não fechar a tela enquanto o cliente copia a chave!
       if (window.timerRedirecionarZap) clearTimeout(window.timerRedirecionarZap);
-      if (zap && (forma !== 'pix' || !chavePixValida(chave))) {
+      if (!restaurado && zap && (forma !== 'pix' || !chavePixValida(chave))) {
         window.timerRedirecionarZap = setTimeout(() => { window.location.href = zap; }, 6000);
       }
     }
@@ -825,6 +830,42 @@
       botao.textContent = 'Chave copiada ✓';
       setTimeout(() => { botao.textContent = 'Copiar chave Pix'; }, 2500);
     }
+
+        // ---------- Último pedido (a tela de sucesso volta depois de atualizar a página) ----------
+    const CHAVE_ULTIMO_PEDIDO = 'ultimoPedido';
+    const VALIDADE_ULTIMO_PEDIDO_MS = 3 * 60 * 60 * 1000; // 3 horas
+
+    function salvarUltimoPedido(dados) {
+      try {
+        localStorage.setItem(CHAVE_ULTIMO_PEDIDO, JSON.stringify({
+          ...dados,
+          slug: restauranteInfo.slug,
+          salvoEm: Date.now()
+        }));
+      } catch (e) { /* storage indisponível */ }
+    }
+
+    function limparUltimoPedido() {
+      try { localStorage.removeItem(CHAVE_ULTIMO_PEDIDO); } catch (e) { /* ignora */ }
+    }
+
+    function restaurarUltimoPedido() {
+      try {
+        const salvo = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_PEDIDO) || 'null');
+        if (!salvo || !salvo.id) return;
+        if (Date.now() - (salvo.salvoEm || 0) > VALIDADE_ULTIMO_PEDIDO_MS) {
+          limparUltimoPedido();
+          return;
+        }
+        if (salvo.slug !== restauranteInfo.slug) return;
+        mostrarSucesso({ id: salvo.id, total: salvo.total }, salvo.forma, salvo.troco, true);
+      } catch (e) { /* ignora */ }
+    }
+
+    // "Fazer novo pedido" apaga o pedido guardado
+    document.addEventListener('click', (e) => {
+      if (e.target.closest('[data-novo]')) limparUltimoPedido();
+    });
 
     // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
     let enviando = false;
