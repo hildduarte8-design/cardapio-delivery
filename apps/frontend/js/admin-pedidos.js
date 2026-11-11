@@ -228,7 +228,13 @@ async function carregarSom() {
 }
 
 function beep() {
-  if (!state.somLigado || !state.audioCtx) return;
+  if (!state.somLigado) return;
+
+  if (!state.audioCtx) {
+    console.warn('[ALARME] Áudio ainda não liberado: nenhum clique na página.');
+    aviso('🔇 Clique em qualquer lugar da tela para liberar o som.');
+    return;
+  }
 
   // Se o navegador pausou o áudio, tenta retomar e avisa na tela
   if (state.audioCtx.state !== 'running') {
