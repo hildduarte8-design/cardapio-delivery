@@ -316,6 +316,7 @@ function atualizarPrevia() {
 
 export function preencherIdentidade() {
   if (!state.rest) return;
+  preencherChavePix();
 
   const pri = normalizarHex(state.rest.cor_primaria) || COR_PRINCIPAL_PADRAO;
   const sec = normalizarHex(state.rest.cor_secundaria) || COR_FUNDO_PADRAO;
@@ -428,11 +429,102 @@ function sincronizarCor(idSeletor, idHex) {
   });
 }
 
+// ---------- Chave Pix (aparece para o cliente na tela de pagamento) ----------
+const chavePixValida = (c) =>
+  typeof c === 'string' && c.trim().length > 0 && c.trim().length <= 100 && !/[\u0000-\u001f<>]/.test(c);
+
+function preencherChavePix() {
+  const campo = $('input-chave-pix');
+  if (campo && state.rest) campo.value = state.rest.chave_pix || '';
+}
+
+async function salvarChavePix() {
+  if (!state.rest) return;
+
+  const campo = $('input-chave-pix');
+  const botao = $('btn-salvar-chave-pix');
+  const valor = campo.value.trim();
+
+  if (valor && !chavePixValida(valor)) {
+    return aviso('Chave Pix inválida. Use até 100 caracteres, sem os símbolos < ou >.');
+  }
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+
+  const resultado = await atualizar(
+    'restaurantes',
+    state.rest.id,
+    { chave_pix: valor || null },
+    valor ? 'Chave Pix salva!' : 'Chave Pix removida.'
+  );
+
+  botao.disabled = false;
+  botao.textContent = 'Salvar chave Pix';
+
+  if (resultado) {
+    state.rest.chave_pix = resultado.chave_pix ?? (valor || null);
+    campo.value = state.rest.chave_pix || '';
+  }
+}
+
+// Cria o cartão "Chave Pix da loja" acima do bloco de identidade visual
+function montarCartaoChavePix() {
+  if ($('cartao-chave-pix')) return;
+
+  const botaoCores = $('btn-salvar-cores');
+  if (!botaoCores) return;
+
+  // Acha o bloco da aba Conta que contém as cores, para o novo cartão ter o mesmo visual
+  const aba = botaoCores.closest('[id^="aba-"]');
+  let bloco = botaoCores.parentElement;
+  if (aba) {
+    bloco = botaoCores;
+    while (bloco.parentElement && bloco.parentElement !== aba) bloco = bloco.parentElement;
+  }
+
+  const cartao = document.createElement('div');
+  cartao.id = 'cartao-chave-pix';
+  cartao.className = bloco.className;
+  cartao.style.marginBottom = '16px';
+
+  const rotulo = document.createElement('label');
+  rotulo.className = 'bloco-label';
+  rotulo.htmlFor = 'input-chave-pix';
+  rotulo.textContent = 'Chave Pix da loja';
+
+  const campo = document.createElement('input');
+  campo.id = 'input-chave-pix';
+  campo.type = 'text';
+  campo.maxLength = 100;
+  campo.autocomplete = 'off';
+  campo.placeholder = 'CPF/CNPJ, e-mail, telefone ou chave aleatória';
+  campo.className = ($('cor-primaria-hex')?.className || '').replace('input-hex', '').trim();
+
+  const dica = document.createElement('p');
+  dica.className = 'placeholder-texto';
+  dica.style.margin = '6px 0 12px';
+  dica.textContent = 'Esta chave aparece para o cliente na tela de pagamento. Confira antes de salvar. Deixe em branco se não quiser receber por chave Pix.';
+
+  const salvar = document.createElement('button');
+  salvar.type = 'button';
+  salvar.id = 'btn-salvar-chave-pix';
+  salvar.className = botaoCores.className;
+  salvar.textContent = 'Salvar chave Pix';
+  salvar.addEventListener('click', salvarChavePix);
+
+  cartao.append(rotulo, campo, dica, salvar);
+  bloco.before(cartao);
+
+  preencherChavePix();
+}
+
 let eventosConfigurados = false;
 
 export function inicializarIdentidade() {
   if (eventosConfigurados) return;
   eventosConfigurados = true;
+  montarCartaoChavePix();
 
   const paletas = $('paletas-sugestoes');
   if (paletas) {
