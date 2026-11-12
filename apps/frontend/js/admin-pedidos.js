@@ -324,7 +324,37 @@ function pararAlarme() {
   }
 }
 
+// Mantém a tela acesa enquanto o som estiver ligado (aparelho do balcão)
+let wakeLock = null;
+
+async function pedirTelaAcesa() {
+  if (!('wakeLock' in navigator) || wakeLock || document.hidden) return;
+
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', () => {
+      wakeLock = null;
+    });
+  } catch (error) {
+    console.warn('[TELA] Não foi possível manter a tela acesa:', error.message);
+  }
+}
+
+function liberarTelaAcesa() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+function atualizarTelaAcesa() {
+  if (state.somLigado) pedirTelaAcesa();
+  else liberarTelaAcesa();
+}
+
 function atualizarAlarme() {
+  atualizarTelaAcesa();
+  
   const precisa = state.somLigado && pedidosQuePedemAtencao().length > 0;
 
   if (!precisa) {
@@ -410,6 +440,7 @@ export function pararPedidos() {
     }
   }
   pararAlarme();
+  liberarTelaAcesa();
   state.canalPedidos = null;
   clearInterval(state.timerPedidos);
   state.timerPedidos = null;
@@ -834,7 +865,9 @@ function configurarEventos() {
   document.addEventListener('click', desbloquearAudio);
   document.addEventListener('touchstart', desbloquearAudio);
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) desbloquearAudio();
+    if (document.hidden) return;
+    if (state.audioCtx) desbloquearAudio();
+    atualizarTelaAcesa();
   });
 
   const listaEl = $('lista-pedidos');
