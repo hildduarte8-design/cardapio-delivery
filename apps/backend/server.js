@@ -16,6 +16,7 @@ import {
 
 import { criarPedido } from './src/controllers/pedidosController.js';
 import { criarPedidoManual } from './src/controllers/pedidosManualController.js';
+import { iniciarPushLojista } from './src/services/pushLojista.js';
 
 // ==========================================
 // 1. CONFIGURAÇÃO INICIAL
@@ -335,6 +336,9 @@ app.use((error, _req, res, _next) => {
 // ==========================================
 // 10. INICIALIZAÇÃO DO SERVIDOR
 // ==========================================
+
+// Avisos push para o lojista (ficam desativados se faltarem as variáveis VAPID_* na Render)
+iniciarPushLojista();
 
 const server = app.listen(PORT, () => {
 
