@@ -4,6 +4,7 @@
 import { sb } from './admin-supabase.js';
 import { state } from './admin-state.js';
 import { $, aviso, tratarErro, atualizar } from './admin-utils.js';
+import { montarCartaoAvisos, atualizarAvisos } from './admin-avisos.js';
 
 const BUCKET = 'imagens-restaurantes';
 const MAX_BYTES = 2 * 1024 * 1024; // mesmo limite do bucket (sql/07)
@@ -318,6 +319,7 @@ export function preencherIdentidade() {
   if (!state.rest) return;
   preencherChavePix();
   preencherWhatsapp();
+  atualizarAvisos();
 
   const pri = normalizarHex(state.rest.cor_primaria) || COR_PRINCIPAL_PADRAO;
   const sec = normalizarHex(state.rest.cor_secundaria) || COR_FUNDO_PADRAO;
@@ -622,6 +624,7 @@ export function inicializarIdentidade() {
   eventosConfigurados = true;
   montarCartaoChavePix();
   montarCartaoWhatsapp();
+  montarCartaoAvisos();
 
   const paletas = $('paletas-sugestoes');
   if (paletas) {
