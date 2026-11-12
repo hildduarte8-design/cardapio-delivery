@@ -308,8 +308,17 @@ const STATUS_ALERTA = ['pendente_pagamento', 'pago']; // mesmos status da aba "A
 const INTERVALO_ALARME_MS = 8000;
 const IDADE_MAX_ALARME_MS = 60 * 60 * 1000; // ignora pedidos com mais de 1 hora
 
+function clienteAvisouPagamento(pedido) {
+  return pedido.status === 'pendente_pagamento' && Boolean(pedido.pagamento_avisado_em);
+}
+
 function pedidosQuePedemAtencao() {
   return (state.pedidos || []).filter((pedido) => {
+    // Cliente avisou "Já paguei": toca até o lojista confirmar o pagamento, mesmo já tendo aceitado
+    if (clienteAvisouPagamento(pedido)) {
+      const avisou = new Date(pedido.pagamento_avisado_em).getTime();
+      return Date.now() - avisou < IDADE_MAX_ALARME_MS;
+    }
     if (pedido.aceito_em) return false;
     if (!STATUS_ALERTA.includes(pedido.status)) return false;
     const criado = new Date(dataDoPedido(pedido) || 0).getTime();
@@ -630,6 +639,7 @@ export function renderPedidos() {
         <div class="card-financeiro">
           <div class="pagto-info">
             <span class="pagto-forma">${esc(rotuloPagamento(pedido))}</span>
+            ${clienteAvisouPagamento(pedido) ? '<span class="pagto-forma" style="color:#b45309;font-weight:700">💬 Cliente avisou que pagou</span>' : ''}
             <span class="pagto-taxa">${
               ehRetirada(pedido)
                 ? 'sem entrega'
