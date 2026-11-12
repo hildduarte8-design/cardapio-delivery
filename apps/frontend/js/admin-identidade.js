@@ -317,6 +317,7 @@ function atualizarPrevia() {
 export function preencherIdentidade() {
   if (!state.rest) return;
   preencherChavePix();
+  preencherWhatsapp();
 
   const pri = normalizarHex(state.rest.cor_primaria) || COR_PRINCIPAL_PADRAO;
   const sec = normalizarHex(state.rest.cor_secundaria) || COR_FUNDO_PADRAO;
@@ -519,12 +520,108 @@ function montarCartaoChavePix() {
   preencherChavePix();
 }
 
+// ---------- WhatsApp da loja (usado nos botões de WhatsApp do cardápio) ----------
+// Guarda só os números, com DDD e sem o 55 (o cardápio acrescenta o 55 sozinho)
+function normalizarWhatsapp(texto) {
+  let n = String(texto ?? '').replace(/\D/g, '');
+  if ((n.length === 12 || n.length === 13) && n.startsWith('55')) n = n.slice(2);
+  return n;
+}
+
+function formatarWhatsapp(n) {
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return n;
+}
+
+function preencherWhatsapp() {
+  const campo = $('input-whatsapp-loja');
+  if (!campo || !state.rest) return;
+  const n = normalizarWhatsapp(state.rest.whatsapp);
+  campo.value = n ? formatarWhatsapp(n) : '';
+}
+
+async function salvarWhatsapp() {
+  if (!state.rest) return;
+
+  const campo = $('input-whatsapp-loja');
+  const botao = $('btn-salvar-whatsapp');
+  const numero = normalizarWhatsapp(campo.value);
+
+  if (numero.length !== 10 && numero.length !== 11) {
+    return aviso('WhatsApp inválido. Informe o DDD e o número, por exemplo (33) 99999-9999.');
+  }
+
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+
+  const resultado = await atualizar(
+    'restaurantes',
+    state.rest.id,
+    { whatsapp: numero },
+    'WhatsApp da loja salvo!'
+  );
+
+  botao.disabled = false;
+  botao.textContent = 'Salvar WhatsApp';
+
+  if (resultado) {
+    state.rest.whatsapp = resultado.whatsapp ?? numero;
+    preencherWhatsapp();
+  }
+}
+
+// Cria o cartão "WhatsApp da loja" acima do cartão da chave Pix
+function montarCartaoWhatsapp() {
+  if ($('cartao-whatsapp')) return;
+
+  const cartaoPix = $('cartao-chave-pix');
+  if (!cartaoPix) return;
+
+  const cartao = document.createElement('div');
+  cartao.id = 'cartao-whatsapp';
+  cartao.className = cartaoPix.className;
+  cartao.style.marginBottom = '16px';
+
+  const rotulo = document.createElement('label');
+  rotulo.className = 'bloco-label';
+  rotulo.htmlFor = 'input-whatsapp-loja';
+  rotulo.textContent = 'WhatsApp da loja';
+
+  const campo = document.createElement('input');
+  campo.id = 'input-whatsapp-loja';
+  campo.type = 'tel';
+  campo.inputMode = 'tel';
+  campo.maxLength = 20;
+  campo.autocomplete = 'off';
+  campo.placeholder = '(33) 99999-9999';
+  campo.className = $('input-chave-pix')?.className || '';
+
+  const dica = document.createElement('p');
+  dica.className = 'placeholder-texto';
+  dica.style.margin = '6px 0 12px';
+  dica.textContent = 'Número com DDD que recebe os pedidos e os comprovantes. Os clientes veem este número nos botões de WhatsApp do cardápio.';
+
+  const salvar = document.createElement('button');
+  salvar.type = 'button';
+  salvar.id = 'btn-salvar-whatsapp';
+  salvar.className = $('btn-salvar-chave-pix')?.className || '';
+  salvar.textContent = 'Salvar WhatsApp';
+  salvar.addEventListener('click', salvarWhatsapp);
+
+  cartao.append(rotulo, campo, dica, salvar);
+  cartaoPix.before(cartao);
+
+  preencherWhatsapp();
+}
+
 let eventosConfigurados = false;
 
 export function inicializarIdentidade() {
   if (eventosConfigurados) return;
   eventosConfigurados = true;
   montarCartaoChavePix();
+  montarCartaoWhatsapp();
 
   const paletas = $('paletas-sugestoes');
   if (paletas) {
