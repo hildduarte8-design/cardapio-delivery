@@ -16,6 +16,7 @@ import {
 
 import { criarPedido } from './src/controllers/pedidosController.js';
 import { criarPedidoManual } from './src/controllers/pedidosManualController.js';
+import { avisarPagamento } from './src/controllers/pedidosAvisoController.js';
 import { iniciarPushLojista } from './src/services/pushLojista.js';
 
 // ==========================================
@@ -298,6 +299,14 @@ app.post('/api/pedidos', criarPedido);
 
 // Pedido manual lançado pelo lojista no painel (requer token JWT).
 app.post('/api/pedidos/manual', criarPedidoManual);
+
+// Cliente avisa que pagou o Pix (sem login; limite próprio: 10 tentativas a cada 5 min por IP).
+const limitadorAvisoPagamento = criarLimitadorDeRequisicoes({
+  janelaMs: 300_000,
+  max: 10
+});
+
+app.post('/api/pedidos/:id/avisar-pagamento', limitadorAvisoPagamento, avisarPagamento);
 
 // ==========================================
 // 8. ROTA NÃO ENCONTRADA
