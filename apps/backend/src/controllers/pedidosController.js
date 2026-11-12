@@ -13,6 +13,7 @@ import {
   respostaErro
 } from '../utils/pedidosUtils.js';
 import { registrarClienteESelo } from '../utils/clientesSelos.js';
+import { avisarLojistaPedidoNovo } from '../services/pushLojista.js';
 
 /**
  * Factory para permitir testes sem conexão real com o Supabase.
@@ -340,6 +341,8 @@ export function criarControladorPedidos({
         total: deCentavos(subtotalCentavos),
         retirada
       });
+
+      avisarLojistaPedidoNovo();
       
       return res.status(201).json({
         sucesso: true,
