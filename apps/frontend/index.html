@@ -777,7 +777,8 @@
           <small>Chave Pix</small>
           <code class="pix-chave" id="pix-chave">${esc(chave.trim())}</code>
           <button type="button" class="btn bloco-btn" data-copiar>Copiar chave Pix</button>
-          <small style="margin-top:10px">Valor: <strong>${total}</strong>. Depois de pagar, envie o comprovante pelo WhatsApp da loja.</small>
+          <small style="margin-top:10px">Valor: <strong>${total}</strong>. Depois de pagar, toque em "Já paguei" e envie o comprovante pelo WhatsApp da loja.</small>
+          <button type="button" class="btn sec bloco-btn" style="margin-top:10px" data-avisar-pagamento="${esc(ped.id)}"${jaAvisouPagamento(ped.id) ? ' disabled' : ''}>${jaAvisouPagamento(ped.id) ? 'Aviso enviado ✓' : 'Já paguei'}</button>
         </div>`;
       } else if (forma === 'pix') {
         pagamento = '<div class="pix-box"><h3>Pagamento por Pix</h3><small>A loja vai enviar a chave Pix pelo seu WhatsApp em instantes.</small></div>';
@@ -814,6 +815,50 @@
       if (!restaurado && zap && (forma !== 'pix' || !chavePixValida(chave))) {
         window.timerRedirecionarZap = setTimeout(() => { window.location.href = zap; }, 6000);
       }
+    }
+
+        // ---------- Aviso "Já paguei" (Pix) ----------
+    const CHAVE_AVISO_PAGAMENTO = 'pagamentoAvisado:';
+
+    function jaAvisouPagamento(pedidoId) {
+      try {
+        const salvo = Number(localStorage.getItem(CHAVE_AVISO_PAGAMENTO + pedidoId));
+        return salvo > 0 && Date.now() - salvo < VALIDADE_ULTIMO_PEDIDO_MS;
+      } catch (e) { return false; }
+    }
+
+    function marcarAvisoPagamento(pedidoId) {
+      try { localStorage.setItem(CHAVE_AVISO_PAGAMENTO + pedidoId, String(Date.now())); } catch (e) { /* storage indisponível */ }
+    }
+
+    function mostrarAvisoEnviado(botao) {
+      botao.textContent = 'Aviso enviado ✓';
+      botao.disabled = true;
+    }
+
+    async function avisarPagamento(botao, pedidoId) {
+      if (!pedidoId || botao.disabled) return;
+      botao.disabled = true;
+      botao.textContent = 'Enviando aviso...';
+      try {
+        const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos/${encodeURIComponent(pedidoId)}/avisar-pagamento`, {
+          method: 'POST'
+        });
+        const resultado = await resposta.json().catch(() => ({}));
+        if (resposta.ok && resultado.sucesso === true) {
+          marcarAvisoPagamento(pedidoId);
+          mostrarAvisoEnviado(botao);
+          return;
+        }
+        if (resposta.status === 429) {
+          botao.textContent = 'Muitas tentativas. Tente de novo em alguns minutos';
+        } else {
+          botao.textContent = 'Não foi possível avisar. Tentar de novo';
+        }
+      } catch (e) {
+        botao.textContent = 'Sem conexão. Tentar de novo';
+      }
+      botao.disabled = false;
     }
 
     async function copiarChave(botao) {
@@ -1020,6 +1065,8 @@
       }
       const copiar = e.target.closest('[data-copiar]');
       if (copiar) { copiarChave(copiar); return; }
+      const avisoPix = e.target.closest('[data-avisar-pagamento]');
+      if (avisoPix) { avisarPagamento(avisoPix, avisoPix.dataset.avisarPagamento); return; }
       if (e.target.closest('[data-novo]')) {
         if (window.timerRedirecionarZap) clearTimeout(window.timerRedirecionarZap);
         alternarTelas('pedido');
