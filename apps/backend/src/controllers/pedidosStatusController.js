@@ -4,7 +4,7 @@ import { supabaseAdmin } from '../config/supabase.js';
 import { sanitizarTexto, respostaErro } from '../utils/pedidosUtils.js';
 
 const PASSOS_ENTREGA = ['Pedido recebido', 'Em preparo', 'Saiu para entrega', 'Entregue'];
-const PASSOS_RETIRADA = ['Pedido recebido', 'Em preparo', 'Retirado'];
+const PASSOS_RETIRADA = ['Pedido recebido', 'Em preparo', 'Pronto para retirar', 'Retirado'];
 
 function descrever(pedido) {
   const retirada = pedido.tipo_atendimento === 'retirada';
@@ -61,6 +61,14 @@ function descrever(pedido) {
     };
   }
 
+ if (pedido.status === 'pronto_retirada') {
+    return {
+      passos, passo_atual: 2, cancelado: false,
+      titulo: 'Pronto para retirar',
+      descricao: 'Seu pedido está pronto, pode vir buscar.'
+    };
+  }
+  
   if (pedido.status === 'entregue') {
     return {
       passos, passo_atual: ultimo, cancelado: false,
