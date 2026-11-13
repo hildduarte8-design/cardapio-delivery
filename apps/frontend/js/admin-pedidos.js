@@ -105,7 +105,7 @@ const STATUS_PREPARANDO_RETIRADA = {
 
 function statusDe(pedido) {
   if (pagaNaEntrega(pedido)) return STATUS_NOVO_NA_ENTREGA;
-  if (pedido.status === 'pendente_pagamento' && !pedido.aceito_em) return STATUS_PIX_NOVO;
+  if (pedido.status === 'pendente_pagamento' && !pedido.aceito_em && !pedido.pagamento_avisado_em) return STATUS_PIX_NOVO;
   if (ehRetirada(pedido) && pedido.status === 'preparando') return STATUS_PREPARANDO_RETIRADA;
   return STATUS[pedido.status] || null;
 }
