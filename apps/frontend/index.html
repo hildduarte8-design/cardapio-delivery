@@ -145,7 +145,31 @@
 .dest-p s,.card .preco s{font-weight:600;font-size:12.5px;color:var(--suave)}
 .dest-p .promo,.card .preco .promo{color:#067647}
 .dest-n{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:13.5px;line-height:1.25;margin-top:2px}
-    
+
+
+     /* Tela de sucesso + acompanhamento */
+    .acomp-topo{text-align:center;padding:18px 0 6px}
+    .acomp-topo small{color:var(--suave)}
+    .acomp-icone{width:84px;height:84px;border-radius:50%;margin:12px auto;display:grid;place-items:center;font-size:40px;background:var(--cor);color:var(--cor-texto)}
+    .acomp-icone.cancelado{background:var(--erro);color:#fff}
+    .acomp-topo h2{margin:6px 0 4px}
+    .acomp-topo p{margin:0;color:var(--suave)}
+    .acomp-passos{list-style:none;display:flex;margin:18px 0 12px;padding:0}
+    .acomp-passos li{flex:1;text-align:center;position:relative;font-size:.75rem;color:var(--suave)}
+    .acomp-passos li::before{content:"";position:absolute;top:9px;left:-50%;width:100%;height:3px;background:#d9d2c3;z-index:0}
+    .acomp-passos li:first-child::before{display:none}
+    .acomp-passos .bolinha{display:block;width:20px;height:20px;border-radius:50%;margin:0 auto 6px;background:#fff;border:3px solid #d9d2c3;position:relative;z-index:1;box-sizing:border-box}
+    .acomp-passos li.feito::before,.acomp-passos li.atual::before{background:var(--cor)}
+    .acomp-passos li.feito .bolinha{background:var(--cor);border-color:var(--cor)}
+    .acomp-passos li.atual .bolinha{border-color:var(--cor)}
+    .acomp-passos li.feito,.acomp-passos li.atual{color:var(--texto)}
+    .acomp-passos li.atual .nome{font-weight:700}
+    .acomp-resumo{margin:16px 0}
+    .acomp-resumo h3{font-size:.85rem;color:var(--suave);margin:0 0 6px;font-weight:600}
+    .acomp-resumo .lin{display:flex;justify-content:space-between;padding:9px 0;border-top:1px solid #e6dfd0}
+    .acomp-resumo .lin.total{font-weight:700}
+    .acomp-link{text-align:center;margin:8px 0;font-size:.85rem}
+    .acomp-link a{color:var(--suave);text-decoration:underline}   
   </style>
 </head>
 <body>
@@ -763,58 +787,147 @@
       return avisar((r && r.erro) || 'Não foi possível enviar o pedido. Confira os dados e tente de novo.');
     }
 
-    // ---------- Tela de sucesso (Unificada com melhorias do Index 12 e proteção Pix) ----------
-      function mostrarSucesso(ped, forma, troco, restaurado = false) {
-      const codigo = String(ped.id || '').slice(-4).toUpperCase();
-      const total = brl.format(Number(ped.total) || 0);
-      if (!restaurado) salvarUltimoPedido({ id: ped.id, total: ped.total, forma, troco: troco || null });  
-      const chave = restauranteInfo.chave_pix;
-      let pagamento;
+       // ---------- Tela de sucesso + acompanhamento (unificada) ----------
+    const ABRIR_WHATSAPP_AUTOMATICO = false; // true = abre o WhatsApp sozinho após 6 s (dinheiro/cartão)
+    let timerAcompanhamento = null;
+    let acompanhamentoAtual = null;
+    let acompanhamentoCtx = null;
+    const ICONES_STATUS = { pendente_pagamento: '⏳', pago: '✅', preparando: '👨‍🍳', saiu_entrega: '🛵', entregue: '🎉', cancelado: '✕' };
 
-      if (forma === 'pix' && chavePixValida(chave)) {
-        pagamento = `<div class="pix-box">
+    function pararAcompanhamento() {
+      if (timerAcompanhamento) clearInterval(timerAcompanhamento);
+      timerAcompanhamento = null;
+      acompanhamentoAtual = null;
+    }
+
+    function htmlPagamento(c, estado) {
+      const chave = restauranteInfo.chave_pix;
+      if (c.forma === 'pix' && estado === 'confirmado') {
+        return `<div class="pix-box"><h3>✅ Pix confirmado pela loja</h3><small>Valor: <strong>${c.total}</strong></small></div>`;
+      }
+      if (c.forma === 'pix' && chavePixValida(chave)) {
+        const avisou = jaAvisouPagamento(c.id);
+        return `<div class="pix-box">
           <h3>Pague com Pix agora</h3>
           <small>Chave Pix</small>
           <code class="pix-chave" id="pix-chave">${esc(chave.trim())}</code>
           <button type="button" class="btn bloco-btn" data-copiar>Copiar chave Pix</button>
-          <small style="margin-top:10px">Valor: <strong>${total}</strong>. Depois de pagar, toque em "Já paguei" e envie o comprovante pelo WhatsApp da loja.</small>
-          <button type="button" class="btn sec bloco-btn" style="margin-top:10px" data-avisar-pagamento="${esc(ped.id)}"${jaAvisouPagamento(ped.id) ? ' disabled' : ''}>${jaAvisouPagamento(ped.id) ? 'Aviso enviado ✓' : 'Já paguei'}</button>
-        </div>`;
-      } else if (forma === 'pix') {
-        pagamento = '<div class="pix-box"><h3>Pagamento por Pix</h3><small>A loja vai enviar a chave Pix pelo seu WhatsApp em instantes.</small></div>';
-      } else if (forma === 'dinheiro') {
-        pagamento = `<div class="pix-box"><h3>Pagamento em dinheiro</h3><small>Pague na entrega${troco ? ` · troco para ${brl.format(troco)}` : ''}.</small></div>`;
-      } else {
-        pagamento = '<div class="pix-box"><h3>Pagamento no cartão</h3><small>Débito ou crédito, na entrega.</small></div>';
+          <small style="margin-top:10px">Valor: <strong>${c.total}</strong>. Depois de pagar, toque em "Já paguei".</small>
+          <button type="button" class="btn sec bloco-btn" style="margin-top:10px" data-avisar-pagamento="${esc(c.id)}"${avisou ? ' disabled' : ''}>${avisou ? 'Aviso enviado ✓' : 'Já paguei'}</button>
+        </div>${c.zapComprovante ? `<p class="acomp-link"><a href="${esc(c.zapComprovante)}" target="_blank" rel="noopener noreferrer">Enviar comprovante no WhatsApp</a></p>` : ''}`;
+      }
+      if (c.forma === 'pix') {
+        return '<div class="pix-box"><h3>Pagamento por Pix</h3><small>A loja vai enviar a chave Pix pelo seu WhatsApp em instantes.</small></div>';
+      }
+      if (c.forma === 'dinheiro') {
+        return `<div class="pix-box"><h3>Pagamento em dinheiro</h3><small>Pague na entrega${c.troco ? ` · troco para ${brl.format(c.troco)}` : ''}.</small></div>`;
+      }
+      return '<div class="pix-box"><h3>Pagamento no cartão</h3><small>Débito ou crédito, na entrega.</small></div>';
+    }
+
+    function pintarAcompanhamento(d) {
+      const c = acompanhamentoCtx;
+      if (!c || !$('acomp-icone')) return;
+      const cancelado = d.cancelado === true || d.status === 'cancelado';
+      const final = cancelado || d.status === 'entregue';
+      $('acomp-icone').textContent = ICONES_STATUS[d.status] || '📦';
+      $('acomp-icone').classList.toggle('cancelado', cancelado);
+      $('titulo-sucesso').textContent = d.titulo || 'Pedido recebido';
+      $('acomp-desc').textContent = d.descricao || '';
+      const passos = Array.isArray(d.passos) ? d.passos : [];
+      const atual = Number(d.passo_atual) || 0;
+      $('acomp-passos').innerHTML = cancelado ? '' : passos.map((nome, i) => {
+        const cls = (d.status === 'entregue' || i < atual) ? 'feito' : (i === atual ? 'atual' : '');
+        return `<li class="${cls}"><span class="bolinha"></span><span class="nome">${esc(nome)}</span></li>`;
+      }).join('');
+      const estado = cancelado ? 'cancelado' : (c.forma === 'pix' && d.status !== 'pendente_pagamento' ? 'confirmado' : 'pendente');
+      if (estado !== c.estadoPagamento) {
+        $('acomp-pagamento').innerHTML = estado === 'cancelado' ? '' : htmlPagamento(c, estado);
+        c.estadoPagamento = estado;
+      }
+      if (final) pararAcompanhamento();
+    }
+
+    async function atualizarAcompanhamento() {
+      const id = acompanhamentoAtual;
+      if (!id) return;
+      try {
+        const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos/${encodeURIComponent(id)}/status`);
+        const dados = await resposta.json().catch(() => ({}));
+        if (!resposta.ok || dados.sucesso !== true || id !== acompanhamentoAtual) return;
+        pintarAcompanhamento(dados);
+      } catch (e) { /* sem conexão: tenta de novo no próximo ciclo */ }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && acompanhamentoAtual) atualizarAcompanhamento();
+    });
+
+    function mostrarSucesso(ped, forma, troco, restaurado = false) {
+      pararAcompanhamento();
+      const numero = (v) => {
+        if (v === null || v === undefined || v === '') return null;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : null;
+      };
+      const codigo = String(ped.id || '').slice(-4).toUpperCase();
+      const subtotalNum = numero(ped.subtotal);
+      const taxaNum = numero(ped.taxa_entrega);
+      const total = brl.format(Number(ped.total) || 0);
+
+      if (!restaurado) {
+        salvarUltimoPedido({ id: ped.id, total: ped.total, forma, troco: troco || null });
+        try {
+          const salvo = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_PEDIDO) || 'null');
+          if (salvo && salvo.id === ped.id) {
+            salvo.subtotal = subtotalNum;
+            salvo.taxa_entrega = taxaNum;
+            localStorage.setItem(CHAVE_ULTIMO_PEDIDO, JSON.stringify(salvo));
+          }
+        } catch (e) { /* storage indisponível */ }
       }
 
-      // Mensagem personalizada do Index 12
+      const chave = restauranteInfo.chave_pix;
+      const pixComChave = forma === 'pix' && chavePixValida(chave);
       const nomeCliente = ($('cli-nome').value || '').trim().split(' ')[0];
-      const formaTxt = { pix: 'Pix', dinheiro: 'dinheiro', cartao: 'cartão na entrega' }[forma] || forma;
-      const trocoTxt = (forma === 'dinheiro' && troco) ? ` (troco para ${brl.format(troco)})` : '';
-            const pixComChave = forma === 'pix' && chavePixValida(chave);
-      const mensagemZap = pixComChave
-        ? `Oi, tudo bem?${nomeCliente ? ' Sou ' + nomeCliente + '.' : ''} Fiz o pedido #${codigo} (${total}) e paguei por Pix. Segue o comprovante.`
-        : `Oi, tudo bem?${nomeCliente ? ' Sou ' + nomeCliente + '.' : ''} Acabei de fazer o pedido #${codigo} pelo cardápio online: ${total}, pagamento em ${formaTxt}${trocoTxt}. Poderiam confirmar o recebimento, por favor?`;
-      const zap = linkWhatsapp(mensagemZap);
+      const abertura = `Oi, tudo bem?${nomeCliente ? ' Sou ' + nomeCliente + '.' : ''}`;
+      const zapLoja = linkWhatsapp(`${abertura} Gostaria de falar sobre o pedido #${codigo} (${total}).`);
+      const zapComprovante = pixComChave
+        ? linkWhatsapp(`${abertura} Fiz o pedido #${codigo} (${total}) e paguei por Pix. Segue o comprovante.`)
+        : '';
 
-      $('tela-sucesso').innerHTML = `<div class="estado" style="padding-bottom:8px">
-          <div class="ok-icone" aria-hidden="true">✓</div>
+      acompanhamentoCtx = { id: ped.id, forma, troco, total, zapComprovante: zapComprovante || '', estadoPagamento: null };
+
+      const linhasResumo = [];
+      if (subtotalNum !== null) linhasResumo.push(`<div class="lin"><span>Subtotal</span><span>${brl.format(subtotalNum)}</span></div>`);
+      if (taxaNum !== null && taxaNum > 0) linhasResumo.push(`<div class="lin"><span>Entrega</span><span>${brl.format(taxaNum)}</span></div>`);
+      linhasResumo.push(`<div class="lin total"><span>Total</span><span>${total}</span></div>`);
+
+      $('tela-sucesso').innerHTML = `
+        <div class="acomp-topo">
+          <small>Pedido <strong>#${esc(codigo)}</strong></small>
+          <div class="acomp-icone" id="acomp-icone" aria-hidden="true">⏳</div>
           <h2 id="titulo-sucesso" tabindex="-1">Pedido enviado!</h2>
-          <p style="margin-bottom:0">Pedido <strong>#${esc(codigo)}</strong> · Total <strong>${total}</strong><br>Seu pedido foi registrado! Aguarde a confirmação da loja pelo WhatsApp.</p>
+          <p id="acomp-desc">Estamos confirmando com a loja.</p>
+          <ol class="acomp-passos" id="acomp-passos"></ol>
         </div>
-        ${pagamento}
-        ${zap ? `<a class="btn sec bloco-btn" href="${esc(zap)}" target="_blank" rel="noopener noreferrer">${pixComChave ? 'Enviar comprovante no WhatsApp' : 'Falar com a loja no WhatsApp'}</a>` : ''}
-        <a class="btn sec bloco-btn" href="acompanhar.html?p=${encodeURIComponent(ped.id)}" target="_blank" rel="noopener noreferrer">Acompanhar pedido</a>
-        <button type="button" class="btn bloco-btn" data-novo style="margin-bottom:24px">Fazer novo pedido</button>`;
+        <div id="acomp-pagamento"></div>
+        <div class="acomp-resumo"><h3>Resumo do pedido</h3>${linhasResumo.join('')}</div>
+        ${zapLoja ? `<a class="btn sec bloco-btn" href="${esc(zapLoja)}" target="_blank" rel="noopener noreferrer">Falar com a loja</a>` : ''}
+        <button type="button" class="btn bloco-btn" data-novo style="margin-top:10px;margin-bottom:24px">Fazer novo pedido</button>`;
+
+      $('acomp-pagamento').innerHTML = htmlPagamento(acompanhamentoCtx, 'pendente');
+      acompanhamentoCtx.estadoPagamento = 'pendente';
       alternarTelas('sucesso');
       $('titulo-sucesso').focus({ preventScroll: true });
 
-      // Se for dinheiro ou cartão, abre o WhatsApp automaticamente após 6 segundos.
-      // Se for Pix, NÃO redireciona automaticamente para não fechar a tela enquanto o cliente copia a chave!
+      acompanhamentoAtual = ped.id;
+      atualizarAcompanhamento();
+      timerAcompanhamento = setInterval(() => { if (!document.hidden) atualizarAcompanhamento(); }, 15000);
+
       if (window.timerRedirecionarZap) clearTimeout(window.timerRedirecionarZap);
-      if (!restaurado && zap && (forma !== 'pix' || !chavePixValida(chave))) {
-        window.timerRedirecionarZap = setTimeout(() => { window.location.href = zap; }, 6000);
+      if (ABRIR_WHATSAPP_AUTOMATICO && !restaurado && zapLoja && forma !== 'pix') {
+        window.timerRedirecionarZap = setTimeout(() => { window.location.href = zapLoja; }, 6000);
       }
     }
 
@@ -904,13 +1017,13 @@
           return;
         }
         if (salvo.slug !== restauranteInfo.slug) return;
-        mostrarSucesso({ id: salvo.id, total: salvo.total }, salvo.forma, salvo.troco, true);
+        mostrarSucesso({ id: salvo.id, total: salvo.total, subtotal: salvo.subtotal, taxa_entrega: salvo.taxa_entrega }, salvo.forma, salvo.troco, true);
       } catch (e) { /* ignora */ }
     }
 
     // "Fazer novo pedido" apaga o pedido guardado
     document.addEventListener('click', (e) => {
-      if (e.target.closest('[data-novo]')) limparUltimoPedido();
+      if (e.target.closest('[data-novo]')) { limparUltimoPedido(); pararAcompanhamento(); }
     });
 
     // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
