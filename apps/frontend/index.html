@@ -840,7 +840,15 @@
       if (previsaoEl) {
         const prev = d.previsao;
         if (!final && prev && Number(prev.minimo) > 0 && Number(prev.maximo) >= Number(prev.minimo)) {
-          previsaoEl.textContent = `⏱️ Previsão: ${Number(prev.minimo)} a ${Number(prev.maximo)} min`;
+          const rMin = Math.ceil(Number(prev.restante_min_s) / 60);
+          const rMax = Math.ceil(Number(prev.restante_max_s) / 60);
+          if (prev.contagem === true && Number.isFinite(rMin) && Number.isFinite(rMax)) {
+            previsaoEl.textContent = rMax <= 0
+              ? '⏱️ Está quase pronto!'
+              : (rMin <= 0 ? `⏱️ Faltam até ${rMax} min` : `⏱️ Faltam cerca de ${rMin} a ${rMax} min`);
+          } else {
+            previsaoEl.textContent = `⏱️ Previsão: ${Number(prev.minimo)} a ${Number(prev.maximo)} min`;
+          }
           previsaoEl.classList.remove('hidden');
         } else {
           previsaoEl.classList.add('hidden');
