@@ -106,11 +106,14 @@ export function criarControladorStatusPedido({ db = supabaseAdmin } = {}) {
 
       res.setHeader('Cache-Control', 'no-store');
 
+            const previsao = await calcularPrevisao(db, pedido);
+
       return res.status(200).json({
         sucesso: true,
         codigo: String(pedido.id).slice(-4).toUpperCase(),
         status: pedido.status,
-        ...descrever(pedido)
+        ...descrever(pedido),
+        ...(previsao ? { previsao } : {})
       });
     } catch (erro) {
       console.error('[ERRO CRÍTICO - STATUS PEDIDO]:', erro.message);
