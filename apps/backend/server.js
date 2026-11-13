@@ -17,6 +17,7 @@ import {
 import { criarPedido } from './src/controllers/pedidosController.js';
 import { criarPedidoManual } from './src/controllers/pedidosManualController.js';
 import { avisarPagamento } from './src/controllers/pedidosAvisoController.js';
+import { statusPedido } from './src/controllers/pedidosStatusController.js';
 import { iniciarPushLojista } from './src/services/pushLojista.js';
 
 // ==========================================
@@ -307,6 +308,14 @@ const limitadorAvisoPagamento = criarLimitadorDeRequisicoes({
 });
 
 app.post('/api/pedidos/:id/avisar-pagamento', limitadorAvisoPagamento, avisarPagamento);
+
+// Acompanhamento do pedido pelo cliente (só leitura do andamento; limite: 20 consultas por minuto por IP).
+const limitadorStatusPedido = criarLimitadorDeRequisicoes({
+  janelaMs: 60_000,
+  max: 20
+});
+
+app.get('/api/pedidos/:id/status', limitadorStatusPedido, statusPedido);
 
 // ==========================================
 // 8. ROTA NÃO ENCONTRADA
