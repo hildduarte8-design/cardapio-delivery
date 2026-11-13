@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Acompanhar pedido</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; padding: 24px 16px;
+      background: #0f0d0a; color: #f5efe6;
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      display: flex; justify-content: center;
+    }
+    main { width: 100%; max-width: 440px; }
+    .cartao { background: #1a1612; border: 1px solid #2e2720; border-radius: 16px; padding: 22px 18px; }
+    .codigo { font-size: 13px; color: #a89c8a; margin: 0 0 6px; }
+    h1 { font-size: 22px; margin: 0 0 8px; line-height: 1.25; }
+    .descricao { margin: 0 0 22px; color: #cfc4b3; line-height: 1.45; }
+    ol { list-style: none; margin: 0; padding: 0; }
+    li { display: flex; align-items: center; gap: 12px; padding: 10px 0; color: #7d725f; }
+    li .bola {
+      width: 26px; height: 26px; border-radius: 50%; flex: none;
+      border: 2px solid #3a3228; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; font-weight: 700;
+    }
+    li.feito { color: #cfc4b3; }
+    li.feito .bola { background: #2f7d4f; border-color: #2f7d4f; color: #fff; }
+    li.atual { color: #fff; font-weight: 700; }
+    li.atual .bola { border-color: #e0a526; background: #e0a526; color: #1a1612; }
+    .cancelado h1 { color: #ef7b7b; }
+    .rodape { margin: 16px 0 0; text-align: center; font-size: 13px; color: #a89c8a; min-height: 18px; }
+    .estado { text-align: center; padding: 30px 10px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div id="conteudo" class="cartao">
+      <div class="estado">Carregando seu pedido...</div>
+    </div>
+    <p id="rodape" class="rodape"></p>
+  </main>
+
+  <script>
+    const API_BACKEND_URL = 'https://cardapio-delivery-backend.onrender.com';
+    const INTERVALO_MS = 15000;
+    const pedidoId = (new URLSearchParams(location.search).get('p') || '').trim();
+
+    const conteudo = document.getElementById('conteudo');
+    const rodape = document.getElementById('rodape');
+    let timer = null;
+    let consultando = false;
+    let primeiraVez = true;
+
+    function pararConsultas() {
+      if (timer) { clearTimeout(timer); timer = null; }
+    }
+
+    function agendar() {
+      pararConsultas();
+      timer = setTimeout(consultar, INTERVALO_MS);
+    }
+
+    function mostrarMensagem(texto) {
+      conteudo.replaceChildren();
+      const div = document.createElement('div');
+      div.className = 'estado';
+      div.textContent = texto;
+      conteudo.appendChild(div);
+    }
+
+    function desenhar(dados) {
+      conteudo.replaceChildren();
+      conteudo.classList.toggle('cancelado', dados.cancelado === true);
+
+      const codigo = document.createElement('p');
+      codigo.className = 'codigo';
+      codigo.textContent = 'Pedido #' + dados.codigo;
+
+      const titulo = document.createElement('h1');
+      titulo.textContent = dados.titulo;
+
+      const descricao = document.createElement('p');
+      descricao.className = 'descricao';
+      descricao.textContent = dados.descricao;
+
+      conteudo.append(codigo, titulo, descricao);
+
+      if (!dados.cancelado) {
+        const lista = document.createElement('ol');
+        dados.passos.forEach((nome, i) => {
+          const item = document.createElement('li');
+          const bola = document.createElement('span');
+          bola.className = 'bola';
+          const finalizado = dados.status === 'entregue';
+          if (i < dados.passo_atual || (finalizado && i === dados.passo_atual)) {
+            item.className = 'feito';
+            bola.textContent = '✓';
+          } else if (i === dados.passo_atual) {
+            item.className = 'atual';
+            bola.textContent = String(i + 1);
+          } else {
+            bola.textContent = String(i + 1);
+          }
+          const texto = document.createElement('span');
+          texto.textContent = nome;
+          item.append(bola, texto);
+          lista.appendChild(item);
+        });
+        conteudo.appendChild(lista);
+      }
+    }
+
+    async function consultar() {
+      if (consultando) return;
+      consultando = true;
+
+      if (primeiraVez) {
+        // O servidor pode estar descansando: avisa se demorar
+        setTimeout(() => {
+          if (primeiraVez) rodape.textContent = 'O servidor estava descansando, pode levar até 1 minuto desta vez.';
+        }, 6000);
+      }
+
+      try {
+        const resposta = await fetch(
+          API_BACKEND_URL + '/api/pedidos/' + encodeURIComponent(pedidoId) + '/status',
+          { cache: 'no-store' }
+        );
+
+        if (resposta.status === 404) {
+          mostrarMensagem('Não encontramos este pedido. Confira o link ou fale com a loja.');
+          rodape.textContent = '';
+          pararConsultas();
+          return;
+        }
+
+        if (resposta.status === 429) {
+          rodape.textContent = 'Muitas consultas seguidas. Vamos tentar de novo em instantes.';
+          agendar();
+          return;
+        }
+
+        const dados = await resposta.json().catch(() => null);
+
+        if (!resposta.ok || !dados || dados.sucesso !== true) {
+          rodape.textContent = 'Não conseguimos atualizar agora. Tentando de novo...';
+          agendar();
+          return;
+        }
+
+        primeiraVez = false;
+        desenhar(dados);
+
+        if (dados.status === 'entregue' || dados.status === 'cancelado') {
+          rodape.textContent = '';
+          pararConsultas();
+          return;
+        }
+
+        rodape.textContent = 'Esta tela atualiza sozinha.';
+        agendar();
+      } catch (e) {
+        rodape.textContent = 'Sem conexão. Tentando de novo...';
+        agendar();
+      } finally {
+        consultando = false;
+      }
+    }
+
+    // Pausa quando a aba está escondida e consulta na hora ao voltar
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        pararConsultas();
+      } else if (pedidoId) {
+        consultar();
+      }
+    });
+
+    if (!pedidoId) {
+      mostrarMensagem('Link inválido. Peça o link do pedido à loja.');
+    } else {
+      consultar();
+    }
+  </script>
+</body>
+</html>
