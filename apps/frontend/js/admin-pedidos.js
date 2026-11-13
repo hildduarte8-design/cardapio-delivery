@@ -725,7 +725,7 @@ function textoZap(pedido) {
     cancelado: 'Seu pedido foi cancelado. Qualquer dúvida, é só responder aqui.'
   };
 
-  // Cancelado: mensagem amigável com o motivo (se houver)
+  // Cancelado: mensagem amigável com o motivo (se houver), sem link
   if (pedido.status === 'cancelado') {
     return montarMensagemCancelamento(pedido, {
       nome,
@@ -734,12 +734,19 @@ function textoZap(pedido) {
     });
   }
 
+  // Link para o cliente voltar à tela de acompanhamento do pedido
+  const slug = state.rest && state.rest.slug;
+  const link = (slug && pedido.id)
+    ? `${window.location.origin}/?r=${encodeURIComponent(slug)}&p=${encodeURIComponent(pedido.id)}`
+    : '';
+  const sufixo = link ? `\n\nAcompanhe seu pedido: ${link}` : '';
+
   // Retirada: avisa que está pronto (o pedido fica em preparo até a retirada)
   if (ehRetirada(pedido) && pedido.status === 'preparando') {
-    return `Olá ${nome}! ${state.rest.nome}: Seu pedido de ${valor} está pronto, pode retirar no balcão! 🙌`;
+    return `Olá ${nome}! ${state.rest.nome}: Seu pedido de ${valor} está pronto, pode retirar no balcão! 🙌${sufixo}`;
   }
 
-  return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}`;
+  return `Olá ${nome}! ${state.rest.nome}: ${mensagens[pedido.status] || 'Sobre o seu pedido:'}${sufixo}`;
 }
 
 // Impressão da comanda 58mm idêntica à versão validada
