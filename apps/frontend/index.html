@@ -805,6 +805,7 @@
         </div>
         ${pagamento}
         ${zap ? `<a class="btn sec bloco-btn" href="${esc(zap)}" target="_blank" rel="noopener noreferrer">${pixComChave ? 'Enviar comprovante no WhatsApp' : 'Falar com a loja no WhatsApp'}</a>` : ''}
+        <a class="btn sec bloco-btn" href="acompanhar.html?p=${encodeURIComponent(ped.id)}" target="_blank" rel="noopener noreferrer">Acompanhar pedido</a>
         <button type="button" class="btn bloco-btn" data-novo style="margin-bottom:24px">Fazer novo pedido</button>`;
       alternarTelas('sucesso');
       $('titulo-sucesso').focus({ preventScroll: true });
