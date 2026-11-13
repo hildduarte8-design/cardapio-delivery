@@ -105,7 +105,7 @@ async function calcularPrevisao(db, pedido) {
 
     const { data: rest, error: erroRest } = await db
       .from('restaurantes')
-      .select('previsao_ativa, previsao_base_entrega_min, previsao_base_retirada_min, previsao_min_por_pedido')
+      .select('previsao_ativa, previsao_base_entrega_min, previsao_base_retirada_min, previsao_min_por_pedido, previsao_contagem')
       .eq('id', base.restaurante_id)
       .maybeSingle();
     if (erroRest || !rest || rest.previsao_ativa !== true) return null;
@@ -135,7 +135,17 @@ async function calcularPrevisao(db, pedido) {
     if (tempoBase <= 0) return null;
 
     const minimo = tempoBase + naFrente * porPedido;
-    return { minimo, maximo: minimo + FAIXA_PREVISAO_MIN };
+    const maximo = minimo + FAIXA_PREVISAO_MIN;
+    const resposta = { minimo, maximo };
+
+    if (rest.previsao_contagem === true) {
+      const decorridoSeg = (Date.now() - new Date(base.created_at).getTime()) / 1000;
+      resposta.contagem = true;
+      resposta.restante_min_s = Math.max(0, Math.round(minimo * 60 - decorridoSeg));
+      resposta.restante_max_s = Math.max(0, Math.round(maximo * 60 - decorridoSeg));
+    }
+
+    return resposta;
   } catch (erro) {
     return null;
   }
