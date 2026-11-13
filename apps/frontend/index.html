@@ -367,6 +367,35 @@
       return resp;
     }
 
+    // Abre o acompanhamento pelo link ?p=<id do pedido> (funciona em qualquer aparelho)
+    async function abrirPedidoPorLink() {
+      try {
+        const p = new URLSearchParams(window.location.search).get('p') || '';
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p)) return false;
+
+        const resp = await fetch(`${API_BACKEND_URL}/api/pedidos/${encodeURIComponent(p)}/status`, { cache: 'no-store' });
+        if (!resp.ok) return false;
+
+        const d = await resp.json();
+        if (!d || !d.sucesso || !d.resumo) return false;
+
+        mostrarSucesso(
+          {
+            id: p,
+            total: d.resumo.total,
+            subtotal: d.resumo.subtotal,
+            taxa_entrega: d.resumo.taxa_entrega
+          },
+          d.resumo.forma_pagamento,
+          null,
+          true
+        );
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }
+
     async function init() {
       if (!configurado || !supabaseClient) {
         $('aviso-config').classList.remove('hidden');
@@ -401,7 +430,10 @@
 
       restaurarDadosCliente();
       await Promise.all([carregarBairros(), carregarProdutos()]);
-      restaurarUltimoPedido();
+
+      // Link de acompanhamento tem prioridade; se falhar, segue o fluxo de sempre
+      const abriuPeloLink = await abrirPedidoPorLink();
+      if (!abriuPeloLink) restaurarUltimoPedido();
     }
 
     // ---------- PWA Dynamic Manifest ----------
@@ -1045,7 +1077,15 @@
 
     // "Fazer novo pedido" apaga o pedido guardado
     document.addEventListener('click', (e) => {
-      if (e.target.closest('[data-novo]')) { limparUltimoPedido(); pararAcompanhamento(); }
+            if (e.target.closest('[data-novo]')) {
+        limparUltimoPedido();
+        pararAcompanhamento();
+        try {
+          const u = new URL(window.location.href);
+          u.searchParams.delete('p');
+          history.replaceState(null, '', u);
+        } catch (err) { /* ignora */ }
+      }
     });
 
     // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
