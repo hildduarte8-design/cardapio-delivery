@@ -835,6 +835,18 @@
       $('acomp-icone').classList.toggle('cancelado', cancelado);
       $('titulo-sucesso').textContent = d.titulo || 'Pedido recebido';
       $('acomp-desc').textContent = d.descricao || '';
+
+      const previsaoEl = $('acomp-previsao');
+      if (previsaoEl) {
+        const prev = d.previsao;
+        if (!final && prev && Number(prev.minimo) > 0 && Number(prev.maximo) >= Number(prev.minimo)) {
+          previsaoEl.textContent = `⏱️ Previsão: ${Number(prev.minimo)} a ${Number(prev.maximo)} min`;
+          previsaoEl.classList.remove('hidden');
+        } else {
+          previsaoEl.classList.add('hidden');
+        }
+      }
+      
       const passos = Array.isArray(d.passos) ? d.passos : [];
       const atual = Number(d.passo_atual) || 0;
       $('acomp-passos').innerHTML = cancelado ? '' : passos.map((nome, i) => {
