@@ -439,6 +439,7 @@ const chavePixValida = (c) =>
 function preencherChavePix() {
   const campo = $('input-chave-pix');
   if (campo && state.rest) campo.value = state.rest.chave_pix || '';
+  preencherPrevisao();
 }
 
 async function salvarChavePix() {
@@ -469,6 +470,108 @@ async function salvarChavePix() {
     state.rest.chave_pix = resultado.chave_pix ?? (valor || null);
     campo.value = state.rest.chave_pix || '';
   }
+}
+
+// ---------- Previsão de tempo (aparece para o cliente na tela do pedido) ----------
+function mostrarDetalhesPrevisao() {
+  const detalhes = $('previsao-detalhes');
+  const ligado = $('chk-previsao-ativa');
+  if (detalhes && ligado) detalhes.style.display = ligado.checked ? '' : 'none';
+}
+
+function preencherPrevisao() {
+  const r = state.rest;
+  if (!r || !$('chk-previsao-ativa')) return;
+  $('chk-previsao-ativa').checked = r.previsao_ativa === true;
+  $('input-previsao-entrega').value = r.previsao_base_entrega_min ?? 40;
+  $('input-previsao-retirada').value = r.previsao_base_retirada_min ?? 20;
+  $('input-previsao-fila').value = r.previsao_min_por_pedido ?? 5;
+  $('chk-previsao-contagem').checked = r.previsao_contagem === true;
+  mostrarDetalhesPrevisao();
+}
+
+async function salvarPrevisao() {
+  if (!state.rest) return;
+
+  const lerNumero = (id) => {
+    const texto = $(id).value.trim();
+    const n = Number(texto);
+    return texto !== '' && Number.isInteger(n) ? n : NaN;
+  };
+
+  const entrega = lerNumero('input-previsao-entrega');
+  const retirada = lerNumero('input-previsao-retirada');
+  const fila = lerNumero('input-previsao-fila');
+
+  if (!(entrega >= 5 && entrega <= 240)) return aviso('Tempo de entrega: use um número de 5 a 240 minutos.');
+  if (!(retirada >= 5 && retirada <= 240)) return aviso('Tempo de retirada: use um número de 5 a 240 minutos.');
+  if (!(fila >= 0 && fila <= 60)) return aviso('Minutos por pedido na fila: use um número de 0 a 60.');
+
+  const dados = {
+    previsao_ativa: $('chk-previsao-ativa').checked,
+    previsao_base_entrega_min: entrega,
+    previsao_base_retirada_min: retirada,
+    previsao_min_por_pedido: fila,
+    previsao_contagem: $('chk-previsao-contagem').checked
+  };
+
+  const botao = $('btn-salvar-previsao');
+  botao.disabled = true;
+  botao.textContent = 'Salvando...';
+
+  const resultado = await atualizar('restaurantes', state.rest.id, dados, 'Previsão de tempo salva!');
+
+  botao.disabled = false;
+  botao.textContent = 'Salvar previsão';
+
+  if (resultado) {
+    Object.assign(state.rest, dados);
+    preencherPrevisao();
+  }
+}
+
+function montarCartaoPrevisao() {
+  if ($('cartao-previsao')) return;
+
+  const cartaoPix = $('cartao-chave-pix');
+  const botaoCores = $('btn-salvar-cores');
+  if (!cartaoPix || !botaoCores) return;
+
+  const classeCampo = ($('input-chave-pix') && $('input-chave-pix').className) || '';
+  const linhaOpcao = 'display:flex;align-items:center;gap:10px;margin:10px 0 4px;cursor:pointer';
+  const caixa = 'width:20px;height:20px;flex-shrink:0';
+
+  const cartao = document.createElement('div');
+  cartao.id = 'cartao-previsao';
+  cartao.className = cartaoPix.className;
+  cartao.style.marginBottom = '16px';
+  cartao.innerHTML = `
+    <span class="bloco-label">Previsão de tempo</span>
+    <label style="${linhaOpcao}">
+      <input type="checkbox" id="chk-previsao-ativa" style="${caixa}">
+      <span>Mostrar previsão de tempo ao cliente</span>
+    </label>
+    <p class="placeholder-texto" style="margin:0 0 8px">O cliente vê quanto tempo o pedido deve levar. Desligado, nada aparece.</p>
+    <div id="previsao-detalhes">
+      <label class="bloco-label" for="input-previsao-entrega">Tempo de entrega (minutos)</label>
+      <input id="input-previsao-entrega" type="number" inputmode="numeric" min="5" max="240" class="${classeCampo}">
+      <label class="bloco-label" for="input-previsao-retirada" style="margin-top:10px">Tempo de retirada (minutos)</label>
+      <input id="input-previsao-retirada" type="number" inputmode="numeric" min="5" max="240" class="${classeCampo}">
+      <label class="bloco-label" for="input-previsao-fila" style="margin-top:10px">Minutos a mais por pedido na fila</label>
+      <input id="input-previsao-fila" type="number" inputmode="numeric" min="0" max="60" class="${classeCampo}">
+      <p class="placeholder-texto" style="margin:6px 0 8px">Cada pedido na frente aumenta o tempo do cliente.</p>
+      <label style="${linhaOpcao}">
+        <input type="checkbox" id="chk-previsao-contagem" style="${caixa}">
+        <span>Mostrar contagem regressiva</span>
+      </label>
+      <p class="placeholder-texto" style="margin:0 0 12px">Ligado: o cliente vê "faltam 30 a 40 min" e o tempo vai diminuindo. Desligado: vê um tempo fixo, como "40 a 50 min".</p>
+    </div>
+    <button type="button" id="btn-salvar-previsao" class="${botaoCores.className}">Salvar previsão</button>`;
+
+  cartaoPix.after(cartao);
+  $('chk-previsao-ativa').addEventListener('change', mostrarDetalhesPrevisao);
+  $('btn-salvar-previsao').addEventListener('click', salvarPrevisao);
+  preencherPrevisao();
 }
 
 // Cria o cartão "Chave Pix da loja" acima do bloco de identidade visual
@@ -518,6 +621,7 @@ function montarCartaoChavePix() {
 
   cartao.append(rotulo, campo, dica, salvar);
   bloco.before(cartao);
+  montarCartaoPrevisao();
 
   preencherChavePix();
 }
