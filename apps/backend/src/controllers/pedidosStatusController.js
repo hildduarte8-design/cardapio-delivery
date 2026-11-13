@@ -162,7 +162,7 @@ export function criarControladorStatusPedido({ db = supabaseAdmin } = {}) {
 
       const { data: pedido, error } = await db
         .from('pedidos')
-        .select('id, status, forma_pagamento, tipo_atendimento')
+        .select('id, status, forma_pagamento, tipo_atendimento, total, subtotal, taxa_entrega')
         .eq('id', id)
         .maybeSingle();
 
@@ -179,6 +179,12 @@ export function criarControladorStatusPedido({ db = supabaseAdmin } = {}) {
         sucesso: true,
         codigo: String(pedido.id).slice(-4).toUpperCase(),
         status: pedido.status,
+        resumo: {
+          total: pedido.total,
+          subtotal: pedido.subtotal,
+          taxa_entrega: pedido.taxa_entrega,
+          forma_pagamento: pedido.forma_pagamento
+        },
         ...descrever(pedido),
         ...(previsao ? { previsao } : {})
       });
