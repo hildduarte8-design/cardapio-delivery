@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-  "build": "tailwindcss -i src/input.css -o dist/styles.css --minify && cp index.html admin.html manifest.json sw.js icon.svg icon-192.png icon-512.png dist/ && mkdir -p dist/js && cp js/*.js dist/js/ && mkdir -p dist/sons && cp sons/* dist/sons/"
+  "build": "tailwindcss -i src/input.css -o dist/styles.css --minify && cp index.html admin.html acompanhar.html manifest.json sw.js icon.svg icon-192.png icon-512.png dist/ && mkdir -p dist/js && cp js/*.js dist/js/ && mkdir -p dist/sons && cp sons/* dist/sons/"
   },
   "devDependencies": {
     "tailwindcss": "3.4.17"
