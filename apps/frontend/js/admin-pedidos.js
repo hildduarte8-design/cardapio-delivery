@@ -6,7 +6,7 @@ import { montarMensagemCancelamento } from './admin-cancelamento-whatsapp.js';
 // Nome do botão de WhatsApp conforme a situação do pedido
 function rotuloAvisoZap(pedido) {
   if (pedido.status === 'cancelado') return 'Explicar cancelamento';
-  if (ehRetirada(pedido) && pedido.status === 'preparando') return 'Avisar que está pronto';
+  if (ehRetirada(pedido) && pedido.status === 'pronto_retirada') return 'Avisar que está pronto';
   return 'Avisar cliente';
 }
 
@@ -31,6 +31,13 @@ const STATUS = {
     btnClasse: 'btn-roxo',
     prox: 'saiu_entrega',
     acao: 'Saiu para entrega'
+  },
+  pronto_retirada: {
+    rotulo: 'Pronto p/ retirada',
+    classe: 'badge-roxo',
+    btnClasse: 'btn-verde',
+    prox: 'entregue',
+    acao: 'Entregue ao cliente'
   },
   saiu_entrega: {
     rotulo: 'Saiu p/ entrega',
@@ -99,8 +106,8 @@ const STATUS_PREPARANDO_RETIRADA = {
   rotulo: 'Em preparo',
   classe: 'badge-laranja',
   btnClasse: 'btn-verde',
-  prox: 'entregue',
-  acao: 'Entregue ao cliente'
+  prox: 'pronto_retirada',
+  acao: 'Pronto para retirada'
 };
 
 function statusDe(pedido) {
@@ -525,7 +532,7 @@ export function renderPedidos() {
     } else if (state.filtroStatus === 'preparando') {
       filtrados = ativos.filter((p) => p.status === 'preparando');
     } else if (state.filtroStatus === 'saiu_entrega') {
-      filtrados = ativos.filter((p) => p.status === 'saiu_entrega');
+        filtrados = ativos.filter((p) => p.status === 'saiu_entrega' || p.status === 'pronto_retirada');
     }
 
     // Ordenação inteligente: pedidos que exigem ação primeiro, depois mais antigos
@@ -712,6 +719,7 @@ function textoZap(pedido) {
       : `Recebemos seu pedido de ${valor}! Falta só o pagamento via Pix para confirmarmos.`,
     pago: 'Pagamento confirmado ✅ Já vamos preparar seu pedido!',
     preparando: 'Seu pedido está em preparo 👨‍🍳',
+    pronto_retirada: 'Seu pedido está pronto, pode vir buscar 🛍️',
     saiu_entrega: 'Seu pedido saiu para entrega 🛵',
     entregue: 'Obrigado pela preferência! 🙏',
     cancelado: 'Seu pedido foi cancelado. Qualquer dúvida, é só responder aqui.'
