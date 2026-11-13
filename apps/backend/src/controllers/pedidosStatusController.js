@@ -84,6 +84,63 @@ function descrever(pedido) {
   };
 }
 
+const STATUS_NA_FILA = ['pago', 'preparando'];
+const FORMAS_PAGA_NA_ENTREGA = ['dinheiro', 'cartao', 'cartão'];
+const JANELA_FILA_MS = 2 * 60 * 60 * 1000;
+const FAIXA_PREVISAO_MIN = 10;
+
+// Previsão de tempo (opcional, ligada pelo lojista). Qualquer falha devolve null e a tela segue sem previsão.
+async function calcularPrevisao(db, pedido) {
+  try {
+    if (!['pendente_pagamento', 'pago', 'preparando'].includes(pedido.status)) return null;
+    const forma = String(pedido.forma_pagamento || '').trim().toLowerCase();
+    if (pedido.status === 'pendente_pagamento' && !FORMAS_PAGA_NA_ENTREGA.includes(forma)) return null;
+
+    const { data: base, error: erroBase } = await db
+      .from('pedidos')
+      .select('restaurante_id, created_at')
+      .eq('id', pedido.id)
+      .maybeSingle();
+    if (erroBase || !base || !base.restaurante_id || !base.created_at) return null;
+
+    const { data: rest, error: erroRest } = await db
+      .from('restaurantes')
+      .select('previsao_ativa, previsao_base_entrega_min, previsao_base_retirada_min, previsao_min_por_pedido')
+      .eq('id', base.restaurante_id)
+      .maybeSingle();
+    if (erroRest || !rest || rest.previsao_ativa !== true) return null;
+
+    const desde = new Date(Date.now() - JANELA_FILA_MS).toISOString();
+    const contar = (status, formas) => {
+      let consulta = db
+        .from('pedidos')
+        .select('id', { count: 'exact', head: true })
+        .eq('restaurante_id', base.restaurante_id)
+        .in('status', status)
+        .lt('created_at', base.created_at)
+        .gte('created_at', desde);
+      if (formas) consulta = consulta.in('forma_pagamento', formas);
+      return consulta;
+    };
+
+    const [fila1, fila2] = await Promise.all([
+      contar(STATUS_NA_FILA),
+      contar(['pendente_pagamento'], FORMAS_PAGA_NA_ENTREGA)
+    ]);
+    const naFrente = (fila1.error ? 0 : fila1.count || 0) + (fila2.error ? 0 : fila2.count || 0);
+
+    const retirada = pedido.tipo_atendimento === 'retirada';
+    const tempoBase = Number(retirada ? rest.previsao_base_retirada_min : rest.previsao_base_entrega_min) || 0;
+    const porPedido = Number(rest.previsao_min_por_pedido) || 0;
+    if (tempoBase <= 0) return null;
+
+    const minimo = tempoBase + naFrente * porPedido;
+    return { minimo, maximo: minimo + FAIXA_PREVISAO_MIN };
+  } catch (erro) {
+    return null;
+  }
+}
+
 export function criarControladorStatusPedido({ db = supabaseAdmin } = {}) {
   async function statusPedido(req, res) {
     try {
