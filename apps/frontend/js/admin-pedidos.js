@@ -467,7 +467,7 @@ function pesoPrioridade(pedido) {
   if (pedido.status === 'pendente_pagamento') return 1;
   if (pedido.status === 'pago') return 2;
   if (pedido.status === 'preparando') return 3;
-  if (pedido.status === 'saiu_entrega') return 4;
+  if (pedido.status === 'saiu_entrega' || pedido.status === 'pronto_retirada') return 4;
   return 5;
 }
 
@@ -481,7 +481,7 @@ export function renderPedidos() {
   // Contadores por etapa
   const contAcao = ativos.filter((p) => p.status === 'pendente_pagamento' || p.status === 'pago').length;
   const contPreparo = ativos.filter((p) => p.status === 'preparando').length;
-  const contEntrega = ativos.filter((p) => p.status === 'saiu_entrega').length;
+  const contEntrega = ativos.filter((p) => p.status === 'saiu_entrega' || p.status === 'pronto_retirada').length;
   const contEncerrados = encerrados.length;
   const contTodosAtivos = ativos.length;
 
