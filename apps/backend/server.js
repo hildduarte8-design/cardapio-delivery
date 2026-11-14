@@ -177,7 +177,12 @@ app.get('/health', (_req, res) => {
 // 6. COTAÇÃO DE FRETE
 // ==========================================
 
-app.post('/api/frete/cotar', async (req, res) => {
+const limitadorCotacaoFrete = criarLimitadorDeRequisicoes({
+  janelaMs: 60_000,
+  max: 20
+});
+
+app.post('/api/frete/cotar', limitadorCotacaoFrete, async (req, res) => {
 
   try {
 
@@ -201,7 +206,7 @@ app.post('/api/frete/cotar', async (req, res) => {
     const { data: rest, error: restErro } = await supabaseAdmin
       .from('restaurantes')
       .select(
-        'id, ativo, taxa_base, valor_km, raio_max_km, loja_lat, loja_lon'
+        'id, ativo, taxa_base, valor_km, raio_max_km, loja_lat, loja_lon, frete_por_distancia'
       )
       .eq('id', restaurante_id)
       .maybeSingle();
@@ -235,11 +240,14 @@ app.post('/api/frete/cotar', async (req, res) => {
 
     }
 
+    const usarRota = rest.frete_por_distancia === true;
+
     const resultadoFrete = await calcularFrete({
 
       restaurante: rest,
 
       destino:
+        usarRota &&
         cliente_lat !== undefined &&
         cliente_lon !== undefined
           ? {
