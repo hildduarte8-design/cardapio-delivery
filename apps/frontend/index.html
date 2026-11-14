@@ -354,6 +354,7 @@
     async function carregarRestaurante(slug) {
       const base = 'id, slug, nome, ativo';
       const camadas = [
+        base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp, chave_pix, ordem_categorias, frete_por_distancia, raio_max_km',
         base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp, chave_pix, ordem_categorias',
         base + ', logo_url, banner_url, cor_primaria, cor_secundaria, whatsapp',
         base + ', logo_url, banner_url, cor_primaria, cor_secundaria',
@@ -1156,13 +1157,14 @@
         const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payloadPedido),
+          body: JSON.stringify(window.freteGps && modoEntrega === 'entrega' ? { ...payloadPedido, ...window.freteGps.payload() } : payloadPedido),
           signal: controle.signal
         });
         const resultado = await resposta.json().catch(() => ({}));
 
         if (!resposta.ok) {
-          await tratarErroPedido(resposta.status, resultado);
+        if (window.freteGps && await window.freteGps.tratarErro(resposta.status, resultado)) return;
+      await tratarErroPedido(resposta.status, resultado);
           return;
         }
 
@@ -1181,7 +1183,7 @@
 
         carrinho = [];
         renderCarrinho();
-        select.value = '';
+        select.value = ''; if (window.freteGps) window.freteGps.limpar();
         atualizarTaxa();
         limparPagamento();
       } catch (error) {
@@ -1252,5 +1254,6 @@
     init();
   </script>
     <script src="js/vitrine-adicionais.js"></script>
+    <script src="js/frete-gps.js"></script>
   </body>
 </html>
