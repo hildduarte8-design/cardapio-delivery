@@ -87,7 +87,7 @@ export function criarControladorPedidos({
       // 2. Restaurante
       const { data: restaurante, error: restErro } = await db
         .from('restaurantes')
-        .select('id, nome, ativo, loja_lat, loja_lon, taxa_base, valor_km, raio_max_km')
+        .select('id, nome, ativo, loja_lat, loja_lon, taxa_base, valor_km, raio_max_km, frete_por_distancia')
         .eq('id', restauranteId)
         .maybeSingle();
 
@@ -242,7 +242,7 @@ export function criarControladorPedidos({
       try {
         calculoFrete = retirada ? { taxa: 0, frete_tipo: null, distancia_km: null } : await calcularFreteFn({
           restaurante,
-          destino: temCoordenadas
+          destino: (temCoordenadas && restaurante.frete_por_distancia === true)
             ? { lat: Number(cliente_lat), lon: Number(cliente_lon) }
             : null,
           bairro: bairroConfirmado?.nome || null
@@ -265,7 +265,27 @@ export function criarControladorPedidos({
         throw new Error('O motor de frete retornou uma taxa inválida.');
       }
 
-      const totalCentavos = subtotalCentavos + taxaCentavos;
+      // Se o cardápio informou o frete que mostrou ao cliente, ele precisa bater com o recalculado
+const taxaCotadaBruta = req.body?.taxa_cotada;
+const taxaCotadaCentavos =
+  taxaCotadaBruta === undefined || taxaCotadaBruta === null
+    ? null
+    : paraCentavos(taxaCotadaBruta);
+
+if (!retirada && taxaCotadaCentavos !== null && taxaCotadaCentavos !== taxaCentavos) {
+  return res.status(409).json({
+    erro: 'O valor do frete mudou. Confira o novo valor antes de finalizar.',
+    codigo: 'FRETE_DIVERGENTE',
+    detalhes: {
+      taxa: deCentavos(taxaCentavos),
+      taxa_centavos: taxaCentavos,
+      frete_tipo: calculoFrete.frete_tipo,
+      requer_confirmacao: calculoFrete.requer_confirmacao || false
+    }
+  });
+}
+
+const totalCentavos = subtotalCentavos + taxaCentavos;
 
       if (!Number.isSafeInteger(totalCentavos)) {
         throw new Error('Total do pedido excedeu o limite permitido.');
