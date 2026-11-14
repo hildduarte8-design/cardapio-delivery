@@ -13,6 +13,8 @@ export function preencherRestaurante() {
   $('r-valor-km').value = state.rest.valor_km ?? '';
   $('r-lat').value = state.rest.loja_lat ?? '';
   $('r-lon').value = state.rest.loja_lon ?? '';
+  $('r-raio-max').value = state.rest.raio_max_km ?? '';
+  $('r-frete-distancia').checked = state.rest.frete_por_distancia === true;
 }
 
 async function salvarRestaurante() {
@@ -21,6 +23,10 @@ async function salvarRestaurante() {
   const valorKm = num($('r-valor-km').value);
   const latitude = num($('r-lat').value);
   const longitude = num($('r-lon').value);
+
+  const raioBruto = $('r-raio-max').value.trim();
+  const raioMax = raioBruto === '' ? null : num(raioBruto);
+  const fretePorDistancia = $('r-frete-distancia').checked;
 
   const chavePix = $('r-chave-pix').value.trim();
 
@@ -39,6 +45,14 @@ async function salvarRestaurante() {
     return aviso('Coordenadas inválidas');
   }
 
+  if (raioBruto !== '' && !(raioMax > 0 && raioMax <= 200)) {
+    return aviso('Raio máximo inválido: use um valor entre 0,1 e 200 km, ou deixe vazio.');
+  }
+
+  if (fretePorDistancia && (latitude === null || longitude === null)) {
+    return aviso('Para ligar o frete por distância, informe a latitude e a longitude da loja.');
+  }
+
   const botao = $('btn-salvar-rest');
   botao.disabled = true;
 
@@ -51,6 +65,8 @@ async function salvarRestaurante() {
       valor_km: valorKm,
       loja_lat: latitude,
       loja_lon: longitude,
+      raio_max_km: raioMax,
+      frete_por_distancia: fretePorDistancia,
       whatsapp: $('r-whatsapp').value.replace(/\D/g, '') || null,
       chave_pix: chavePix || null
     },
