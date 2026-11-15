@@ -645,8 +645,7 @@ export function renderPedidos() {
             <span class="pagto-taxa">${
               ehRetirada(pedido)
                 ? 'sem entrega'
-                : `entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}`
-            }${
+                : `entrega ${brl.format(Number(pedido.taxa_entrega) || 0)}${pedido.distancia_km ? ' · ' + Number(pedido.distancia_km).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' km' : ''}${/estimad/i.test(pedido.frete_tipo || '') ? ' · ⚠️ frete estimado, confirmar' : ''}`
               descontoDe(pedido) > 0
                 ? ` · desconto −${brl.format(descontoDe(pedido))}${pedido.desconto_motivo ? ` (${esc(pedido.desconto_motivo)})` : ''}`
                 : ''
@@ -799,7 +798,7 @@ function imprimirComanda(pedido) {
         ${
           ehRetirada(pedido)
             ? ''
-            : `<div class="item"><span>Entrega:</span><span>${brl.format(Number(pedido.taxa_entrega) || 0)}</span></div>`
+            : `<div class="item"><span>Entrega${pedido.distancia_km ? ' (' + Number(pedido.distancia_km).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' km)' : ''}${/estimad/i.test(pedido.frete_tipo || '') ? ' - CONFIRMAR' : ''}:</span><span>${brl.format(Number(pedido.taxa_entrega) || 0)}</span></div>`
         }
         ${
           descontoDe(pedido) > 0
