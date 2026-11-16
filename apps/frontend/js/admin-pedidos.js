@@ -193,7 +193,7 @@ function nomeBairroPedido(pedido) {
     (item) => String(item.id) === String(pedido.bairro_id)
   );
 
-  return bairro?.nome || 'Bairro não informado';
+  return bairro?.nome || (pedido.cliente_lat != null ? 'Localização GPS' : 'Bairro não informado');
 }
 
 function desbloquearAudio() {
@@ -672,6 +672,11 @@ export function renderPedidos() {
                     <button data-zap="${esc(pedido.id)}" class="btn-acao-sec btn-zap" title="Avisar o cliente pelo WhatsApp">
             💬 ${rotuloAvisoZap(pedido)}
           </button>
+                    ${(ehRetirada(pedido) || encerrado) ? '' : `
+            <button data-entregador="${esc(pedido.id)}" class="btn-acao-sec" title="Enviar endereço e localização ao entregador pelo WhatsApp">🛵 Entregador</button>
+            <button data-copiar-local="${esc(pedido.id)}" class="btn-acao-sec" title="Copiar o link da localização do cliente">📋 Local</button>
+          `}
+
           <button data-imprimir="${esc(pedido.id)}" class="btn-acao-sec btn-comanda" title="Imprimir comanda térmica" aria-label="Imprimir comanda">
             🖨️
           </button>
@@ -707,6 +712,155 @@ function foneZap(pedido) {
   }
 
   return numero;
+}
+
+/* ===== Localização do cliente para o entregador ===== */
+
+// Nome do bairro "de verdade" (sem os textos de aviso)
+function bairroReal(pedido) {
+  const nome = nomeBairroPedido(pedido);
+  const avisos = ['Bairro não informado', 'Localização GPS', 'Retirada no balcão'];
+  return avisos.includes(nome) ? '' : nome;
+}
+
+// Link do mapa: ponto exato se o cliente usou o GPS, senão busca pelo endereço digitado
+function linkLocalizacao(pedido) {
+  const lat = Number(pedido.cliente_lat);
+  const lon = Number(pedido.cliente_lon);
+  const temGps = pedido.cliente_lat != null && pedido.cliente_lon != null
+    && Number.isFinite(lat) && Number.isFinite(lon);
+
+  if (temGps) {
+    return {
+      url: `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`,
+      exata: true
+    };
+  }
+
+  const busca = [pedido.endereco_completo, bairroReal(pedido), state.rest && state.rest.cidade]
+    .filter(Boolean)
+    .join(', ');
+
+  return {
+    url: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(busca)}`,
+    exata: false
+  };
+}
+
+function textoEntregador(pedido) {
+  const { url, exata } = linkLocalizacao(pedido);
+  const bairro = bairroReal(pedido);
+  const fone = telefoneDoPedido(pedido);
+  const total = brl.format(Number(pedido.total) || 0);
+
+  const linhas = [
+    `🛵 *${state.rest.nome}* · Pedido #${codigo(pedido)}`,
+    '',
+    `*Cliente:* ${pedido.cliente_nome || '—'}`
+  ];
+
+  if (fone) linhas.push(`*Telefone:* ${fone}`);
+  linhas.push(`*Endereço:* ${bairro ? `${bairro} — ` : ''}${pedido.endereco_completo || '—'}`);
+  if (pedido.observacao) linhas.push(`*Obs:* ${pedido.observacao}`);
+
+  linhas.push(
+    pagaNaEntrega(pedido)
+      ? `*Receber:* ${total} (${rotuloPagamento(pedido)})`
+      : `*Pagamento:* ${rotuloPagamento(pedido)}`
+  );
+
+  linhas.push(
+    '',
+    exata
+      ? `📍 Localização do cliente (GPS): ${url}`
+      : `📍 Mapa pelo endereço digitado (aproximado): ${url}`
+  );
+
+  return linhas.join('\n');
+}
+
+async function copiarLocalizacao(pedido) {
+  const { url, exata } = linkLocalizacao(pedido);
+
+  try {
+    await navigator.clipboard.writeText(url);
+    aviso(exata
+      ? 'Link da localização copiado'
+      : 'Link copiado. Como o cliente não usou o GPS, ele é aproximado (pelo endereço digitado).');
+  } catch (erro) {
+    window.prompt('Copie o link da localização:', url);
+  }
+}
+
+function abrirZapEntregador(pedido, entregador) {
+  window.open(
+    `https://wa.me/${entregador.whatsapp}?text=${encodeURIComponent(textoEntregador(pedido))}`,
+    '_blank',
+    'noopener,noreferrer'
+  );
+}
+
+// Com 2 ou mais entregadores ativos, pergunta qual
+function escolherEntregador(pedido, entregadores) {
+  const antigo = document.getElementById('modal-entregador');
+  if (antigo) antigo.remove();
+
+  const fundo = document.createElement('div');
+  fundo.id = 'modal-entregador';
+  fundo.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.5);'
+    + 'display:flex;align-items:center;justify-content:center;padding:16px;';
+
+  const caixa = document.createElement('div');
+  caixa.style.cssText = 'background:#ffffff;color:#111827;border-radius:14px;padding:16px;'
+    + 'width:100%;max-width:340px;display:flex;flex-direction:column;gap:8px;';
+
+  const titulo = document.createElement('p');
+  titulo.textContent = 'Enviar para qual entregador?';
+  titulo.style.cssText = 'font-weight:800;font-size:16px;margin:0 0 4px;color:#111827;';
+  caixa.appendChild(titulo);
+
+  const fechar = () => fundo.remove();
+
+  entregadores.forEach((entregador) => {
+    const botao = document.createElement('button');
+    botao.type = 'button';
+    botao.textContent = `🛵 ${entregador.nome}`;
+    botao.style.cssText = 'padding:12px;border-radius:10px;border:1px solid #d1d5db;'
+      + 'background:#f9fafb;color:#111827;font-size:15px;font-weight:700;text-align:left;cursor:pointer;';
+    botao.addEventListener('click', () => {
+      fechar();
+      abrirZapEntregador(pedido, entregador);
+    });
+    caixa.appendChild(botao);
+  });
+
+  const cancelar = document.createElement('button');
+  cancelar.type = 'button';
+  cancelar.textContent = 'Cancelar';
+  cancelar.style.cssText = 'padding:10px;border-radius:10px;border:1px solid #e5e7eb;'
+    + 'background:#ffffff;color:#6b7280;font-size:14px;font-weight:700;cursor:pointer;';
+  cancelar.addEventListener('click', fechar);
+  caixa.appendChild(cancelar);
+
+  fundo.addEventListener('click', (evento) => {
+    if (evento.target === fundo) fechar();
+  });
+
+  fundo.appendChild(caixa);
+  document.body.appendChild(fundo);
+}
+
+function enviarAoEntregador(pedido) {
+  const ativos = (state.entregadores || []).filter((entregador) => entregador.ativo);
+
+  if (!ativos.length) {
+    return aviso('Cadastre um entregador na aba Entrega para usar este botão.');
+  }
+
+  // Só um entregador: manda direto
+  if (ativos.length === 1) return abrirZapEntregador(pedido, ativos[0]);
+
+  escolherEntregador(pedido, ativos);
 }
 
 function textoZap(pedido) {
