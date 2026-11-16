@@ -36,6 +36,34 @@ export function aviso(mensagem) {
   }, 2500);
 }
 
+// Traduz erros técnicos do banco para um texto curto e amigável.
+// O texto técnico original continua no Console (F12) para investigação.
+function mensagemAmigavel(error, mensagemPadrao) {
+  const texto = String(error?.message || '');
+  const codigo = String(error?.code || '');
+
+  if (codigo === '23505' || /duplicate key|unique constraint/i.test(texto)) {
+    return 'Esse cadastro já existe.';
+  }
+  if (codigo === '23502' || /null value in column|not-null/i.test(texto)) {
+    return 'Faltou preencher um campo.';
+  }
+  if (codigo === '23514' || /check constraint/i.test(texto)) {
+    return 'Algum valor está fora do permitido. Confira os campos.';
+  }
+  if (codigo === '23503' || /foreign key/i.test(texto)) {
+    return 'Isso está ligado a outro cadastro e não pode ser alterado.';
+  }
+  if (codigo === '42501' || /row-level security|permission denied/i.test(texto)) {
+    return 'Você não tem permissão para fazer isso.';
+  }
+  if (/failed to fetch|networkerror|network request failed|load failed/i.test(texto)) {
+    return 'Sem conexão no momento. Tente de novo.';
+  }
+
+  return mensagemPadrao || 'Não deu certo. Tente de novo.';
+}
+
 export function tratarErro(error, mensagemPadrao) {
   console.error(error);
 
@@ -45,10 +73,7 @@ export function tratarErro(error, mensagemPadrao) {
     return;
   }
 
-  aviso(
-    mensagemPadrao +
-    (error?.message ? ` (${error.message})` : '')
-  );
+  aviso(mensagemAmigavel(error, mensagemPadrao));
 }
 
 export async function atualizar(tabela, id, campos, mensagemSucesso) {
