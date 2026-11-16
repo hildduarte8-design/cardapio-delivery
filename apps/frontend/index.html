@@ -1101,7 +1101,8 @@
       const optionSelecionada = select.options[select.selectedIndex];
 
       if (carrinho.length === 0) return avisar('Seu carrinho está vazio. Toque no + para adicionar itens.');
-      if (modoEntrega === 'entrega' && !select.value) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
+      const temGps = !!(window.freteGps && window.freteGps.payload().cliente_lat != null);
+      if (modoEntrega === 'entrega' && !select.value && !temGps) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
       if (nome.length < 2) return campoInvalido('cli-nome', 'Informe o seu nome.');
       if (fone.length < 10 || fone.length > 11) return campoInvalido('cli-fone', 'Informe um WhatsApp válido com DDD.');
       if (modoEntrega === 'entrega' && endereco.length < 5) return campoInvalido('cli-endereco', 'Informe o seu endereço de entrega.');
@@ -1138,8 +1139,8 @@
         cliente_nome: nome,
         cliente_whatsapp: fone,
         endereco_completo: endereco,
-        bairro_id: select.value,
-        bairro_nome: optionSelecionada ? optionSelecionada.text : null,
+        bairro_id: select.value || null,
+        bairro_nome: (select.value && optionSelecionada) ? optionSelecionada.text : null,
         itens: carrinho.map((item) => ({ produto_id: item.id, quantidade: item.qtd, ...(item.adicionais && item.adicionais.length ? { adicionais: item.adicionais.map((a) => a.id) } : {}) })),
         forma_pagamento: forma,
         troco_para: troco,
