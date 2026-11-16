@@ -1180,6 +1180,19 @@
           <button class="btn-destaque">+ Adicionar bairro</button>
         </form>
         <div id="lista-bairros" style="display:flex; flex-direction:column; gap:6px;"></div>
+  </section>
+
+  <section class="secao-admin">
+    <h2 class="secao-titulo">Entregadores</h2>
+    <p style="font-size:12px; color:var(--suave); margin-bottom:10px">Cadastre quem faz as entregas. No painel de pedidos, o botão de enviar ao entregador abre o WhatsApp dele com o endereço e a localização do cliente. Com mais de um cadastrado, o sistema pergunta qual.</p>
+    <form id="form-entregador" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+      <div class="grid-2">
+        <input id="e-nome" required maxlength="60" placeholder="Nome do entregador" class="input-padrao" />
+        <input id="e-whatsapp" required inputmode="numeric" maxlength="20" placeholder="WhatsApp com DDD" class="input-padrao" />
+      </div>
+      <button class="btn-destaque">+ Adicionar entregador</button>
+    </form>
+    <div id="lista-entregadores" style="display:flex; flex-direction:column; gap:6px;"></div>
       </section>
     </div>
 
