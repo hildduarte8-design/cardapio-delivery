@@ -427,7 +427,8 @@ $('btn-enviar').addEventListener('click', (e) => {
 
   function atualizarResumo() {
     $('res-sub').textContent = brl.format(calcularSubtotal());
-    $('res-taxa').textContent = !$('select-bairro').value ? 'Escolha o bairro' : (taxaAtual > 0 ? brl.format(taxaAtual) : 'Grátis');
+    const temGps = !!(window.freteGps && window.freteGps.payload().cliente_lat != null);
+    $('res-taxa').textContent = (!$('select-bairro').value && !temGps) ? 'Escolha o bairro' : (taxaAtual > 0 ? brl.format(taxaAtual) : 'Grátis');
     $('res-total').textContent = brl.format(totalGeral());
   }
 
