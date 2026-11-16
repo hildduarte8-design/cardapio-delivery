@@ -98,6 +98,9 @@ export async function carregarBairros() {
   state.bairros = data || [];
   renderBairros();
   renderPedidos();
+
+  // Entregadores carregam junto com os bairros (mesma tela, mesma loja)
+  carregarEntregadores();
 }
 
 function renderBairros() {
@@ -237,6 +240,241 @@ async function cadastrarBairro(evento) {
   await carregarBairros();
 }
 
+/* ================= ENTREGADORES ================= */
+
+// Guarda sempre com o 55 na frente (ex.: 5533999998888), pronto para o wa.me
+function normalizarZapEntregador(valor) {
+  let digitos = String(valor || '').replace(/\D/g, '');
+  if (digitos.length === 10 || digitos.length === 11) digitos = `55${digitos}`;
+  return /^55\d{10,11}$/.test(digitos) ? digitos : null;
+}
+
+// Mostra no formato (33) 99999-8888
+function formatarZapEntregador(valor) {
+  const n = String(valor || '').replace(/^55/, '');
+  if (n.length === 11) return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
+  if (n.length === 10) return `(${n.slice(0, 2)}) ${n.slice(2, 6)}-${n.slice(6)}`;
+  return n;
+}
+
+export async function carregarEntregadores() {
+  if (!state.rest || !sb) return;
+
+  const { data, error } = await sb
+    .from('entregadores')
+    .select('*')
+    .eq('restaurante_id', state.rest.id)
+    .order('nome');
+
+  if (error) {
+    tratarErro(error, 'Erro ao carregar entregadores.');
+    return;
+  }
+
+  state.entregadores = data || [];
+  renderEntregadores();
+}
+
+function renderEntregadores() {
+  const lista = $('lista-entregadores');
+  if (!lista) return;
+
+  const entregadores = state.entregadores || [];
+
+  lista.innerHTML = entregadores.length
+    ? entregadores.map((entregador) => `
+      <div class="flex flex-wrap items-center gap-2 p-2 border rounded-lg ${
+        entregador.ativo ? 'bg-white' : 'bg-gray-50 opacity-60'
+      }">
+        <input
+          data-enome="${esc(entregador.id)}"
+          maxlength="60"
+          value="${esc(entregador.nome)}"
+          aria-label="Nome do entregador"
+          style="flex:1; min-width:8rem"
+          class="p-2 border rounded-lg bg-gray-50 text-sm font-semibold"
+        />
+
+        <input
+          data-ezap="${esc(entregador.id)}"
+          inputmode="numeric"
+          maxlength="20"
+          value="${esc(formatarZapEntregador(entregador.whatsapp))}"
+          aria-label="WhatsApp de ${esc(entregador.nome)}"
+          style="width:9.5rem"
+          class="p-2 border rounded-lg bg-gray-50 text-xs"
+        />
+
+        <button
+          data-eativo="${esc(entregador.id)}"
+          class="px-2 py-2 text-xs font-bold rounded-lg border ${
+            entregador.ativo
+              ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+              : 'bg-green-50 text-green-700 border-green-200'
+          }"
+        >
+          ${entregador.ativo ? 'Pausar' : 'Ativar'}
+        </button>
+
+        <button
+          data-eremover="${esc(entregador.id)}"
+          aria-label="Remover ${esc(entregador.nome)}"
+          class="px-2 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-700 border-red-200"
+        >
+          Remover
+        </button>
+      </div>
+    `).join('')
+    : '<p class="text-sm text-gray-500">Nenhum entregador cadastrado.</p>';
+}
+
+async function cadastrarEntregador(evento) {
+  evento.preventDefault();
+
+  const nome = $('e-nome').value.trim();
+  const whatsapp = normalizarZapEntregador($('e-whatsapp').value);
+
+  if (nome.length < 2 || nome.length > 60) return aviso('Informe o nome do entregador');
+  if (!whatsapp) return aviso('WhatsApp inválido: digite com DDD, por exemplo (33) 99999-8888');
+
+  const { error } = await sb
+    .from('entregadores')
+    .insert([{
+      restaurante_id: state.rest.id,
+      nome,
+      whatsapp,
+      ativo: true
+    }]);
+
+  if (error) {
+    tratarErro(
+      error,
+      /duplicate|unique/i.test(error.message || '')
+        ? 'Esse número já está cadastrado.'
+        : 'Erro ao cadastrar entregador.'
+    );
+    return;
+  }
+
+  $('form-entregador').reset();
+  aviso('Entregador cadastrado');
+  await carregarEntregadores();
+}
+
+async function alterarCampoEntregador(elemento) {
+  const id = elemento.dataset.enome || elemento.dataset.ezap;
+  const entregador = achar(state.entregadores || [], id);
+  if (!entregador) return;
+
+  if (elemento.matches('[data-enome]')) {
+    const nome = elemento.value.trim();
+
+    if (nome.length < 2 || nome.length > 60) {
+      aviso('Nome inválido');
+      elemento.value = entregador.nome;
+      return;
+    }
+
+    const resultado = await atualizar(
+      'entregadores',
+      entregador.id,
+      { nome },
+      'Nome atualizado'
+    );
+
+    if (resultado) entregador.nome = resultado.nome;
+    else elemento.value = entregador.nome;
+
+    return;
+  }
+
+  if (elemento.matches('[data-ezap]')) {
+    const whatsapp = normalizarZapEntregador(elemento.value);
+
+    if (!whatsapp) {
+      aviso('WhatsApp inválido: digite com DDD');
+      elemento.value = formatarZapEntregador(entregador.whatsapp);
+      return;
+    }
+
+    const resultado = await atualizar(
+      'entregadores',
+      entregador.id,
+      { whatsapp },
+      'WhatsApp atualizado'
+    );
+
+    if (resultado) entregador.whatsapp = resultado.whatsapp;
+
+    elemento.value = formatarZapEntregador(entregador.whatsapp);
+  }
+}
+
+async function alternarEntregador(id) {
+  const entregador = achar(state.entregadores || [], id);
+  if (!entregador) return;
+
+  const resultado = await atualizar(
+    'entregadores',
+    entregador.id,
+    { ativo: !entregador.ativo },
+    entregador.ativo ? 'Entregador pausado' : 'Entregador ativado'
+  );
+
+  if (resultado) {
+    entregador.ativo = resultado.ativo;
+    renderEntregadores();
+  }
+}
+
+async function removerEntregador(id) {
+  const entregador = achar(state.entregadores || [], id);
+  if (!entregador) return;
+
+  if (!confirm(`Remover o entregador ${entregador.nome}?\n\nSe for só uma pausa, use o botão Pausar.`)) return;
+
+  const { error } = await sb
+    .from('entregadores')
+    .delete()
+    .eq('id', entregador.id);
+
+  if (error) {
+    tratarErro(error, 'Erro ao remover entregador.');
+    return;
+  }
+
+  state.entregadores = (state.entregadores || []).filter((item) => item.id !== entregador.id);
+  renderEntregadores();
+  aviso('Entregador removido');
+}
+
+function configurarEventosEntregadores() {
+  const formulario = $('form-entregador');
+  const lista = $('lista-entregadores');
+
+  // Se o HTML da aba ainda não tem a seção de entregadores, não derruba o resto da tela
+  if (!formulario || !lista) return;
+
+  formulario.addEventListener('submit', cadastrarEntregador);
+
+  lista.addEventListener('change', (evento) => {
+    if (evento.target.matches('[data-enome]') || evento.target.matches('[data-ezap]')) {
+      alterarCampoEntregador(evento.target);
+    }
+  });
+
+  lista.addEventListener('click', (evento) => {
+    const ativar = evento.target.closest('[data-eativo]');
+    if (ativar) {
+      alternarEntregador(ativar.dataset.eativo);
+      return;
+    }
+
+    const remover = evento.target.closest('[data-eremover]');
+    if (remover) removerEntregador(remover.dataset.eremover);
+  });
+}
+
 function configurarEventos() {
   $('btn-salvar-rest').addEventListener('click', salvarRestaurante);
 
@@ -255,6 +493,8 @@ function configurarEventos() {
   });
 
   $('form-bairro').addEventListener('submit', cadastrarBairro);
+
+  configurarEventosEntregadores();
 }
 
 let eventosConfigurados = false;
