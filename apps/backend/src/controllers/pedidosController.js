@@ -330,6 +330,8 @@ const totalCentavos = subtotalCentavos + taxaCentavos;
         bairro_id: bairroConfirmado?.id || null,
         frete_tipo: calculoFrete.frete_tipo,
         distancia_km: calculoFrete.distancia_km ?? null,
+        cliente_lat: (temCoordenadas && !retirada) ? Number(cliente_lat) : null,
+        cliente_lon: (temCoordenadas && !retirada) ? Number(cliente_lon) : null,
         subtotal: deCentavos(subtotalCentavos),
         taxa_entrega: deCentavos(taxaCentavos),
         total: deCentavos(totalCentavos),
