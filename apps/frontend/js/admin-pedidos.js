@@ -1093,7 +1093,17 @@ function configurarEventos() {
         return;
       }
 
-      if ((pedido = encontrarPedido('data-imprimir'))) {
+      if ((pedido = encontrarPedido('data-copiar-local'))) {
+      copiarLocalizacao(pedido);
+      return;
+    }
+
+    if ((pedido = encontrarPedido('data-entregador'))) {
+      enviarAoEntregador(pedido);
+      return;
+    }
+
+    if ((pedido = encontrarPedido('data-imprimir'))) {
         imprimirComanda(pedido);
       }
     });
