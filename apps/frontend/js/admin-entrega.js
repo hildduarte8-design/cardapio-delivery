@@ -103,6 +103,40 @@ export async function carregarBairros() {
   carregarEntregadores();
 }
 
+let bairrosAbertos = false;
+
+function atualizarToggleBairros() {
+  const lista = $('lista-bairros');
+  const botao = $('btn-toggle-bairros');
+  if (!lista || !botao) return;
+
+  const total = (state.bairros || []).length;
+  lista.style.display = bairrosAbertos ? 'flex' : 'none';
+  botao.textContent = bairrosAbertos
+    ? '▾ Recolher lista de bairros'
+    : `▸ Ver lista de bairros (${total})`;
+  botao.setAttribute('aria-expanded', bairrosAbertos ? 'true' : 'false');
+}
+
+function criarBotaoToggleBairros() {
+  const lista = $('lista-bairros');
+  if (!lista || $('btn-toggle-bairros')) return;
+
+  const botao = document.createElement('button');
+  botao.type = 'button';
+  botao.id = 'btn-toggle-bairros';
+  botao.style.cssText = 'width:100%;text-align:left;padding:10px 12px;margin-bottom:6px;'
+    + 'border:1px solid #d1d5db;border-radius:10px;background:#f9fafb;color:#111827;'
+    + 'font-size:14px;font-weight:700;cursor:pointer;';
+  botao.addEventListener('click', () => {
+    bairrosAbertos = !bairrosAbertos;
+    atualizarToggleBairros();
+  });
+
+  lista.before(botao);
+  atualizarToggleBairros();
+}
+
 function renderBairros() {
   $('lista-bairros').innerHTML = state.bairros.length
     ? state.bairros.map((bairro) => `
@@ -145,6 +179,8 @@ function renderBairros() {
       </div>
     `).join('')
     : '<p class="text-sm text-gray-500">Nenhum bairro cadastrado.</p>';
+
+  atualizarToggleBairros();
 }
 
 async function alterarCampoBairro(elemento) {
@@ -226,12 +262,8 @@ async function cadastrarBairro(evento) {
     }]);
 
   if (error) {
-    tratarErro(
-      error,
-      /duplicate|unique/i.test(error.message || '')
-        ? 'Esse bairro já existe.'
-        : 'Erro ao cadastrar.'
-    );
+    if (/duplicate|unique/i.test(error.message || '')) return aviso('Esse bairro já existe.');
+    tratarErro(error, 'Erro ao cadastrar.');
     return;
   }
 
@@ -275,6 +307,9 @@ export async function carregarEntregadores() {
   renderEntregadores();
 }
 
+const EST_INPUT_ENT = 'background:#f9fafb;color:#111827;border:1px solid #d1d5db;border-radius:8px;padding:8px;font-size:14px;';
+const EST_BTN_ENT = 'padding:8px 10px;font-size:12px;font-weight:700;border-radius:8px;cursor:pointer;';
+
 function renderEntregadores() {
   const lista = $('lista-entregadores');
   if (!lista) return;
@@ -282,17 +317,23 @@ function renderEntregadores() {
   const entregadores = state.entregadores || [];
 
   lista.innerHTML = entregadores.length
-    ? entregadores.map((entregador) => `
-      <div class="flex flex-wrap items-center gap-2 p-2 border rounded-lg ${
-        entregador.ativo ? 'bg-white' : 'bg-gray-50 opacity-60'
-      }">
+    ? entregadores.map((entregador) => {
+      const estiloLinha = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px;'
+        + 'border:1px solid #e5e7eb;border-radius:10px;color:#111827;'
+        + (entregador.ativo ? 'background:#ffffff;' : 'background:#f3f4f6;opacity:.75;');
+
+      const estiloPausar = entregador.ativo
+        ? 'background:#fefce8;color:#a16207;border:1px solid #fde68a;'
+        : 'background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;';
+
+      return `
+      <div style="${estiloLinha}">
         <input
           data-enome="${esc(entregador.id)}"
           maxlength="60"
           value="${esc(entregador.nome)}"
           aria-label="Nome do entregador"
-          style="flex:1; min-width:8rem"
-          class="p-2 border rounded-lg bg-gray-50 text-sm font-semibold"
+          style="${EST_INPUT_ENT}flex:1;min-width:8rem;font-weight:700;"
         />
 
         <input
@@ -301,31 +342,29 @@ function renderEntregadores() {
           maxlength="20"
           value="${esc(formatarZapEntregador(entregador.whatsapp))}"
           aria-label="WhatsApp de ${esc(entregador.nome)}"
-          style="width:9.5rem"
-          class="p-2 border rounded-lg bg-gray-50 text-xs"
+          style="${EST_INPUT_ENT}width:10rem;"
         />
 
         <button
+          type="button"
           data-eativo="${esc(entregador.id)}"
-          class="px-2 py-2 text-xs font-bold rounded-lg border ${
-            entregador.ativo
-              ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-              : 'bg-green-50 text-green-700 border-green-200'
-          }"
+          style="${EST_BTN_ENT}${estiloPausar}"
         >
           ${entregador.ativo ? 'Pausar' : 'Ativar'}
         </button>
 
         <button
+          type="button"
           data-eremover="${esc(entregador.id)}"
           aria-label="Remover ${esc(entregador.nome)}"
-          class="px-2 py-2 text-xs font-bold rounded-lg border bg-red-50 text-red-700 border-red-200"
+          style="${EST_BTN_ENT}background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;"
         >
           Remover
         </button>
       </div>
-    `).join('')
-    : '<p class="text-sm text-gray-500">Nenhum entregador cadastrado.</p>';
+    `;
+    }).join('')
+    : '<p style="font-size:14px;color:#6b7280;">Nenhum entregador cadastrado.</p>';
 }
 
 async function cadastrarEntregador(evento) {
@@ -347,12 +386,8 @@ async function cadastrarEntregador(evento) {
     }]);
 
   if (error) {
-    tratarErro(
-      error,
-      /duplicate|unique/i.test(error.message || '')
-        ? 'Esse número já está cadastrado.'
-        : 'Erro ao cadastrar entregador.'
-    );
+    if (/duplicate|unique/i.test(error.message || '')) return aviso('Esse número já está cadastrado.');
+    tratarErro(error, 'Erro ao cadastrar entregador.');
     return;
   }
 
@@ -397,16 +432,26 @@ async function alterarCampoEntregador(elemento) {
       return;
     }
 
-    const resultado = await atualizar(
-      'entregadores',
-      entregador.id,
-      { whatsapp },
-      'WhatsApp atualizado'
-    );
+    const { data, error } = await sb
+      .from('entregadores')
+      .update({ whatsapp })
+      .eq('id', entregador.id)
+      .select()
+      .single();
 
-    if (resultado) entregador.whatsapp = resultado.whatsapp;
+    if (error) {
+      if (/duplicate|unique/i.test(error.message || '')) {
+        aviso('Esse número já está cadastrado em outro entregador.');
+      } else {
+        tratarErro(error, 'Erro ao atualizar o WhatsApp.');
+      }
+      elemento.value = formatarZapEntregador(entregador.whatsapp);
+      return;
+    }
 
+    entregador.whatsapp = data.whatsapp;
     elemento.value = formatarZapEntregador(entregador.whatsapp);
+    aviso('WhatsApp atualizado');
   }
 }
 
@@ -477,6 +522,8 @@ function configurarEventosEntregadores() {
 
 function configurarEventos() {
   $('btn-salvar-rest').addEventListener('click', salvarRestaurante);
+
+  criarBotaoToggleBairros();
 
   $('lista-bairros').addEventListener('change', (evento) => {
     if (
