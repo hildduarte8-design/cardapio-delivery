@@ -87,7 +87,8 @@ test('sucesso via Mapbox: calcula taxa, tipo e usa overview=false', async () => 
   const r = await servico.calcularFrete({ restaurante: LOJA, destino: PERTO });
   assert.equal(r.frete_tipo, FRETE_TIPO.ROTA_MAPBOX);
   assert.equal(r.distancia_km, 3.46);
-  assert.equal(r.taxa, 11.92); // 5,00 + 3,46 * 2,00
+  assert.equal(r.taxa, 12.00); // 5,00 + 3,46 * 2,00 = 11,92, sobe para 12,00 (passo de R$ 0,50)
+  assert.equal(r.taxa_centavos, 1200);
   assert.equal(r.estimado, false);
   assert.equal(r.requer_confirmacao, false);
   assert.equal(chamadas.mapbox.length, 1);
@@ -242,6 +243,18 @@ test('rota real maior que o raio também é recusada', async () => {
   );
 });
 
+test('estimativa Haversine (x fator de rua) acima do raio é recusada', async () => {
+  // PERTO: ~4,76 km em linha reta (passa no raio de 5), x 1,3 = ~6,19 km (estoura)
+  const { servico } = criar({
+    mapbox: () => resp({}, 503),
+    osrm: () => resp({}, 503),
+    bairro: async () => null,
+  });
+  await assert.rejects(
+    servico.calcularFrete({ restaurante: { ...LOJA, raio_max_km: 5 }, destino: PERTO, bairro: 'Inexistente' }),
+    (e) => e.code === 'FORA_DA_AREA' && e.status === 422,
+  );
+});
 // ---- 7. multi-tenant -------------------------------------------------------
 test('configurações de frete são isoladas por restaurante (mesma rota, taxas diferentes)', async () => {
   const { servico, chamadas } = criar({ mapbox: () => rotaOk(5000) });
