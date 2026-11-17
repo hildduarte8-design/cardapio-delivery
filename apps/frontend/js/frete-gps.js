@@ -144,7 +144,17 @@
       btn.disabled = true;
       btn.textContent = 'Buscando localização...';
       navigator.geolocation.getCurrentPosition(
-        async (pos) => {
+         async (pos) => {
+          // Precisão ruim (ex.: computador, que estima pelo IP): não usa o GPS, vale o bairro.
+          if (!(pos.coords.accuracy <= 300)) {
+            coords = null;
+            cot = null;
+            setInfo('Localização imprecisa. Escolha seu bairro; vale a taxa do bairro.');
+            atualizarTaxa();
+            btn.disabled = false;
+            btn.textContent = textoBotao();
+            return;
+          }
           coords = {
             lat: Number(pos.coords.latitude.toFixed(6)),
             lon: Number(pos.coords.longitude.toFixed(6))
