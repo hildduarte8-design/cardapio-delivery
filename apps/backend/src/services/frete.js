@@ -432,7 +432,8 @@ export function criarServicoFrete({ config, deps = {} }) {
     return t.length >= 3 && t.length <= 80 ? t : null;
   }
 
-  const centavosPorKm = (r, km) => r.baseCents + Math.round(km * r.porKmCents);
+  const PASSO_FRETE_CENTAVOS = 50; // frete por distância sempre sobe para o próximo R$ 0,50
+  const centavosPorKm = (r, km) => Math.ceil((r.baseCents + Math.round(km * r.porKmCents)) / PASSO_FRETE_CENTAVOS) * PASSO_FRETE_CENTAVOS;
   const emReais = (c) => c / 100;
 
   /**
