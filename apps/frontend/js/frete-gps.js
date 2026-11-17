@@ -149,7 +149,7 @@
           if (!(pos.coords.accuracy <= 300)) {
             coords = null;
             cot = null;
-            setInfo('Localização imprecisa. Escolha seu bairro; vale a taxa do bairro.');
+                        setInfo('Localização imprecisa (erro de ' + Math.round(pos.coords.accuracy) + ' m). Escolha seu bairro; vale a taxa do bairro.');
             atualizarTaxa();
             btn.disabled = false;
             btn.textContent = textoBotao();
