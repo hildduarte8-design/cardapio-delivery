@@ -301,16 +301,18 @@ test('o motor de frete recebe o NOME do bairro vindo do banco', async () => {
   assert.equal(frete.chamadas[0].bairro, 'Centro');
 });
 
-test('com coordenadas válidas, elas seguem para o motor de frete', async () => {
+test('com coordenadas válidas e frete por distância ativo, elas seguem para o motor de frete', async () => {
   const frete = freteFalso(9, 'rota_mapbox');
+  const tabelas = tabelasPadrao();
+  tabelas.restaurantes[0].frete_por_distancia = true;
   const { res } = await enviar(
     pedidoValido({ bairro_id: undefined, cliente_lat: -17.88, cliente_lon: -41.51 }),
-    { frete },
+    { frete, tabelas },
   );
   assert.equal(res.statusCode, 201);
   assert.deepEqual(frete.chamadas[0].destino, { lat: -17.88, lon: -41.51 });
 });
-
+  
 test('falha inesperada vira 500 genérico, sem vazar detalhes', async () => {
   const frete = async () => { throw new Error('senha do banco: 12345'); };
   const { res } = await enviar(pedidoValido(), { frete });
