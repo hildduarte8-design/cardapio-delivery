@@ -526,6 +526,9 @@ export function criarServicoFrete({ config, deps = {} }) {
     // 4: Haversine x fator de rua — estimativa, pede confirmação humana
     if (alvo && origem) {
       const km = arredondar2(linhaReta * cfg.fatorRua);
+          if (km > limiteKm) {
+      throw new FreteError('FORA_DA_AREA', 'Endereço fora da área de entrega.', 422, { limite_km: limiteKm });
+    }
       const centavos = centavosPorKm(r, km);
       tentativas.push({ provedor: 'haversine', resultado: 'ok' });
       contar(FRETE_TIPO.ESTIMADO);
