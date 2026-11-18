@@ -165,12 +165,12 @@
         if (op.value && semAcento(op.text) === alvo) { sel.value = op.value; break; }
       }
     }
-    const campo = $('cli-endereco');
-    if (campo && campo.value.trim() === '') {
-      campo.value = lugar.rua + ', ';
-      campo.focus();
-      const n = campo.value.length;
-      campo.setSelectionRange(n, n);
+        const rua = $('cli-rua');
+    if (rua && rua.value.trim() === '') {
+      rua.value = lugar.rua;
+      rua.dispatchEvent(new Event('input', { bubbles: true }));
+      const num = $('cli-numero');
+      if (num) num.focus();
     }
   }
 
