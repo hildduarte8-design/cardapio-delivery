@@ -230,8 +230,16 @@
         <input id="cli-nome" class="entrada" type="text" autocomplete="name" maxlength="80" />
         <label for="cli-fone" class="campo">WhatsApp (com DDD)</label>
         <input id="cli-fone" class="entrada" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16" />
-        <label for="cli-endereco" class="campo">Endereço (rua, número, complemento)</label>
-        <textarea id="cli-endereco" class="entrada" rows="2" maxlength="200"></textarea>
+                <div id="bloco-endereco">
+          <label for="cli-rua" class="campo">Rua</label>
+          <input id="cli-rua" class="entrada" type="text" autocomplete="address-line1" maxlength="100" />
+          <label for="cli-numero" class="campo">Número</label>
+          <input id="cli-numero" class="entrada" type="text" inputmode="numeric" autocomplete="off" maxlength="10" />
+          <label class="campo" style="display:flex;gap:8px;align-items:center"><input id="cli-sem-numero" type="checkbox" /> Sem número</label>
+          <label for="cli-compl" id="lbl-compl" class="campo">Complemento (apto, bloco, referência)</label>
+          <input id="cli-compl" class="entrada" type="text" maxlength="60" />
+          <input id="cli-endereco" type="hidden" />
+        </div>
       </section>
 
       <section class="bloco">
@@ -667,11 +675,37 @@
       $('total-carrinho').innerText = brl.format(calcularSubtotal() + (carrinho.length ? taxaAtual : 0));
     }
 
-    // ---------- Dados do cliente ----------
+        // ---------- Dados do cliente ----------
+    function montarEndereco() {
+      const rua = $('cli-rua').value.trim();
+      const num = $('cli-sem-numero').checked ? 's/n' : $('cli-numero').value.trim();
+      const compl = $('cli-compl').value.trim();
+      $('cli-endereco').value = [rua, num, compl].filter(Boolean).join(', ');
+    }
+
+    function ajustarSemNumero() {
+      const semNum = $('cli-sem-numero').checked;
+      $('cli-numero').disabled = semNum;
+      if (semNum) $('cli-numero').value = '';
+      $('lbl-compl').textContent = semNum
+        ? 'Complemento (obrigatório: descreva a casa)'
+        : 'Complemento (apto, bloco, referência)';
+      montarEndereco();
+    }
+
+    document.addEventListener('input', (e) => {
+      if (['cli-rua', 'cli-numero', 'cli-compl'].includes(e.target.id)) montarEndereco();
+    });
+    document.addEventListener('change', (e) => {
+      if (e.target.id === 'cli-sem-numero') ajustarSemNumero();
+    });
+
     function salvarDadosCliente() {
       try {
         localStorage.setItem('cliente', JSON.stringify({
-          nome: $('cli-nome').value, fone: $('cli-fone').value, endereco: $('cli-endereco').value
+          nome: $('cli-nome').value, fone: $('cli-fone').value, endereco: $('cli-endereco').value,
+          rua: $('cli-rua').value, numero: $('cli-numero').value,
+          semNumero: $('cli-sem-numero').checked, compl: $('cli-compl').value
         }));
       } catch (e) { /* storage indisponível */ }
     }
@@ -682,7 +716,16 @@
         if (!salvo) return;
         $('cli-nome').value = salvo.nome || '';
         $('cli-fone').value = salvo.fone || '';
-        $('cli-endereco').value = salvo.endereco || '';
+        if (salvo.rua !== undefined) {
+          $('cli-rua').value = salvo.rua || '';
+          $('cli-numero').value = salvo.numero || '';
+          $('cli-sem-numero').checked = !!salvo.semNumero;
+          $('cli-compl').value = salvo.compl || '';
+        } else {
+          // endereço salvo no formato antigo (texto único): vai para a Rua e o cliente completa
+          $('cli-rua').value = salvo.endereco || '';
+        }
+        ajustarSemNumero();
       } catch (e) { /* ignora */ }
     }
 
@@ -764,10 +807,10 @@
     const MSG_CAMPO = {
       NOME_INVALIDO: ['Confira o seu nome.', 'cli-nome'],
       WHATSAPP_INVALIDO: ['Confira o seu WhatsApp com DDD.', 'cli-fone'],
-      ENDERECO_INVALIDO: ['Confira o seu endereço de entrega.', 'cli-endereco'],
+      ENDERECO_INVALIDO: ['Confira o seu endereço de entrega.', 'cli-rua'],
       LOCALIZACAO_OBRIGATORIA: ['Escolha o seu bairro.', 'select-bairro'],
       TROCO_INVALIDO: ['O troco deve ser igual ou maior que o total do pedido.', 'cli-troco'],
-      FORA_DA_AREA: ['Esse endereço fica fora da nossa área de entrega.', 'cli-endereco'],
+      FORA_DA_AREA: ['Esse endereço fica fora da nossa área de entrega.', 'cli-rua'],
       SEM_DADOS_PARA_FRETE: [
         'Não conseguimos calcular a entrega. Confira e selecione seu bairro novamente.',
         'select-bairro'
@@ -1097,6 +1140,7 @@
       const select = $('select-bairro');
       const nome = $('cli-nome').value.trim();
       const fone = $('cli-fone').value.replace(/\D/g, '');
+            montarEndereco();
       const endereco = $('cli-endereco').value.trim();
       const optionSelecionada = select.options[select.selectedIndex];
 
@@ -1105,7 +1149,11 @@
       if (modoEntrega === 'entrega' && !select.value && !temGps) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
       if (nome.length < 2) return campoInvalido('cli-nome', 'Informe o seu nome.');
       if (fone.length < 10 || fone.length > 11) return campoInvalido('cli-fone', 'Informe um WhatsApp válido com DDD.');
-      if (modoEntrega === 'entrega' && endereco.length < 5) return campoInvalido('cli-endereco', 'Informe o seu endereço de entrega.');
+            if (modoEntrega === 'entrega') {
+        if ($('cli-rua').value.trim().length < 3) return campoInvalido('cli-rua', 'Informe a rua do seu endereço.');
+        if (!$('cli-sem-numero').checked && !$('cli-numero').value.trim()) return campoInvalido('cli-numero', 'Informe o número da casa ou marque "Sem número".');
+        if ($('cli-sem-numero').checked && $('cli-compl').value.trim().length < 3) return campoInvalido('cli-compl', 'Sem número: descreva a casa no complemento (cor, ponto de referência).');
+      }
 
       const forma = formaSelecionada();
       if (!forma) {
