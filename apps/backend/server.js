@@ -19,6 +19,7 @@ import { criarPedidoManual } from './src/controllers/pedidosManualController.js'
 import { avisarPagamento } from './src/controllers/pedidosAvisoController.js';
 import { statusPedido } from './src/controllers/pedidosStatusController.js';
 import { iniciarPushLojista } from './src/services/pushLojista.js';
+import { criarServicoGeocodificacao } from './src/services/geocodificacao.js';
 
 // ==========================================
 // 1. CONFIGURAÇÃO INICIAL
@@ -171,6 +172,47 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString()
   });
 
+});
+
+// ==========================================
+// 5B. GEOCODIFICAÇÃO REVERSA (confirmação do local)
+// ==========================================
+
+const geocodificacao = criarServicoGeocodificacao({
+  token: process.env.MAPBOX_TOKEN,
+  log: console
+});
+
+const limitadorGeocodificacao = criarLimitadorDeRequisicoes({
+  janelaMs: 60_000,
+  max: 10
+});
+
+app.post('/api/geocodificacao/reverso', limitadorGeocodificacao, async (req, res) => {
+  const { lat, lon } = req.body || {};
+  const la = Number(lat);
+  const lo = Number(lon);
+
+  if (
+    lat == null || lon == null ||
+    !Number.isFinite(la) || !Number.isFinite(lo) ||
+    Math.abs(la) > 90 || Math.abs(lo) > 180
+  ) {
+    return res.status(400).json({ sucesso: false, codigo: 'COORDENADAS_INVALIDAS' });
+  }
+
+  const lugar = await geocodificacao.reverso(la, lo);
+
+  if (!lugar) {
+    return res.json({ sucesso: false, codigo: 'SEM_NOME' });
+  }
+
+  return res.json({
+    sucesso: true,
+    rua: lugar.rua,
+    bairro: lugar.bairro,
+    cidade: lugar.cidade
+  });
 });
 
 // ==========================================
