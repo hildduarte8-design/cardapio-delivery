@@ -17,6 +17,10 @@
     #gps-info{font-size:13px;color:var(--suave);margin:6px 2px 0}
     #gps-info:empty{display:none}
     body.retirada #gps-box{display:none}
+        #gps-confirma{margin:8px 0 0;padding:12px;border:1px solid #E4DCCB;border-radius:14px;background:#fff}
+    #gps-confirma p{margin:0 0 10px;font-size:14px;font-weight:700}
+    #gps-confirma button{height:40px;border-radius:999px;padding:0 16px;font-weight:800;font-size:14px;margin-right:8px;border:1px solid #E4DCCB;background:#fff}
+    #gps-confirma .gps-sim{border-color:#111;background:#111;color:#fff}
   `;
   document.head.appendChild(css);
 
@@ -126,6 +130,75 @@
     aplicar(await cotar());
   });
 
+    /* ---- Confirmação do local ("Você está perto de...") ---- */
+  function semAcento(t) {
+    return String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+  }
+
+  async function buscarLugar(c) {
+    const ctl = new AbortController();
+    const lim = setTimeout(() => ctl.abort(), 8000);
+    try {
+      const resp = await fetch(`${API_BACKEND_URL}/api/geocodificacao/reverso`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: c.lat, lon: c.lon }),
+        signal: ctl.signal
+      });
+      const d = await resp.json().catch(() => ({}));
+      if (resp.ok && d && d.sucesso && d.rua) return { rua: d.rua, bairro: d.bairro || null };
+      return null;
+    } catch (e) {
+      return null;
+    } finally {
+      clearTimeout(lim);
+    }
+  }
+
+  /* Só preenche o bairro se o NOME for igual ao de um bairro da lista (sem acento/maiúscula).
+     O endereço só é preenchido se estiver vazio; o cursor fica no fim, esperando o número. */
+  function preencherLugar(lugar) {
+    const sel = $('select-bairro');
+    if (lugar.bairro && sel) {
+      const alvo = semAcento(lugar.bairro);
+      for (const op of sel.options) {
+        if (op.value && semAcento(op.text) === alvo) { sel.value = op.value; break; }
+      }
+    }
+    const campo = $('cli-endereco');
+    if (campo && campo.value.trim() === '') {
+      campo.value = lugar.rua + ', ';
+      campo.focus();
+      const n = campo.value.length;
+      campo.setSelectionRange(n, n);
+    }
+  }
+
+  function perguntarLocal(lugar) {
+    return new Promise((resolve) => {
+      const caixa = document.createElement('div');
+      caixa.id = 'gps-confirma';
+      const texto = document.createElement('p');
+      texto.textContent = 'Você está perto de: ' + lugar.rua + (lugar.bairro ? ', ' + lugar.bairro : '') + '. Está certo?';
+      const sim = document.createElement('button');
+      sim.type = 'button';
+      sim.className = 'gps-sim';
+      sim.textContent = 'Sim, está certo';
+      const nao = document.createElement('button');
+      nao.type = 'button';
+      nao.textContent = 'Não';
+      sim.addEventListener('click', () => { preencherLugar(lugar); caixa.remove(); resolve(true); });
+      nao.addEventListener('click', () => {
+        caixa.remove();
+        const s = $('select-bairro');
+        if (s) s.focus();
+        resolve(false);
+      });
+      caixa.append(texto, sim, nao);
+      $('gps-box').appendChild(caixa);
+    });
+  }
+   
   function montarBotao() {
     const meta = $('select-bairro').closest('.bloco').querySelector('.meta');
     if (!meta) return;
@@ -159,6 +232,27 @@
             lat: Number(pos.coords.latitude.toFixed(6)),
             lon: Number(pos.coords.longitude.toFixed(6))
           };
+                    btn.textContent = 'Buscando seu endereço...';
+          const lugar = await buscarLugar(coords);
+          if (!lugar) {
+            coords = null;
+            cot = null;
+            setInfo('Não conseguimos identificar o local. Escolha seu bairro; vale a taxa do bairro.');
+            atualizarTaxa();
+            btn.disabled = false;
+            btn.textContent = textoBotao();
+            return;
+          }
+          const confirmou = await perguntarLocal(lugar);
+          if (!confirmou) {
+            coords = null;
+            cot = null;
+            setInfo('Tudo bem! Escolha o seu bairro; vale a taxa do bairro.');
+            atualizarTaxa();
+            btn.disabled = false;
+            btn.textContent = textoBotao();
+            return;
+          }
           btn.textContent = 'Calculando frete...';
           aplicar(await cotar());
           btn.disabled = false;
