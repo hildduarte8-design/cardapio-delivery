@@ -534,7 +534,7 @@ let modoEntrega = 'entrega';
     #ret-info{font-size:14px;color:var(--suave);background:var(--fundo);border-radius:12px;padding:12px}
     body:not(.retirada) #ret-info{display:none}
     body.retirada label[for="select-bairro"], body.retirada #select-bairro, body.retirada #select-bairro ~ .meta,
-    body.retirada label[for="cli-endereco"], body.retirada #cli-endereco{display:none}
+        body.retirada #bloco-endereco{display:none}
   `;
   document.head.appendChild(s);
 
