@@ -694,10 +694,11 @@
     }
 
     document.addEventListener('input', (e) => {
-      if (['cli-rua', 'cli-numero', 'cli-compl'].includes(e.target.id)) montarEndereco();
+            if (['cli-rua', 'cli-numero', 'cli-compl'].includes(e.target.id)) montarEndereco();
+      if (['cli-nome', 'cli-fone', 'cli-rua', 'cli-numero', 'cli-compl'].includes(e.target.id)) salvarDadosCliente();
     });
     document.addEventListener('change', (e) => {
-      if (e.target.id === 'cli-sem-numero') ajustarSemNumero();
+            if (e.target.id === 'cli-sem-numero') { ajustarSemNumero(); salvarDadosCliente(); }
     });
 
     function salvarDadosCliente() {
