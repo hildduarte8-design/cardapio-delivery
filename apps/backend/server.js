@@ -1,4 +1,3 @@
-
 import 'dotenv/config';
 
 import express from 'express';
@@ -20,6 +19,12 @@ import { avisarPagamento } from './src/controllers/pedidosAvisoController.js';
 import { statusPedido } from './src/controllers/pedidosStatusController.js';
 import { iniciarPushLojista } from './src/services/pushLojista.js';
 import { criarServicoGeocodificacao } from './src/services/geocodificacao.js';
+import {
+  criarServicoRuas,
+  criarDbRuas,
+  middlewaresBuscaRuas,
+  CIDADE_IBGE_PADRAO
+} from './src/services/ruas.js';
 
 // ==========================================
 // 1. CONFIGURAÇÃO INICIAL
@@ -113,6 +118,38 @@ const corsOptions = {
 // O middleware também responde automaticamente ao preflight OPTIONS.
 
 app.use(cors(corsOptions));
+
+// ==========================================
+// 2B. BUSCA DE RUAS (autocomplete do endereço)
+// ==========================================
+
+// Fica ANTES do express.json global e do limitador geral (30/min) de propósito:
+// o autocomplete faz várias buscas por minuto e tem limitador, leitor de JSON
+// (limite de 2 KB) e tratamento de JSON inválido (400) próprios.
+// O código IBGE da cidade vem da variável CIDADE_IBGE (padrão: Teófilo Otoni).
+
+const cidadeIbgeRuas = /^\d{7}$/.test(process.env.CIDADE_IBGE || '')
+  ? process.env.CIDADE_IBGE
+  : CIDADE_IBGE_PADRAO;
+
+const servicoRuas = criarServicoRuas({
+  db: criarDbRuas(supabaseAdmin),
+  cidadeIbge: cidadeIbgeRuas
+});
+
+const limitadorBuscaRuas = criarLimitadorDeRequisicoes({
+  janelaMs: 60_000,
+  max: 60
+});
+
+app.post(
+  '/api/ruas/buscar',
+  middlewaresBuscaRuas({
+    servico: servicoRuas,
+    limitador: limitadorBuscaRuas,
+    parserJson: express.json({ limit: '2kb' })
+  })
+);
 
 // ==========================================
 // 3. MIDDLEWARES GERAIS
