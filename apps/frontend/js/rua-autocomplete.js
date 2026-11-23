@@ -192,10 +192,10 @@
         selBairro.value = s.bairro_id;
         selBairro.dispatchEvent(new Event('change', { bubbles: true })); // atualiza taxa e total
       } else if (jaEscolhido !== s.bairro_id) {
-        texto = 'Essa rua fica no bairro ' + s.bairro_exibicao + ', mas você escolheu outro. Confira o seu bairro acima.';
+        texto = 'Essa rua fica no bairro ' + s.bairro_exibicao + ', mas você escolheu outro. Confira o seu bairro abaixo.';
       }
     } else if (!jaEscolhido) {
-      texto = 'Escolha o seu bairro na lista acima.';
+      texto = 'Escolha o seu bairro na lista abaixo.';
     }
 
     mostrarAviso(texto);
