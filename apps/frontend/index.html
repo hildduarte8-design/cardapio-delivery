@@ -212,16 +212,8 @@
         <div id="lista-carrinho"></div>
       </section>
 
-      <section class="bloco">
+            <section class="bloco" id="sec-receber">
         <h2>Entrega</h2>
-        <label for="select-bairro" class="campo">Seu bairro</label>
-        <select id="select-bairro" class="entrada">
-          <option value="">Carregando bairros...</option>
-        </select>
-        <div class="meta">
-          <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
-          <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
-        </div>
       </section>
 
       <section class="bloco">
@@ -230,15 +222,28 @@
         <input id="cli-nome" class="entrada" type="text" autocomplete="name" maxlength="80" />
         <label for="cli-fone" class="campo">WhatsApp (com DDD)</label>
         <input id="cli-fone" class="entrada" type="tel" inputmode="numeric" autocomplete="tel" placeholder="33 99999-9999" maxlength="16" />
-                <div id="bloco-endereco">
-          <label for="cli-rua" class="campo">Rua</label>
-          <input id="cli-rua" class="entrada" type="text" autocomplete="address-line1" maxlength="100" />
+      </section>
+
+      <section class="bloco" id="sec-endereco">
+        <h2>Endereço de entrega</h2>
+        <div id="gps-slot"></div>
+        <div id="bloco-endereco">
+          <label for="cli-rua" class="campo">Rua ou avenida</label>
+          <input id="cli-rua" class="entrada" type="text" autocomplete="address-line1" maxlength="100" placeholder="Digite para procurar sua rua" />
           <label for="cli-numero" class="campo">Número</label>
           <input id="cli-numero" class="entrada" type="text" inputmode="numeric" autocomplete="off" maxlength="10" />
           <label class="campo" style="display:flex;gap:8px;align-items:center"><input id="cli-sem-numero" type="checkbox" /> Sem número</label>
           <label for="cli-compl" id="lbl-compl" class="campo">Complemento (apto, bloco, referência)</label>
           <input id="cli-compl" class="entrada" type="text" maxlength="60" />
           <input id="cli-endereco" type="hidden" />
+        </div>
+        <label for="select-bairro" class="campo" style="margin-top:12px">Seu bairro</label>
+        <select id="select-bairro" class="entrada">
+          <option value="">Carregando bairros...</option>
+        </select>
+        <div class="meta">
+          <span>Taxa de entrega: <strong id="val-taxa">R$ 0,00</strong></span>
+          <span>Tempo estimado: <strong id="val-tempo">-- min</strong></span>
         </div>
       </section>
 
@@ -1147,13 +1152,13 @@
 
       if (carrinho.length === 0) return avisar('Seu carrinho está vazio. Toque no + para adicionar itens.');
       const temGps = !!(window.freteGps && window.freteGps.payload().cliente_lat != null);
-      if (modoEntrega === 'entrega' && !select.value && !temGps) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
       if (nome.length < 2) return campoInvalido('cli-nome', 'Informe o seu nome.');
       if (fone.length < 10 || fone.length > 11) return campoInvalido('cli-fone', 'Informe um WhatsApp válido com DDD.');
             if (modoEntrega === 'entrega') {
         if ($('cli-rua').value.trim().length < 3) return campoInvalido('cli-rua', 'Informe a rua do seu endereço.');
         if (!$('cli-sem-numero').checked && !$('cli-numero').value.trim()) return campoInvalido('cli-numero', 'Informe o número da casa ou marque "Sem número".');
         if ($('cli-sem-numero').checked && $('cli-compl').value.trim().length < 3) return campoInvalido('cli-compl', 'Sem número: descreva a casa no complemento (cor, ponto de referência).');
+                      if (!select.value && !temGps) return campoInvalido('select-bairro', 'Escolha o seu bairro antes de enviar.');
       }
 
       const forma = formaSelecionada();
