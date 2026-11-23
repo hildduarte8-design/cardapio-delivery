@@ -12,7 +12,10 @@ const { criarControladorPedidos } = await import(
 const REST_ID = 'rest-1';
 const CHAVE = 'a1234567-b123-4123-8123-a12345678901';
 
-function criarBancoFalso() {
+function criarBancoFalso({
+  sincronizarBuscasIdempotencia = false,
+  erroRpc = null
+} = {}) {
   const tabelas = {
     pedidos: [],
     restaurantes: [
@@ -49,8 +52,14 @@ function criarBancoFalso() {
     ]
   };
 
-  const inseridos = [];
-  const chamadas = [];
+ const inseridos = [];
+ const chamadas = [];
+ let buscasIdempotencia = 0;
+ let liberarBuscasIdempotencia;
+
+ const barreiraBuscas = new Promise(resolve => {
+   liberarBuscasIdempotencia = resolve;
+ });
 
   function from(nomeTabela) {
     const filtros = [];
@@ -58,15 +67,20 @@ function criarBancoFalso() {
     let colunasSelect = '';
 
     const builder = {
+      temFiltroChave: false,
       select(colunas) {
         colunasSelect = colunas;
         return builder;
       },
 
-      eq(coluna, valor) {
-        filtros.push(linha => linha[coluna] === valor);
-        return builder;
-      },
+    eq(coluna, valor) {
+      if (coluna === 'chave_idempotencia') {
+        builder.temFiltroChave = true;
+      }
+
+     filtros.push(linha => linha[coluna] === valor);
+     return builder;
+     },
 
       in(coluna, valores) {
         filtros.push(linha => valores.includes(linha[coluna]));
@@ -84,11 +98,27 @@ function criarBancoFalso() {
         );
       },
 
-      async maybeSingle() {
+            async maybeSingle() {
         chamadas.push({
           tabela: nomeTabela,
           operacao: 'maybeSingle'
         });
+
+        // No teste de concorrência, força as duas consultas iniciais
+        // a terminarem antes de qualquer uma inserir o pedido.
+        if (
+          sincronizarBuscasIdempotencia &&
+          nomeTabela === 'pedidos' &&
+          builder.temFiltroChave
+        ) {
+          buscasIdempotencia++;
+
+          if (buscasIdempotencia === 2) {
+            liberarBuscasIdempotencia();
+          }
+
+          await barreiraBuscas;
+        }
 
         return {
           data: builder.filtrar()[0] || null,
@@ -98,6 +128,23 @@ function criarBancoFalso() {
 
       async single() {
         if (linhasInsert) {
+                    const dadosInsert = linhasInsert[0];
+
+          if (
+            dadosInsert.chave_idempotencia &&
+            tabelas[nomeTabela].some(pedido =>
+              pedido.restaurante_id === dadosInsert.restaurante_id &&
+              pedido.chave_idempotencia === dadosInsert.chave_idempotencia
+            )
+          ) {
+            return {
+              data: null,
+              error: {
+                code: '23505',
+                message: 'duplicate key simulada'
+              }
+            };
+          }
           const linha = {
             ...linhasInsert[0],
             id: `pedido-${inseridos.length + 1}`,
@@ -152,9 +199,13 @@ function criarBancoFalso() {
     tabelas,
     rpcChamadas,
 
-    async rpc(nome, parametros) {
+        async rpc(nome, parametros) {
       rpcChamadas.push({ nome, parametros });
-      return { data: null, error: null };
+
+      return {
+        data: null,
+        error: erroRpc
+      };
     }
   };
 }
@@ -371,4 +422,54 @@ test('taxa cotada diferente da taxa calculada continua exigindo confirmação', 
   assert.equal(res.statusCode, 409);
   assert.equal(res.body.codigo, 'FRETE_DIVERGENTE');
   assert.equal(db.inseridos.length, 0);
+});
+
+test('duas requisições simultâneas com a mesma chave geram apenas um pedido', async () => {
+  const db = criarBancoFalso({
+    sincronizarBuscasIdempotencia: true
+  });
+
+  const [primeira, segunda] = await Promise.all([
+    enviar(db, corpoPedido()),
+    enviar(db, corpoPedido())
+  ]);
+
+  const respostas = [primeira.res, segunda.res];
+
+  assert.equal(
+    respostas.filter(res => res.statusCode === 201).length,
+    1
+  );
+
+  assert.equal(
+    respostas.filter(res => res.statusCode === 200).length,
+    1
+  );
+
+  const respostaRecuperada = respostas.find(
+    res => res.statusCode === 200
+  );
+
+  assert.equal(respostaRecuperada.body.reutilizado, true);
+  assert.equal(db.inseridos.length, 1);
+  assert.equal(db.tabelas.pedidos.length, 1);
+});
+
+test('falha no registro de cliente e selo não invalida pedido já gravado', async () => {
+  const db = criarBancoFalso({
+    erroRpc: {
+      message: 'falha simulada no registro do selo'
+    }
+  });
+
+  const { res } = await enviar(db, corpoPedido());
+
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.sucesso, true);
+  assert.equal(db.inseridos.length, 1);
+  assert.equal(db.rpcChamadas.length, 1);
+  assert.equal(
+    db.rpcChamadas[0].nome,
+    'registrar_pedido_cliente'
+  );
 });
