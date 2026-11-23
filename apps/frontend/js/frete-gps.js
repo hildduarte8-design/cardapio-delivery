@@ -11,7 +11,7 @@
 
   const css = document.createElement('style');
   css.textContent = `
-    #gps-box{margin:10px 0 4px}
+    #gps-box{margin:10px 0 14px}
     #btn-gps{width:100%;height:44px;border-radius:999px;border:1px solid #E4DCCB;background:#fff;font-weight:800;font-size:15px}
     #btn-gps:disabled{opacity:.6}
     #gps-info{font-size:13px;color:var(--suave);margin:6px 2px 0}
@@ -159,7 +159,7 @@
      O endereço só é preenchido se estiver vazio; o cursor fica no fim, esperando o número. */
   function preencherLugar(lugar) {
     const sel = $('select-bairro');
-    if (lugar.bairro && sel) {
+    if (lugar.bairro && sel && !sel.value) {
       const alvo = semAcento(lugar.bairro);
       for (const op of sel.options) {
         if (op.value && semAcento(op.text) === alvo) { sel.value = op.value; break; }
@@ -200,12 +200,13 @@
   }
    
   function montarBotao() {
-    const meta = $('select-bairro').closest('.bloco').querySelector('.meta');
-    if (!meta) return;
+    const slot = $('gps-slot');
+    const meta = slot ? null : $('select-bairro').closest('.bloco').querySelector('.meta');
+    if (!slot && !meta) return;
     const box = document.createElement('div');
     box.id = 'gps-box';
     box.innerHTML = '<button type="button" id="btn-gps">Usar minha localização</button><p id="gps-info"></p>';
-    meta.after(box);
+    if (slot) slot.appendChild(box); else meta.after(box);
     btn = $('btn-gps');
     info = $('gps-info');
 
