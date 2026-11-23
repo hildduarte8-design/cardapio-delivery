@@ -534,11 +534,11 @@ let modoEntrega = 'entrega';
     #ret-info{font-size:14px;color:var(--suave);background:var(--fundo);border-radius:12px;padding:12px}
     body:not(.retirada) #ret-info{display:none}
     body.retirada label[for="select-bairro"], body.retirada #select-bairro, body.retirada #select-bairro ~ .meta,
-        body.retirada #bloco-endereco{display:none}
+       body.retirada #bloco-endereco, body.retirada #sec-endereco{display:none}
   `;
   document.head.appendChild(s);
 
-  const sec = $('select-bairro').closest('.bloco');
+  const sec = $('sec-receber') || $('select-bairro').closest('.bloco');
   const titulo = sec.querySelector('h2');
   titulo.textContent = 'Como receber?';
 
