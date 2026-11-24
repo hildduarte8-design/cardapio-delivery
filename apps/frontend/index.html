@@ -937,49 +937,62 @@ function salvarTentativaPendente(tentativa) {
 }
 
 function obterTentativaPendente() {
-  if (tentativaPendente) {
-    return { tentativa: tentativaPendente };
-  }
+  let salva = tentativaPendente;
 
-  let salva;
+  if (!salva) {
+    try {
+      salva = JSON.parse(
+        localStorage.getItem(chaveTentativaAtual()) || 'null'
+      );
+    } catch (e) {
+      // Não apagamos um registro que não conseguimos interpretar.
+      tentativaPendente = { invalida: true };
+      tentativaSalvaNoDispositivo = true;
 
-  try {
-    salva = JSON.parse(
-      localStorage.getItem(chaveTentativaAtual()) || 'null'
-    );
-  } catch (e) {
-    return { tentativa: null };
+      return {
+        tentativa: tentativaPendente,
+        invalida: true
+      };
+    }
   }
 
   if (!salva) {
     return { tentativa: null };
   }
 
+  tentativaPendente = salva;
+
   const criadaEm = Number(salva.criado_em);
 
-  if (
-    !Number.isFinite(criadaEm) ||
-    criadaEm <= 0 ||
-    Date.now() - criadaEm > VALIDADE_TENTATIVA_PEDIDO_MS
-  ) {
-    limparTentativaPendente();
-    return { tentativa: null, expirada: true };
-  }
+  const estruturaValida = (
+    typeof salva.slug === 'string' &&
+    typeof salva.restaurante_id === 'string' &&
+    typeof salva.chave_idempotencia === 'string' &&
+    salva.payload &&
+    typeof salva.payload === 'object' &&
+    salva.payload.chave_idempotencia === salva.chave_idempotencia
+  );
 
   if (
+    !estruturaValida ||
     salva.slug !== restauranteInfo.slug ||
     salva.restaurante_id !== restauranteInfo.id ||
-    !salva.payload ||
-    salva.payload.chave_idempotencia !== salva.chave_idempotencia
+    !Number.isFinite(criadaEm) ||
+    criadaEm <= 0
   ) {
-    limparTentativaPendente();
-    return { tentativa: null, invalida: true };
+    return {
+      tentativa: tentativaPendente,
+      invalida: true
+    };
   }
 
-  tentativaPendente = salva;
-  tentativaSalvaNoDispositivo = true;
+  const expirada =
+    Date.now() - criadaEm > VALIDADE_TENTATIVA_PEDIDO_MS;
 
-  return { tentativa: tentativaPendente };
+  return {
+    tentativa: tentativaPendente,
+    expirada
+  };
 }
 
 function limparTentativaPendente() {
@@ -993,22 +1006,43 @@ function limparTentativaPendente() {
   }
 }
 
-function mostrarRecuperacaoTentativa() {
-  if (!tentativaPendente) return;
+function mostrarRecuperacaoTentativa(resultado = obterTentativaPendente()) {
+  if (!tentativaPendente && !resultado.invalida) return;
 
   const avisoArmazenamento = tentativaSalvaNoDispositivo
     ? ''
     : '<p>Não foi possível guardar esta tentativa no armazenamento do aparelho. Não feche nem atualize esta página.</p>';
 
-  $('tela-estado').innerHTML = `
-    <div class="estado">
+  let conteudo;
+
+  if (resultado.expirada) {
+    conteudo = `
+      <h2>Esta tentativa expirou</h2>
+      <p>Já se passaram mais de 3 horas e não temos uma confirmação segura de que o pedido foi recebido.</p>
+      <p>Por segurança, não vamos reenviar automaticamente um pedido tão antigo.</p>
+      <p>Entre em contato com a loja para confirmar se o pedido foi registrado. Depois, se necessário, você poderá descartar esta tentativa.</p>
+    `;
+  } else if (resultado.invalida) {
+    conteudo = `
+      <h2>Não foi possível validar esta tentativa</h2>
+      <p>Os dados armazenados não correspondem com segurança à loja ou ao pedido atual.</p>
+      <p>Não vamos reenviar esses dados. Confira com a loja antes de descartar a tentativa.</p>
+    `;
+  } else {
+    conteudo = `
       <h2>Seu pedido ainda precisa ser confirmado</h2>
       <p>Não recebemos uma confirmação segura do servidor. Isso não significa necessariamente que o pedido falhou.</p>
       <p>Você pode reenviar a mesma tentativa. Usaremos a mesma chave para evitar registrar o pedido duas vezes.</p>
-      ${avisoArmazenamento}
       <button type="button" class="btn" data-reenviar-tentativa>
         Reenviar meu pedido
       </button>
+    `;
+  }
+
+  $('tela-estado').innerHTML = `
+    <div class="estado">
+      ${conteudo}
+      ${avisoArmazenamento}
       <button type="button" class="btn sec" data-descartar-tentativa style="margin-top:10px">
         Descartar tentativa
       </button>
@@ -1018,25 +1052,17 @@ function mostrarRecuperacaoTentativa() {
   alternarTelas('estado');
 }
 
+
 function restaurarTentativaPendente() {
   const resultado = obterTentativaPendente();
 
-  if (resultado.expirada) {
-    avisar('Uma tentativa anterior expirou após 3 horas. Confira seu pedido com a loja antes de fazer outro.');
+  if (!resultado.tentativa && !resultado.invalida) {
     return false;
   }
 
-  if (resultado.invalida) {
-    avisar('Uma tentativa anterior não pôde ser recuperada porque os dados da loja mudaram.');
-    return false;
-  }
-
-  if (!resultado.tentativa) return false;
-
-  mostrarRecuperacaoTentativa();
+  mostrarRecuperacaoTentativa(resultado);
   return true;
 }
-
     
     
        // ---------- Tela de sucesso + acompanhamento (unificada) ----------
