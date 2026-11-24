@@ -1622,7 +1622,10 @@ function restaurarTentativaPendente() {
         if (acompanhamentoSalvo) {
           limparTentativaPendente();
         } else {
-          avisar('Pedido confirmado, mas não conseguimos salvar o acompanhamento. Não feche esta página.');
+          avisar(
+            'Seu pedido foi confirmado! Porém, não conseguimos salvar o acompanhamento. Toque em "Fazer novo pedido" para recuperar o acompanhamento antes de iniciar outro pedido.',
+            'info'
+          );
         }
 
       } catch (error) {
