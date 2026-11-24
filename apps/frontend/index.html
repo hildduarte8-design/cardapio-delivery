@@ -1248,7 +1248,13 @@ function restaurarTentativaPendente() {
       timerAcompanhamento = setInterval(() => { if (!document.hidden) atualizarAcompanhamento(); }, 15000);
 
       if (window.timerRedirecionarZap) clearTimeout(window.timerRedirecionarZap);
-      if (ABRIR_WHATSAPP_AUTOMATICO && !restaurado && zapLoja && forma !== 'pix') {
+      if (
+        ABRIR_WHATSAPP_AUTOMATICO &&
+        !restaurado &&
+        pedidoSalvo &&
+        zapLoja &&
+        forma !== 'pix'
+     ) {
         window.timerRedirecionarZap = setTimeout(() => { window.location.href = zapLoja; }, 6000);
       }
       return pedidoSalvo;
