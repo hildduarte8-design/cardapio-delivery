@@ -1047,11 +1047,20 @@ function mostrarRecuperacaoTentativa(resultado = obterTentativaPendente()) {
       </button>
 
       <p style="margin-top:16px">
-        <strong>Prefere não tentar agora?</strong>
-      </p>
-      <p>Você pode aguardar um pouquinho e verificar com a loja se o pedido chegou. Assim evitamos que um segundo pedido seja registrado por engano.</p>
+      <p><strong>Prefere falar com alguém?</strong></p>
+      <p>Nossa equipe está à disposição para ajudar. Se tiver dúvidas sobre seu pedido, é só chamar pelo WhatsApp.</p>
 
-      <p>Se não conseguir falar com a loja agora, não tem problema. Você pode tentar novamente por aqui.</p>
+${(() => {
+  const primeiroNome = ($('cli-nome').value || '').trim().split(' ')[0];
+  const saudacao = primeiroNome ? `Olá! Sou ${primeiroNome}.` : 'Olá!';
+  const link = linkWhatsapp(
+    `${saudacao} Fiz um pedido pelo cardápio, mas não consegui confirmar se ele foi recebido pela loja. Poderiam verificar para mim, por favor?`
+  );
+
+  return link
+    ? `<a class="btn sec bloco-btn" href="${esc(link)}" target="_blank" rel="noopener noreferrer" style="margin-top:10px">Falar com a loja pelo WhatsApp</a>`
+    : '';
+})()}
     `;
   }
 
@@ -1061,7 +1070,7 @@ function mostrarRecuperacaoTentativa(resultado = obterTentativaPendente()) {
       ${avisoMensagem}
       ${avisoArmazenamento}
       <button type="button" class="btn sec" data-descartar-tentativa style="margin-top:10px">
-        Descartar tentativa
+        Voltar ao cardápio
       </button>
     </div>
   `;
