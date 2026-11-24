@@ -1323,9 +1323,17 @@ function restaurarTentativaPendente() {
 
     // "Fazer novo pedido" apaga o pedido guardado
     document.addEventListener('click', (e) => {
-            if (e.target.closest('[data-novo]')) {
+      if (e.target.closest('[data-novo]')) {
+        const pendente = obterTentativaPendente();
+
+        if (pendente.tentativa) {
+          mostrarRecuperacaoTentativa();
+          return;
+        }
+
         limparUltimoPedido();
         pararAcompanhamento();
+
         try {
           const u = new URL(window.location.href);
           u.searchParams.delete('p');
@@ -1333,6 +1341,7 @@ function restaurarTentativaPendente() {
         } catch (err) { /* ignora */ }
       }
     });
+
 
    
     // ---------- Envio Seguro do Pedido ao Backend (Zero-Trust) ----------
@@ -1667,19 +1676,66 @@ function restaurarTentativaPendente() {
       if (menos) alterarQtd(menos.dataset.menos, -1);
     });
 
+   
     document.addEventListener('click', (e) => {
       const retry = e.target.closest('[data-retry]');
       if (retry) {
         if (retry.dataset.retry === 'produtos') carregarProdutos();
-        else { alternarTelas('pedido'); init(); }
+        else {
+          alternarTelas('pedido');
+          init();
+        }
         return;
       }
+
+      // Reenvia exatamente o mesmo pedido, com a mesma chave.
+      const reenviar = e.target.closest('[data-reenviar-tentativa]');
+      if (reenviar) {
+        const resultado = obterTentativaPendente();
+
+        if (!resultado.tentativa) {
+          avisar('Não encontramos uma tentativa válida para reenviar.');
+          return;
+        }
+
+        enviarTentativa(resultado.tentativa);
+        return;
+      }
+
+      // Descarta a tentativa somente após confirmação do cliente.
+      const descartar = e.target.closest('[data-descartar-tentativa]');
+      if (descartar) {
+        const confirmar = confirm(
+          'Tem certeza de que deseja descartar esta tentativa?\n\n' +
+          'Se o pedido já tiver sido registrado pelo servidor, fazer outro poderá gerar duplicidade.\n\n' +
+          'Recomendamos confirmar com a loja pelo WhatsApp antes de continuar.'
+        );
+
+        if (!confirmar) return;
+
+        limparTentativaPendente();
+        alternarTelas('pedido');
+        avisar('Tentativa descartada. Confira os dados antes de enviar um novo pedido.');
+        return;
+      }
+
       const copiar = e.target.closest('[data-copiar]');
-      if (copiar) { copiarChave(copiar); return; }
+      if (copiar) {
+        copiarChave(copiar);
+        return;
+      }
+
       const avisoPix = e.target.closest('[data-avisar-pagamento]');
-      if (avisoPix) { avisarPagamento(avisoPix, avisoPix.dataset.avisarPagamento); return; }
+      if (avisoPix) {
+        avisarPagamento(avisoPix, avisoPix.dataset.avisarPagamento);
+        return;
+      }
+
       if (e.target.closest('[data-novo]')) {
-        if (window.timerRedirecionarZap) clearTimeout(window.timerRedirecionarZap);
+        if (window.timerRedirecionarZap) {
+          clearTimeout(window.timerRedirecionarZap);
+        }
+
         alternarTelas('pedido');
       }
     });
