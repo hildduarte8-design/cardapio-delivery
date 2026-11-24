@@ -1033,14 +1033,25 @@ function mostrarRecuperacaoTentativa(resultado = obterTentativaPendente()) {
       <p>Os dados armazenados não correspondem com segurança à loja ou ao pedido atual.</p>
       <p>Não vamos reenviar esses dados. Confira com a loja antes de descartar a tentativa.</p>
     `;
+
   } else {
     conteudo = `
-      <h2>Seu pedido ainda precisa ser confirmado</h2>
-      <p>Não recebemos uma confirmação segura do servidor. Isso não significa necessariamente que o pedido falhou.</p>
-      <p>Você pode reenviar a mesma tentativa. Usaremos a mesma chave para evitar registrar o pedido duas vezes.</p>
+      <h2>Estamos verificando seu pedido! 💛</h2>
+      <p>Não conseguimos confirmar se seu pedido foi recebido pela loja. Isso pode acontecer quando a conexão apresenta alguma instabilidade.</p>
+
+      <p><strong>Não precisa preencher tudo novamente!</strong></p>
+      <p>Toque no botão abaixo para tentarmos confirmar seu pedido novamente.</p>
+
       <button type="button" class="btn" data-reenviar-tentativa>
-        Reenviar meu pedido
+        Tentar novamente
       </button>
+
+      <p style="margin-top:16px">
+        <strong>Prefere não tentar agora?</strong>
+      </p>
+      <p>Você pode aguardar um pouquinho e verificar com a loja se o pedido chegou. Assim evitamos que um segundo pedido seja registrado por engano.</p>
+
+      <p>Se não conseguir falar com a loja agora, não tem problema. Você pode tentar novamente por aqui.</p>
     `;
   }
 
