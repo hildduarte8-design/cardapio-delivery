@@ -1732,6 +1732,13 @@ function restaurarTentativaPendente() {
       }
 
       if (e.target.closest('[data-novo]')) {
+        const pendente = obterTentativaPendente();
+
+        if (pendente.tentativa) {
+          mostrarRecuperacaoTentativa();
+          return;
+        }
+
         if (window.timerRedirecionarZap) {
           clearTimeout(window.timerRedirecionarZap);
         }
