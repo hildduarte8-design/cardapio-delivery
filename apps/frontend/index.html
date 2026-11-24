@@ -445,6 +445,10 @@
       restaurarDadosCliente();
       await Promise.all([carregarBairros(), carregarProdutos()]);
 
+      // Tentativa pendente tem prioridade sobre outros acompanhamentos
+      const recuperouTentativa = restaurarTentativaPendente();
+      if (recuperouTentativa) return;
+
       // Link de acompanhamento tem prioridade; se falhar, segue o fluxo de sempre
       const abriuPeloLink = await abrirPedidoPorLink();
       if (!abriuPeloLink) restaurarUltimoPedido();
@@ -1143,16 +1147,34 @@ function restaurarTentativaPendente() {
       const taxaNum = numero(ped.taxa_entrega);
       const total = brl.format(Number(ped.total) || 0);
 
+      let pedidoSalvo = restaurado;
+
       if (!restaurado) {
-        salvarUltimoPedido({ id: ped.id, total: ped.total, forma, troco: troco || null });
-        try {
-          const salvo = JSON.parse(localStorage.getItem(CHAVE_ULTIMO_PEDIDO) || 'null');
-          if (salvo && salvo.id === ped.id) {
-            salvo.subtotal = subtotalNum;
-            salvo.taxa_entrega = taxaNum;
-            localStorage.setItem(CHAVE_ULTIMO_PEDIDO, JSON.stringify(salvo));
+        pedidoSalvo = salvarUltimoPedido({
+          id: ped.id,
+          total: ped.total,
+          forma,
+          troco: troco || null
+        });
+
+        if (pedidoSalvo) {
+          try {
+            const salvo = JSON.parse(
+              localStorage.getItem(CHAVE_ULTIMO_PEDIDO) || 'null'
+            );
+
+            if (salvo && salvo.id === ped.id) {
+              salvo.subtotal = subtotalNum;
+              salvo.taxa_entrega = taxaNum;
+              localStorage.setItem(
+                CHAVE_ULTIMO_PEDIDO,
+                JSON.stringify(salvo)
+              );
+            }
+          } catch (e) {
+            pedidoSalvo = false;
           }
-        } catch (e) { /* storage indisponível */ }
+        }
       }
 
       const chave = restauranteInfo.chave_pix;
@@ -1198,6 +1220,7 @@ function restaurarTentativaPendente() {
       if (ABRIR_WHATSAPP_AUTOMATICO && !restaurado && zapLoja && forma !== 'pix') {
         window.timerRedirecionarZap = setTimeout(() => { window.location.href = zapLoja; }, 6000);
       }
+      return pedidoSalvo;
     }
 
         // ---------- Aviso "Já paguei" (Pix) ----------
@@ -1263,15 +1286,23 @@ function restaurarTentativaPendente() {
     const CHAVE_ULTIMO_PEDIDO = 'ultimoPedido';
     const VALIDADE_ULTIMO_PEDIDO_MS = 3 * 60 * 60 * 1000; // 3 horas
 
-    function salvarUltimoPedido(dados) {
-      try {
-        localStorage.setItem(CHAVE_ULTIMO_PEDIDO, JSON.stringify({
-          ...dados,
-          slug: restauranteInfo.slug,
-          salvoEm: Date.now()
-        }));
-      } catch (e) { /* storage indisponível */ }
-    }
+   function salvarUltimoPedido(dados) {
+  try {
+    localStorage.setItem(CHAVE_ULTIMO_PEDIDO, JSON.stringify({
+      ...dados,
+      slug: restauranteInfo.slug,
+      salvoEm: Date.now()
+    }));
+
+    const salvo = JSON.parse(
+      localStorage.getItem(CHAVE_ULTIMO_PEDIDO) || 'null'
+    );
+
+    return !!(salvo && salvo.id === dados.id);
+  } catch (e) {
+    return false;
+  }
+}
 
     function limparUltimoPedido() {
       try { localStorage.removeItem(CHAVE_ULTIMO_PEDIDO); } catch (e) { /* ignora */ }
