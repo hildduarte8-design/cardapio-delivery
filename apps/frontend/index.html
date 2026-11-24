@@ -870,6 +870,171 @@
       return avisar((r && r.erro) || 'Não foi possível enviar o pedido. Confira os dados e tente de novo.');
     }
 
+    
+// ---------- Proteção contra pedidos duplicados ----------
+const CHAVE_TENTATIVA_PREFIXO = 'pedidoPendente:';
+const VALIDADE_TENTATIVA_PEDIDO_MS = 3 * 60 * 60 * 1000; // 3 horas
+
+let tentativaPendente = null;
+let tentativaSalvaNoDispositivo = false;
+
+function chaveTentativaAtual() {
+  return CHAVE_TENTATIVA_PREFIXO + restauranteInfo.slug;
+}
+
+function gerarChaveIdempotencia() {
+  try {
+    if (window.crypto?.randomUUID) {
+      return window.crypto.randomUUID();
+    }
+
+    if (!window.crypto?.getRandomValues) {
+      return null;
+    }
+
+    const bytes = new Uint8Array(16);
+    window.crypto.getRandomValues(bytes);
+
+    // UUID versão 4
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    const hex = Array.from(bytes, b =>
+      b.toString(16).padStart(2, '0')
+    ).join('');
+
+    return [
+      hex.slice(0, 8),
+      hex.slice(8, 12),
+      hex.slice(12, 16),
+      hex.slice(16, 20),
+      hex.slice(20, 32)
+    ].join('-');
+  } catch (e) {
+    return null;
+  }
+}
+
+function salvarTentativaPendente(tentativa) {
+  tentativaPendente = tentativa;
+
+  try {
+    localStorage.setItem(
+      chaveTentativaAtual(),
+      JSON.stringify(tentativa)
+    );
+
+    tentativaSalvaNoDispositivo = true;
+    return true;
+  } catch (e) {
+    tentativaSalvaNoDispositivo = false;
+    return false;
+  }
+}
+
+function obterTentativaPendente() {
+  if (tentativaPendente) {
+    return { tentativa: tentativaPendente };
+  }
+
+  let salva;
+
+  try {
+    salva = JSON.parse(
+      localStorage.getItem(chaveTentativaAtual()) || 'null'
+    );
+  } catch (e) {
+    return { tentativa: null };
+  }
+
+  if (!salva) {
+    return { tentativa: null };
+  }
+
+  const criadaEm = Number(salva.criado_em);
+
+  if (
+    !Number.isFinite(criadaEm) ||
+    criadaEm <= 0 ||
+    Date.now() - criadaEm > VALIDADE_TENTATIVA_PEDIDO_MS
+  ) {
+    limparTentativaPendente();
+    return { tentativa: null, expirada: true };
+  }
+
+  if (
+    salva.slug !== restauranteInfo.slug ||
+    salva.restaurante_id !== restauranteInfo.id ||
+    !salva.payload ||
+    salva.payload.chave_idempotencia !== salva.chave_idempotencia
+  ) {
+    limparTentativaPendente();
+    return { tentativa: null, invalida: true };
+  }
+
+  tentativaPendente = salva;
+  tentativaSalvaNoDispositivo = true;
+
+  return { tentativa: tentativaPendente };
+}
+
+function limparTentativaPendente() {
+  tentativaPendente = null;
+  tentativaSalvaNoDispositivo = false;
+
+  try {
+    localStorage.removeItem(chaveTentativaAtual());
+  } catch (e) {
+    // A memória da página também é limpa.
+  }
+}
+
+function mostrarRecuperacaoTentativa() {
+  if (!tentativaPendente) return;
+
+  const avisoArmazenamento = tentativaSalvaNoDispositivo
+    ? ''
+    : '<p>Não foi possível guardar esta tentativa no armazenamento do aparelho. Não feche nem atualize esta página.</p>';
+
+  $('tela-estado').innerHTML = `
+    <div class="estado">
+      <h2>Seu pedido ainda precisa ser confirmado</h2>
+      <p>Não recebemos uma confirmação segura do servidor. Isso não significa necessariamente que o pedido falhou.</p>
+      <p>Você pode reenviar a mesma tentativa. Usaremos a mesma chave para evitar registrar o pedido duas vezes.</p>
+      ${avisoArmazenamento}
+      <button type="button" class="btn" data-reenviar-tentativa>
+        Reenviar meu pedido
+      </button>
+      <button type="button" class="btn sec" data-descartar-tentativa style="margin-top:10px">
+        Descartar tentativa
+      </button>
+    </div>
+  `;
+
+  alternarTelas('estado');
+}
+
+function restaurarTentativaPendente() {
+  const resultado = obterTentativaPendente();
+
+  if (resultado.expirada) {
+    avisar('Uma tentativa anterior expirou após 3 horas. Confira seu pedido com a loja antes de fazer outro.');
+    return false;
+  }
+
+  if (resultado.invalida) {
+    avisar('Uma tentativa anterior não pôde ser recuperada porque os dados da loja mudaram.');
+    return false;
+  }
+
+  if (!resultado.tentativa) return false;
+
+  mostrarRecuperacaoTentativa();
+  return true;
+}
+
+    
+    
        // ---------- Tela de sucesso + acompanhamento (unificada) ----------
     const ABRIR_WHATSAPP_AUTOMATICO = false; // true = abre o WhatsApp sozinho após 6 s (dinheiro/cartão)
     let timerAcompanhamento = null;
