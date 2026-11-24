@@ -1449,6 +1449,145 @@ function restaurarTentativaPendente() {
       }
     }
 
+    // ---------- Classificação de erros da idempotência ----------
+    function erroLiberaTentativa(status, resultado) {
+      const codigo = resultado && resultado.codigo;
+
+      if (
+        codigo === 'FRETE_DIVERGENTE' ||
+        codigo === 'IDEMPOTENCIA_CONFLITO'
+      ) {
+        return true;
+      }
+
+      if ([408, 425, 429].includes(status)) {
+        return false;
+      }
+
+      return status >= 400 && status < 500;
+    }
+
+    
+    // ---------- Envio e recuperação de tentativa idempotente ----------
+    async function enviarTentativa(tentativa) {
+      if (enviando) return;
+
+      if (!tentativa || !tentativa.payload || !tentativa.chave_idempotencia) {
+        return avisar('Não foi possível recuperar os dados desta tentativa.');
+      }
+
+      enviando = true;
+
+      const botao = $('btn-enviar');
+      botao.disabled = true;
+      botao.innerText = 'Enviando...';
+
+      const dica = setTimeout(() => {
+        botao.innerText = 'Aguarde...';
+        avisar('O servidor pode levar até 1 minuto. Não feche a página.', 'info');
+      }, 6000);
+
+      const controle = new AbortController();
+      const limite = setTimeout(() => controle.abort(), 70000);
+
+      try {
+        const resposta = await fetch(`${API_BACKEND_URL}/api/pedidos`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tentativa.payload),
+          signal: controle.signal
+        });
+
+        const resultado = await resposta.json().catch(() => ({}));
+
+        if (!resposta.ok) {
+          const codigo = resultado && resultado.codigo;
+
+          if (codigo === 'FRETE_DIVERGENTE') {
+            limparTentativaPendente();
+
+            if (
+              window.freteGps &&
+              await window.freteGps.tratarErro(resposta.status, resultado)
+            ) {
+              return;
+            }
+
+            await tratarErroPedido(resposta.status, resultado);
+            return;
+          }
+
+          if (codigo === 'IDEMPOTENCIA_CONFLITO') {
+            limparTentativaPendente();
+            alternarTelas('pedido');
+            avisar('Esta tentativa entrou em conflito. Confira os dados e envie o pedido novamente.');
+            return;
+          }
+
+          if (erroLiberaTentativa(resposta.status, resultado)) {
+            limparTentativaPendente();
+            await tratarErroPedido(resposta.status, resultado);
+          } else {
+            mostrarRecuperacaoTentativa();
+
+            if (resposta.status === 429) {
+              avisar('Muitas tentativas seguidas. Aguarde 1 minuto antes de reenviar.');
+            }
+          }
+
+          return;
+        }
+
+        if (
+          resultado?.sucesso !== true ||
+          !resultado?.pedido?.id ||
+          !Number.isFinite(Number(resultado?.pedido?.total))
+        ) {
+          mostrarRecuperacaoTentativa();
+          return;
+        }
+
+        salvarDadosCliente();
+        $('toast').classList.add('hidden');
+
+        const acompanhamentoSalvo = mostrarSucesso(
+          resultado.pedido,
+          tentativa.payload.forma_pagamento,
+          tentativa.payload.troco_para
+        );
+
+        carrinho = [];
+        renderCarrinho();
+
+        const select = $('select-bairro');
+        select.value = '';
+
+        if (window.freteGps) window.freteGps.limpar();
+
+        atualizarTaxa();
+        limparPagamento();
+
+        if (acompanhamentoSalvo) {
+          limparTentativaPendente();
+        } else {
+          avisar('Pedido confirmado, mas não conseguimos salvar o acompanhamento. Não feche esta página.');
+        }
+
+      } catch (error) {
+        console.error('[ERRO CONEXÃO]:', error);
+        mostrarRecuperacaoTentativa();
+
+      } finally {
+        clearTimeout(dica);
+        clearTimeout(limite);
+
+        enviando = false;
+        botao.disabled = false;
+        botao.innerText = 'Enviar Pedido';
+      }
+    }
+
+    
     // ---------- Eventos ----------
     $('select-bairro').addEventListener('change', atualizarTaxa);
     $('btn-enviar').addEventListener('click', finalizarPedido);
