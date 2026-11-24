@@ -941,9 +941,10 @@ function obterTentativaPendente() {
 
   if (!salva) {
     try {
-      salva = JSON.parse(
-        localStorage.getItem(chaveTentativaAtual()) || 'null'
+    salva = JSON.parse(
+      localStorage.getItem(chaveTentativaAtual()) || 'null'
       );
+   if (salva) tentativaSalvaNoDispositivo = true;
     } catch (e) {
       // Não apagamos um registro que não conseguimos interpretar.
       tentativaPendente = { invalida: true };
