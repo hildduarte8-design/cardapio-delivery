@@ -1719,17 +1719,21 @@ function restaurarTentativaPendente() {
 
       // Reenvia exatamente o mesmo pedido, com a mesma chave.
       const reenviar = e.target.closest('[data-reenviar-tentativa]');
-      if (reenviar) {
-        const resultado = obterTentativaPendente();
+if (reenviar) {
+  const resultado = obterTentativaPendente();
 
-        if (!resultado.tentativa) {
-          avisar('Não encontramos uma tentativa válida para reenviar.');
-          return;
-        }
+  if (
+    !resultado.tentativa ||
+    resultado.expirada ||
+    resultado.invalida
+  ) {
+    mostrarRecuperacaoTentativa(resultado);
+    return;
+  }
 
-        enviarTentativa(resultado.tentativa);
-        return;
-      }
+  enviarTentativa(resultado.tentativa);
+  return;
+}
 
       // Descarta a tentativa somente após confirmação do cliente.
       const descartar = e.target.closest('[data-descartar-tentativa]');
