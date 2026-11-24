@@ -1015,6 +1015,10 @@ function mostrarRecuperacaoTentativa(resultado = obterTentativaPendente()) {
 
   let conteudo;
 
+  const avisoMensagem = resultado.mensagem
+    ? `<p>${esc(resultado.mensagem)}</p>`
+    : '';
+
   if (resultado.expirada) {
     conteudo = `
       <h2>Esta tentativa expirou</h2>
@@ -1042,6 +1046,7 @@ function mostrarRecuperacaoTentativa(resultado = obterTentativaPendente()) {
   $('tela-estado').innerHTML = `
     <div class="estado">
       ${conteudo}
+      ${avisoMensagem}
       ${avisoArmazenamento}
       <button type="button" class="btn sec" data-descartar-tentativa style="margin-top:10px">
         Descartar tentativa
@@ -1605,13 +1610,16 @@ function restaurarTentativaPendente() {
           if (erroLiberaTentativa(resposta.status, resultado)) {
             limparTentativaPendente();
             await tratarErroPedido(resposta.status, resultado);
-          } else {
-            mostrarRecuperacaoTentativa();
-
-            if (resposta.status === 429) {
-              avisar('Muitas tentativas seguidas. Aguarde 1 minuto antes de reenviar.');
-            }
-          }
+           } else {
+        if (resposta.status === 429) {
+          mostrarRecuperacaoTentativa({
+            tentativa: tentativaPendente,
+            mensagem: 'O servidor recebeu muitas tentativas. Aguarde 1 minuto antes de reenviar.'
+          });
+        } else {
+          mostrarRecuperacaoTentativa();
+        }
+      }
 
           return;
         }
