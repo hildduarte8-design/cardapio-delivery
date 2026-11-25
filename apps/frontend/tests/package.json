@@ -1,0 +1,13 @@
+{
+  "name": "cardapio-frontend-tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Testes do frontend (isolados: não entram no build da Vercel nem no backend da Render)",
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  }
+}

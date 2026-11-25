@@ -1410,6 +1410,16 @@ function restaurarTentativaPendente() {
     async function finalizarPedido() {
       if (enviando) return;
 
+      if (
+        modoEntrega === 'entrega' &&
+        window.freteGps &&
+        window.freteGps.bloqueado()
+      ) {
+        avisar(window.freteGps.mensagemBloqueio());
+        window.freteGps.sincronizarBotaoPedido();
+        return;
+      }
+
       // Impede criar outro pedido enquanto houver tentativa não resolvida.
       const pendente = obterTentativaPendente();
 
@@ -1588,6 +1598,17 @@ function restaurarTentativaPendente() {
         return avisar('Não foi possível recuperar os dados desta tentativa.');
       }
 
+      if (
+        tentativa.payload.tipo_atendimento !== 'retirada' &&
+        window.freteGps &&
+        window.freteGps.bloqueado()
+      ) {
+        alternarTelas('pedido');
+        avisar(window.freteGps.mensagemBloqueio());
+        window.freteGps.sincronizarBotaoPedido();
+        return;
+      }
+
       enviando = true;
 
       const botao = $('btn-enviar');
@@ -1615,12 +1636,12 @@ function restaurarTentativaPendente() {
         if (!resposta.ok) {
           const codigo = resultado && resultado.codigo;
 
-          if (codigo === 'FRETE_DIVERGENTE') {
+          if (codigo === 'FRETE_DIVERGENTE' || codigo === 'FORA_DA_AREA') {
             limparTentativaPendente();
 
             if (
               window.freteGps &&
-              await window.freteGps.tratarErro(resposta.status, resultado)
+              await window.freteGps.tratarErro(resposta.status, resultado, tentativa.payload)
             ) {
               return;
             }
@@ -1700,8 +1721,17 @@ function restaurarTentativaPendente() {
         clearTimeout(limite);
 
         enviando = false;
-        botao.disabled = false;
-        botao.innerText = 'Enviar Pedido';
+
+        if (
+          window.freteGps &&
+          window.freteGps.bloqueado() &&
+          modoEntrega === 'entrega'
+        ) {
+          window.freteGps.sincronizarBotaoPedido();
+        } else {
+          botao.disabled = false;
+          botao.innerText = 'Enviar Pedido';
+        }
       }
     }
 
