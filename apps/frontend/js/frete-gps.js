@@ -331,7 +331,7 @@
       return cot ? { cliente_lat: cot.lat, cliente_lon: cot.lon, taxa_cotada: cot.taxa } : {};
     },
     bloqueado() {
-      return estaBloqueado();
+      return foraDaArea;
     },
     mensagemBloqueio() {
       return mensagemForaDaArea();
