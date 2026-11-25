@@ -5,6 +5,8 @@
 (function () {
   let cot = null;     // { taxa, km, estimado, requer, lat, lon }
   let coords = null;  // { lat, lon } vindo do GPS
+  let foraDaArea = false;
+  let limiteForaDaArea = null;
   let seq = 0;        // descarta respostas antigas
   let btn = null;
   let info = null;
@@ -30,6 +32,33 @@
 
   function textoBotao() {
     return cot ? 'Atualizar minha localização' : 'Usar minha localização';
+  }
+
+  function estaBloqueado() {
+    return foraDaArea && (typeof modoEntrega === 'undefined' || modoEntrega === 'entrega');
+  }
+
+  function mensagemForaDaArea() {
+    const limite = Number(limiteForaDaArea);
+    const ate = Number.isFinite(limite) && limite > 0
+      ? ' (limite de ' + limite.toLocaleString('pt-BR') + ' km)'
+      : '';
+    return 'Este endereço está fora da área de entrega' + ate + '. Escolha outro endereço ou selecione retirada.';
+  }
+
+  function sincronizarBotaoPedido() {
+    const botao = $('btn-enviar');
+    if (!botao) return;
+
+    if (estaBloqueado()) {
+      botao.disabled = true;
+      botao.dataset.bloqueioGps = '1';
+      botao.textContent = 'Fora da área de entrega';
+    } else if (botao.dataset.bloqueioGps === '1') {
+      delete botao.dataset.bloqueioGps;
+      botao.disabled = false;
+      botao.textContent = 'Enviar Pedido';
+    }
   }
 
   function lerTaxa(d) {
@@ -91,29 +120,45 @@
   function aplicar(res) {
     if (res.obsoleta) return;
     if (res.ok) {
+      foraDaArea = false;
+      limiteForaDaArea = null;
       cot = { taxa: res.taxa, km: res.km, estimado: res.estimado, requer: res.requer, lat: res.lat, lon: res.lon };
     } else if (res.fora) {
+      foraDaArea = true;
+      limiteForaDaArea = res.limite ?? null;
       cot = null;
-      coords = null;
-      const lim = Number(res.limite);
-      const ate = Number.isFinite(lim) && lim > 0 ? ' (até ' + lim.toLocaleString('pt-BR') + ' km)' : '';
-      setInfo('Pela sua localização, você está fora da área de entrega' + ate + '. Chame a loja no WhatsApp antes de enviar o pedido.');
-      avisar('Pela sua localização, você está fora da área de entrega' + ate + '. Chame a loja no WhatsApp antes de enviar o pedido.');
+      setInfo(mensagemForaDaArea());
+      avisar(mensagemForaDaArea());
     } else {
       cot = null;
-      setInfo('Não conseguimos calcular pela localização. Vale a taxa do bairro.');
+      if (!foraDaArea) {
+        setInfo('Não conseguimos calcular pela localização. Vale a taxa do bairro.');
+      }
     }
     atualizarTaxa();
+    sincronizarBotaoPedido();
   }
 
   /* Por cima do atualizarTaxa (que já vem embrulhado pelo vitrine-adicionais.js) */
   const taxaBase = atualizarTaxa;
   atualizarTaxa = function () {
     taxaBase();
-    if (modoEntrega !== 'entrega' || !cot) return;
+    if (modoEntrega === 'entrega' && foraDaArea) {
+      taxaAtual = 0;
+      $('val-taxa').innerText = 'Fora da área';
+      atualizarTotal();
+      setInfo(mensagemForaDaArea());
+      sincronizarBotaoPedido();
+      return;
+    }
+    if (modoEntrega !== 'entrega' || !cot) {
+      sincronizarBotaoPedido();
+      return;
+    }
     taxaAtual = cot.taxa;
     $('val-taxa').innerText = brl.format(cot.taxa) + (cot.requer ? ' (a confirmar)' : '');
     atualizarTotal();
+    sincronizarBotaoPedido();
     const dist = cot.km !== null
       ? cot.km.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' km'
       : '';
@@ -285,28 +330,61 @@
     payload() {
       return cot ? { cliente_lat: cot.lat, cliente_lon: cot.lon, taxa_cotada: cot.taxa } : {};
     },
+    bloqueado() {
+      return estaBloqueado();
+    },
+    mensagemBloqueio() {
+      return mensagemForaDaArea();
+    },
+    sincronizarBotaoPedido,
     /* Chamar depois de um pedido enviado com sucesso */
     limpar() {
       seq++;
       cot = null;
       coords = null;
+      foraDaArea = false;
+      limiteForaDaArea = null;
       setInfo('');
       if (btn) { btn.disabled = false; btn.textContent = textoBotao(); }
+      atualizarTaxa();
+      sincronizarBotaoPedido();
     },
     /* Trata o 409 FRETE_DIVERGENTE. Devolve true se tratou. */
-    async tratarErro(status, r) {
+    async tratarErro(status, r, payload) {
+      if (status === 422 && r && r.codigo === 'FORA_DA_AREA') {
+        const lat = Number(payload && payload.cliente_lat);
+        const lon = Number(payload && payload.cliente_lon);
+        if (Number.isFinite(lat) && Number.isFinite(lon)) {
+          coords = { lat, lon };
+        }
+        foraDaArea = true;
+        limiteForaDaArea = r.detalhes && r.detalhes.limite_km;
+        cot = null;
+        setInfo(mensagemForaDaArea());
+        atualizarTaxa();
+        sincronizarBotaoPedido();
+        avisar(mensagemForaDaArea());
+        return true;
+      }
+
       if (!(status === 409 && r && r.codigo === 'FRETE_DIVERGENTE')) return false;
+
       const antes = cot ? cot.taxa : null;
       const res = await cotar();
-      if (res.ok && antes !== null && Math.round(res.taxa * 100) !== Math.round(antes * 100)) {
+
+      if (res.ok) {
         aplicar(res);
-        avisar('O frete foi atualizado para ' + brl.format(res.taxa) + '. Confira o total e toque em Enviar Pedido para confirmar.');
+        if (antes === null || Math.round(res.taxa * 100) !== Math.round(antes * 100)) {
+          avisar('O frete foi atualizado para ' + brl.format(res.taxa) + '. Confira o total e envie o pedido novamente.');
+        }
+      } else if (res.fora) {
+        aplicar(res);
       } else {
         cot = null;
-        coords = null;
-        setInfo('Não conseguimos confirmar o frete pela localização. Vale a taxa do bairro.');
+        if (!foraDaArea) {
+          setInfo('Não conseguimos confirmar o frete pela localização. Vale a taxa do bairro.');
+        }
         atualizarTaxa();
-        avisar('Não conseguimos confirmar o frete pela localização. Vale a taxa do bairro: ' + brl.format(taxaAtual) + '. Confira o total e envie de novo.');
       }
       return true;
     }
