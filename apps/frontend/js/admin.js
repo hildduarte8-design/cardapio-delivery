@@ -47,13 +47,36 @@ function mostrarAba(nome) {
   if (nome === 'custos') abrirAbaCustos();
 }
 
+function alternarDrawer(abrir) {
+  const sidebar = $('sidebar-admin');
+  const backdrop = $('sidebar-backdrop');
+  const btnMenu = $('btn-menu-mobile');
+  if (!sidebar || !backdrop) return;
+  const deveAbrir = typeof abrir === 'boolean' ? abrir : !sidebar.classList.contains('drawer-aberta');
+  sidebar.classList.toggle('drawer-aberta', deveAbrir);
+  backdrop.classList.toggle('hidden', !deveAbrir);
+  if (btnMenu) btnMenu.setAttribute('aria-expanded', String(deveAbrir));
+}
+
 function configurarNavegacao() {
+  const btnMenu = $('btn-menu-mobile');
+  const btnFechar = $('btn-fechar-drawer');
+  const backdrop = $('sidebar-backdrop');
+
+  if (btnMenu) btnMenu.addEventListener('click', () => alternarDrawer(true));
+  if (btnFechar) btnFechar.addEventListener('click', () => alternarDrawer(false));
+  if (backdrop) backdrop.addEventListener('click', () => alternarDrawer(false));
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') alternarDrawer(false);
+  });
+
   // Escuta o painel inteiro: vale para a barra, para os atalhos da Gestão e para o "‹ Gestão"
   $('tela-admin').addEventListener('click', (evento) => {
     const botao = evento.target.closest('[data-aba]');
     if (!botao) return;
 
     mostrarAba(botao.dataset.aba);
+    alternarDrawer(false);
     window.scrollTo({ top: 0, behavior: 'instant' });
   });
 }
