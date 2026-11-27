@@ -206,3 +206,82 @@ body{background:#fff8f5}
 #app-container .opcao small{display:block;font:400 14px Manrope,sans-serif;color:var(--vs-muted)}
 #app-container .opcao:has(input:checked){background:#ffdbcf;box-shadow:none}
 #app-container .opcao:has(input:checked) small{color:#822801}
+
+/* ===== Novo cabeçalho da loja ===== */
+
+/* Área verde mais compacta */
+#app-container .vs-topo {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 -16px 16px;
+  padding: 0 0 16px;
+  border: 0;
+  border-radius: 0 0 20px 20px;
+  overflow: hidden;
+  background: linear-gradient(
+    135deg,
+    var(--vs-primary),
+    color-mix(in srgb, var(--vs-primary) 68%, #000)
+  );
+  box-shadow: var(--vs-shadow);
+}
+
+/* Banner de ponta a ponta */
+#app-container #area-banner {
+  order: 1;
+  width: 100%;
+  margin: 0;
+}
+
+#app-container #area-banner .banner {
+  display: block;
+  width: 100%;
+  height: clamp(150px, 42vw, 190px);
+  margin: 0;
+  border-radius: 0;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Identidade da loja */
+#app-container .vs-loja {
+  order: 2;
+  position: relative;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 42px 16px 0;
+  text-align: center;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Logo atravessando a divisão entre banner e verde */
+#app-container .vs-logo {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 72px;
+  height: 72px;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+  background: #fff;
+}
+
+#app-container .vs-loja h1 {
+  margin: 0;
+  font: 600 25px/1.2 Fraunces, Georgia, serif;
+  color: #fff;
+}
+
+#app-container .vs-loja p {
+  margin: 5px 0 0;
+  font: 400 13px Manrope, sans-serif;
+  color: rgba(255, 255, 255, .9);
+}

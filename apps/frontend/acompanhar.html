@@ -1,46 +1,562 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#fbf7f0">
   <title>Acompanhar pedido</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
+
   <style>
-    :root { color-scheme: dark; }
-    * { box-sizing: border-box; }
+    :root {
+      color-scheme: light;
+      --fundo: #fbf7f0;
+      --superficie: #fff;
+      --texto: #302820;
+      --suave: #82776b;
+      --borda: #eee5d9;
+      --cor: #c96d43;
+      --cor-clara: #f8e8de;
+      --verde: #278052;
+      --verde-claro: #e7f3eb;
+      --vermelho: #bd4545;
+      --vermelho-claro: #fbeaea;
+      --sombra: 0 5px 24px rgba(67, 48, 30, .055);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      margin: 0; min-height: 100vh; padding: 24px 16px;
-      background: #0f0d0a; color: #f5efe6;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      display: flex; justify-content: center;
+      margin: 0;
+      min-height: 100vh;
+      padding: 28px 16px 40px;
+      background: var(--fundo);
+      color: var(--texto);
+      font-family: 'Manrope', sans-serif;
+      -webkit-font-smoothing: antialiased;
     }
-    main { width: 100%; max-width: 440px; }
-    .cartao { background: #1a1612; border: 1px solid #2e2720; border-radius: 16px; padding: 22px 18px; }
-    .codigo { font-size: 13px; color: #a89c8a; margin: 0 0 6px; }
-    h1 { font-size: 22px; margin: 0 0 8px; line-height: 1.25; }
-    .descricao { margin: 0 0 22px; color: #cfc4b3; line-height: 1.45; }
-    ol { list-style: none; margin: 0; padding: 0; }
-    li { display: flex; align-items: center; gap: 12px; padding: 10px 0; color: #7d725f; }
-    li .bola {
-      width: 26px; height: 26px; border-radius: 50%; flex: none;
-      border: 2px solid #3a3228; display: flex; align-items: center;
-      justify-content: center; font-size: 14px; font-weight: 700;
+
+    button {
+      font: inherit;
     }
-    li.feito { color: #cfc4b3; }
-    li.feito .bola { background: #2f7d4f; border-color: #2f7d4f; color: #fff; }
-    li.atual { color: #fff; font-weight: 700; }
-    li.atual .bola { border-color: #e0a526; background: #e0a526; color: #1a1612; }
-    .cancelado h1 { color: #ef7b7b; }
-    .rodape { margin: 16px 0 0; text-align: center; font-size: 13px; color: #a89c8a; min-height: 18px; }
-    .estado { text-align: center; padding: 30px 10px; }
+
+    .pagina {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
+
+    .cabecalho {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 22px;
+    }
+
+    .marca {
+      width: 42px;
+      height: 42px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: var(--cor);
+      color: #fff;
+    }
+
+    .marca .material-symbols-outlined {
+      font-size: 25px;
+    }
+
+    .cabecalho-texto {
+      min-width: 0;
+    }
+
+    .cabecalho-texto strong {
+      display: block;
+      font-family: 'Fraunces', serif;
+      font-size: 21px;
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .cabecalho-texto span {
+      display: block;
+      margin-top: 3px;
+      color: var(--suave);
+      font-size: 12px;
+    }
+
+    .cartao {
+      background: var(--superficie);
+      border: 1px solid var(--borda);
+      border-radius: 22px;
+      box-shadow: var(--sombra);
+      padding: 22px;
+      margin-bottom: 15px;
+    }
+
+    .confirmacao {
+      position: relative;
+      overflow: hidden;
+      padding: 25px 22px 22px;
+      background: linear-gradient(145deg, #fff 0%, #fffaf5 100%);
+    }
+
+    .confirmacao::after {
+      content: "";
+      position: absolute;
+      width: 150px;
+      height: 150px;
+      right: -65px;
+      top: -75px;
+      border-radius: 50%;
+      background: var(--cor-clara);
+      opacity: .65;
+      pointer-events: none;
+    }
+
+    .selo {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 11px;
+      border-radius: 30px;
+      background: var(--verde-claro);
+      color: var(--verde);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .035em;
+      text-transform: uppercase;
+    }
+
+    .selo .material-symbols-outlined {
+      font-size: 16px;
+    }
+
+    .selo.cancelado {
+      background: var(--vermelho-claro);
+      color: var(--vermelho);
+    }
+
+    .codigo {
+      margin: 18px 0 5px;
+      color: var(--suave);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .07em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-family: 'Fraunces', serif;
+      font-size: clamp(25px, 6vw, 31px);
+      font-weight: 600;
+      line-height: 1.15;
+    }
+
+    .descricao {
+      margin: 9px 0 0;
+      color: var(--suave);
+      font-size: 13px;
+      line-height: 1.65;
+    }
+
+    .previsao {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      margin-top: 21px;
+      padding: 14px;
+      border: 1px solid #f0dfd2;
+      border-radius: 15px;
+      background: #fff8f2;
+    }
+
+    .previsao-icone {
+      width: 42px;
+      height: 42px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--cor-clara);
+      color: var(--cor);
+    }
+
+    .previsao-icone .material-symbols-outlined {
+      font-size: 24px;
+    }
+
+    .previsao-texto {
+      min-width: 0;
+    }
+
+    .previsao-texto small {
+      display: block;
+      color: var(--suave);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .previsao-texto strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .secao-titulo {
+      margin: 0 0 18px;
+      font-family: 'Fraunces', serif;
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .timeline {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+
+    .etapa {
+      position: relative;
+      display: flex;
+      gap: 14px;
+      min-height: 66px;
+      color: #a69b8e;
+    }
+
+    .etapa:last-child {
+      min-height: 34px;
+    }
+
+    .etapa:not(:last-child)::before {
+      content: "";
+      position: absolute;
+      top: 31px;
+      left: 14px;
+      bottom: -2px;
+      width: 2px;
+      background: var(--borda);
+    }
+
+    .etapa.feito:not(:last-child)::before {
+      background: #a8d3b8;
+    }
+
+    .etapa.atual:not(:last-child)::before {
+      background: linear-gradient(to bottom, var(--cor) 0%, var(--borda) 100%);
+    }
+
+    .etapa-icone {
+      position: relative;
+      z-index: 1;
+      width: 30px;
+      height: 30px;
+      flex: none;
+      display: grid;
+      place-items: center;
+      border: 2px solid var(--borda);
+      border-radius: 50%;
+      background: #fff;
+      color: #a69b8e;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .etapa.feito {
+      color: var(--texto);
+    }
+
+    .etapa.feito .etapa-icone {
+      border-color: var(--verde);
+      background: var(--verde);
+      color: #fff;
+    }
+
+    .etapa.atual {
+      color: var(--texto);
+    }
+
+    .etapa.atual .etapa-icone {
+      border-color: var(--cor);
+      background: var(--cor);
+      color: #fff;
+      box-shadow: 0 0 0 5px var(--cor-clara);
+    }
+
+    .etapa-conteudo {
+      padding: 5px 0 20px;
+    }
+
+    .etapa-conteudo strong {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .etapa-conteudo small {
+      display: block;
+      margin-top: 3px;
+      color: var(--suave);
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    .etapa:not(.feito):not(.atual) .etapa-conteudo small {
+      display: none;
+    }
+
+    .financeiro {
+      display: grid;
+      gap: 0;
+    }
+
+    .linha {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 15px;
+      padding: 11px 0;
+      border-bottom: 1px solid var(--borda);
+      font-size: 12px;
+    }
+
+    .linha:last-child {
+      border-bottom: 0;
+    }
+
+    .linha span:first-child {
+      color: var(--suave);
+    }
+
+    .linha strong {
+      font-size: 12px;
+      font-weight: 700;
+      text-align: right;
+    }
+
+    .linha.total {
+      margin-top: 3px;
+      padding-top: 15px;
+    }
+
+    .linha.total span:first-child {
+      color: var(--texto);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
+    .linha.total strong {
+      color: var(--cor);
+      font-size: 19px;
+      font-weight: 800;
+    }
+
+    .pagamento {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      margin-top: 15px;
+      padding: 13px;
+      border-radius: 14px;
+      background: #faf7f2;
+    }
+
+    .pagamento-icone {
+      width: 36px;
+      height: 36px;
+      display: grid;
+      place-items: center;
+      flex: none;
+      border-radius: 11px;
+      background: #fff;
+      color: var(--cor);
+    }
+
+    .pagamento-icone .material-symbols-outlined {
+      font-size: 21px;
+    }
+
+    .pagamento small {
+      display: block;
+      color: var(--suave);
+      font-size: 10px;
+    }
+
+    .pagamento strong {
+      display: block;
+      margin-top: 2px;
+      font-size: 12px;
+    }
+
+    .mensagem-final {
+      padding: 5px 10px 0;
+      color: var(--suave);
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+
+    .rodape {
+      min-height: 20px;
+      margin: 14px 0 0;
+      color: var(--suave);
+      text-align: center;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .estado {
+      padding: 38px 15px;
+      text-align: center;
+    }
+
+    .estado-icone {
+      width: 54px;
+      height: 54px;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 14px;
+      border-radius: 17px;
+      background: var(--cor-clara);
+      color: var(--cor);
+    }
+
+    .estado-icone .material-symbols-outlined {
+      font-size: 28px;
+    }
+
+    .estado strong {
+      display: block;
+      font-family: 'Fraunces', serif;
+      font-size: 21px;
+      font-weight: 600;
+    }
+
+    .estado p {
+      max-width: 300px;
+      margin: 8px auto 0;
+      color: var(--suave);
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+        .demo-controles {
+      margin-bottom: 16px;
+      padding: 14px;
+      border: 1px dashed #d9a47f;
+      border-radius: 15px;
+      background: #fff8f2;
+    }
+
+    .demo-controles[hidden] {
+      display: none;
+    }
+
+    .demo-controles label {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--suave);
+      font-size: 11px;
+      font-weight: 800;
+    }
+
+    .demo-controles select {
+      width: 100%;
+      min-height: 43px;
+      padding: 0 12px;
+      border: 1px solid var(--borda);
+      border-radius: 10px;
+      background: #fff;
+      color: var(--texto);
+      font: inherit;
+      font-size: 13px;
+      outline-color: var(--cor);
+    }
+
+    .demo-aviso {
+      margin-top: 7px;
+      color: var(--suave);
+      font-size: 10px;
+    }
+
+    @media (max-width: 380px) {
+      body {
+        padding: 18px 12px 30px;
+      }
+
+      .cartao {
+        padding: 19px 16px;
+        border-radius: 18px;
+      }
+
+      .confirmacao {
+        padding: 22px 17px 18px;
+      }
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .etapa.atual .etapa-icone {
+        animation: pulsar 2s ease-in-out infinite;
+      }
+
+      @keyframes pulsar {
+        0%, 100% { box-shadow: 0 0 0 4px var(--cor-clara); }
+        50% { box-shadow: 0 0 0 8px rgba(201, 109, 67, .08); }
+      }
+    }
   </style>
 </head>
+
 <body>
-  <main>
-    <div id="conteudo" class="cartao">
-      <div class="estado">Carregando seu pedido...</div>
+  <main class="pagina">
+    <header class="cabecalho">
+      <div class="marca" aria-hidden="true">
+        <span class="material-symbols-outlined">receipt_long</span>
+      </div>
+      <div class="cabecalho-texto">
+        <strong>Acompanhe seu pedido</strong>
+        <span>Veja cada etapa até receber seu pedido</span>
+      </div>
+    </header>
+
+        <section id="demo-controles" class="demo-controles" hidden>
+      <label for="demo-status">MODO DE DEMONSTRAÇÃO: ESCOLHA UMA SITUAÇÃO</label>
+      <select id="demo-status">
+        <option value="pendente_pagamento">Aguardando pagamento</option>
+        <option value="preparando" selected>Em preparo</option>
+        <option value="saiu_entrega">Saiu para entrega</option>
+        <option value="pronto_retirada">Pronto para retirada</option>
+        <option value="retirado">Pedido retirado</option>
+        <option value="entregue">Pedido entregue</option>
+        <option value="cancelado">Pedido cancelado</option>
+      </select>
+      <div class="demo-aviso">Dados fictícios. Nenhum pedido será criado ou alterado.</div>
+    </section>
+
+    <div id="conteudo" aria-live="polite">
+      <section class="cartao estado">
+        <div class="estado-icone">
+          <span class="material-symbols-outlined">hourglass_top</span>
+        </div>
+        <strong>Buscando seu pedido</strong>
+        <p>Estamos carregando as informações. Só um instante.</p>
+      </section>
     </div>
-    <p id="rodape" class="rodape"></p>
+
+    <p id="rodape" class="rodape" role="status"></p>
+    <p class="mensagem-final">Obrigado por escolher nossa loja. Bom apetite! ❤️</p>
   </main>
 
   <script>
@@ -48,79 +564,490 @@
     const INTERVALO_MS = 15000;
     const pedidoId = (new URLSearchParams(location.search).get('p') || '').trim();
 
+        const parametros = new URLSearchParams(location.search);
+    const modoDemo = parametros.get('demo') === '1';
+    const statusInicialDemo = parametros.get('status') || 'preparando';
+
     const conteudo = document.getElementById('conteudo');
     const rodape = document.getElementById('rodape');
+
     let timer = null;
+    let timerAviso = null;
+    let timerContagem = null;
     let consultando = false;
     let primeiraVez = true;
+    let consultaEncerrada = false;
+    let previsaoRecebidaEm = 0;
+    let previsaoAtual = null;
+
+    const criar = (tag, classe, texto) => {
+      const elemento = document.createElement(tag);
+      if (classe) elemento.className = classe;
+      if (texto !== undefined) elemento.textContent = texto;
+      return elemento;
+    };
 
     function pararConsultas() {
-      if (timer) { clearTimeout(timer); timer = null; }
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    }
+
+    function pararContagem() {
+      if (timerContagem) {
+        clearInterval(timerContagem);
+        timerContagem = null;
+      }
     }
 
     function agendar() {
       pararConsultas();
-      timer = setTimeout(consultar, INTERVALO_MS);
+      if (!consultaEncerrada && !document.hidden) {
+        timer = setTimeout(consultar, INTERVALO_MS);
+      }
     }
 
-    function mostrarMensagem(texto) {
-      conteudo.replaceChildren();
-      const div = document.createElement('div');
-      div.className = 'estado';
-      div.textContent = texto;
-      conteudo.appendChild(div);
+    function moeda(valor) {
+      const numero = Number(valor);
+      if (!Number.isFinite(numero)) return 'R$ 0,00';
+
+      return numero.toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL'
+      });
+    }
+
+    function formaPagamento(forma) {
+      const valor = String(forma || '').trim().toLowerCase();
+
+      const formas = {
+        pix: 'Pix',
+        dinheiro: 'Dinheiro',
+        cartao: 'Cartão',
+        'cartão': 'Cartão',
+        credito: 'Cartão de crédito',
+        'crédito': 'Cartão de crédito',
+        debito: 'Cartão de débito',
+        'débito': 'Cartão de débito'
+      };
+
+      return formas[valor] || (forma ? String(forma) : 'Não informado');
+    }
+
+    function iconePagamento(forma) {
+      const valor = String(forma || '').trim().toLowerCase();
+
+      if (valor === 'pix') return 'qr_code_2';
+      if (valor === 'dinheiro') return 'payments';
+      if (valor.includes('cart')) return 'credit_card';
+
+      return 'account_balance_wallet';
+    }
+
+    function formatarTempo(segundos) {
+      const total = Math.max(0, Math.ceil(Number(segundos) || 0));
+      const minutos = Math.ceil(total / 60);
+
+      if (minutos <= 0) return 'A qualquer momento';
+
+      if (minutos < 60) {
+        return minutos === 1 ? '1 minuto' : `${minutos} minutos`;
+      }
+
+      const horas = Math.floor(minutos / 60);
+      const resto = minutos % 60;
+
+      if (resto === 0) {
+        return horas === 1 ? '1 hora' : `${horas} horas`;
+      }
+
+      return `${horas}h ${resto}min`;
+    }
+
+    function atualizarPrevisao() {
+      if (!previsaoAtual) return;
+
+      const elemento = document.getElementById('previsao-valor');
+      if (!elemento) return;
+
+      if (previsaoAtual.contagem === true) {
+        const decorrido = Math.floor((Date.now() - previsaoRecebidaEm) / 1000);
+        const minimo = Math.max(0, (Number(previsaoAtual.restante_min_s) || 0) - decorrido);
+        const maximo = Math.max(0, (Number(previsaoAtual.restante_max_s) || 0) - decorrido);
+
+        elemento.textContent = minimo === maximo
+          ? formatarTempo(minimo)
+          : `${formatarTempo(minimo)} a ${formatarTempo(maximo)}`;
+      } else {
+        const minimo = Number(previsaoAtual.minimo);
+        const maximo = Number(previsaoAtual.maximo);
+
+        if (Number.isFinite(minimo) && Number.isFinite(maximo)) {
+          elemento.textContent = minimo === maximo
+            ? `${minimo} min`
+            : `${minimo} a ${maximo} min`;
+        }
+      }
+    }
+
+    function iniciarPrevisao(previsao) {
+      pararContagem();
+      previsaoAtual = previsao || null;
+      previsaoRecebidaEm = Date.now();
+
+      if (!previsaoAtual) return;
+
+      atualizarPrevisao();
+
+      if (previsaoAtual.contagem === true) {
+        timerContagem = setInterval(atualizarPrevisao, 1000);
+      }
+    }
+
+    function adicionarIcone(elemento, nome) {
+      const icone = criar('span', 'material-symbols-outlined', nome);
+      icone.setAttribute('aria-hidden', 'true');
+      elemento.appendChild(icone);
+    }
+
+    function desenharConfirmacao(dados) {
+      const cartao = criar('section', 'cartao confirmacao');
+      cartao.classList.toggle('cancelado', dados.cancelado === true);
+
+      const selo = criar(
+        'div',
+        dados.cancelado ? 'selo cancelado' : 'selo'
+      );
+
+      adicionarIcone(selo, dados.cancelado ? 'cancel' : 'check_circle');
+      selo.appendChild(document.createTextNode(
+        dados.cancelado ? 'Pedido cancelado' : 'Acompanhamento do pedido'
+      ));
+
+      const codigo = criar('p', 'codigo', `Pedido #${dados.codigo || '----'}`);
+      const titulo = criar('h1', '', dados.titulo || 'Pedido recebido');
+      const descricao = criar(
+        'p',
+        'descricao',
+        dados.descricao || 'Estamos cuidando do seu pedido.'
+      );
+
+      cartao.append(selo, codigo, titulo, descricao);
+
+      if (!dados.cancelado && dados.previsao) {
+        const previsao = criar('div', 'previsao');
+        const icone = criar('div', 'previsao-icone');
+        adicionarIcone(icone, 'schedule');
+
+        const texto = criar('div', 'previsao-texto');
+        texto.appendChild(criar('small', '', 'Previsão estimada'));
+
+        const valor = criar('strong', '', 'Calculando...');
+        valor.id = 'previsao-valor';
+        texto.appendChild(valor);
+
+        previsao.append(icone, texto);
+        cartao.appendChild(previsao);
+      }
+
+      return cartao;
+    }
+
+    function desenharTimeline(dados) {
+      const cartao = criar('section', 'cartao');
+      cartao.appendChild(criar('h2', 'secao-titulo', 'Andamento do pedido'));
+
+      const lista = criar('ol', 'timeline');
+      const passos = Array.isArray(dados.passos) ? dados.passos : [];
+      const finalizado = dados.status === 'entregue';
+      const passoAtual = Number(dados.passo_atual) || 0;
+
+      const descricoes = [
+        'Seu pedido chegou à loja.',
+        'Estamos preparando seu pedido.',
+        'Seu pedido está na etapa final.',
+        'Pedido concluído. Obrigado pela preferência!'
+      ];
+
+      passos.forEach((nome, indice) => {
+        const feito = indice < passoAtual || (finalizado && indice === passoAtual);
+        const atual = indice === passoAtual && !finalizado;
+
+        const item = criar(
+          'li',
+          `etapa${feito ? ' feito' : ''}${atual ? ' atual' : ''}`
+        );
+
+        const icone = criar('span', 'etapa-icone');
+
+        if (feito) {
+          adicionarIcone(icone, 'check');
+        } else {
+          icone.textContent = String(indice + 1);
+        }
+
+        const texto = criar('div', 'etapa-conteudo');
+        texto.appendChild(criar('strong', '', nome));
+
+        if (feito || atual) {
+          let descricao = descricoes[indice] || '';
+
+          if (finalizado && indice === passoAtual) {
+            descricao = 'Etapa concluída!';
+          }
+
+          if (atual && dados.status === 'pendente_pagamento') {
+            descricao = dados.titulo || descricao;
+          }
+
+          texto.appendChild(criar('small', '', descricao));
+        }
+
+        item.append(icone, texto);
+        lista.appendChild(item);
+      });
+
+      cartao.appendChild(lista);
+      return cartao;
+    }
+
+    function desenharResumo(resumo) {
+      if (!resumo || typeof resumo !== 'object') return null;
+
+      const cartao = criar('section', 'cartao');
+      cartao.appendChild(criar('h2', 'secao-titulo', 'Resumo financeiro'));
+
+      const financeiro = criar('div', 'financeiro');
+
+      if (resumo.subtotal !== null && resumo.subtotal !== undefined) {
+        const linha = criar('div', 'linha');
+        linha.append(
+          criar('span', '', 'Subtotal'),
+          criar('strong', '', moeda(resumo.subtotal))
+        );
+        financeiro.appendChild(linha);
+      }
+
+      if (resumo.taxa_entrega !== null && resumo.taxa_entrega !== undefined) {
+        const linha = criar('div', 'linha');
+        linha.append(
+          criar('span', '', 'Taxa de entrega'),
+          criar('strong', '', moeda(resumo.taxa_entrega))
+        );
+        financeiro.appendChild(linha);
+      }
+
+      if (resumo.total !== null && resumo.total !== undefined) {
+        const linha = criar('div', 'linha total');
+        linha.append(
+          criar('span', '', 'Total'),
+          criar('strong', '', moeda(resumo.total))
+        );
+        financeiro.appendChild(linha);
+      }
+
+      cartao.appendChild(financeiro);
+
+      if (resumo.forma_pagamento) {
+        const pagamento = criar('div', 'pagamento');
+        const icone = criar('div', 'pagamento-icone');
+        adicionarIcone(icone, iconePagamento(resumo.forma_pagamento));
+
+        const texto = criar('div');
+        texto.appendChild(criar('small', '', 'Forma de pagamento'));
+        texto.appendChild(criar('strong', '', formaPagamento(resumo.forma_pagamento)));
+
+        pagamento.append(icone, texto);
+        cartao.appendChild(pagamento);
+      }
+
+      return cartao;
     }
 
     function desenhar(dados) {
       conteudo.replaceChildren();
-      conteudo.classList.toggle('cancelado', dados.cancelado === true);
 
-      const codigo = document.createElement('p');
-      codigo.className = 'codigo';
-      codigo.textContent = 'Pedido #' + dados.codigo;
+      const cancelado = dados.cancelado === true;
+      const confirmado = desenharConfirmacao(dados);
+      conteudo.appendChild(confirmado);
 
-      const titulo = document.createElement('h1');
-      titulo.textContent = dados.titulo;
+      if (!cancelado && Array.isArray(dados.passos) && dados.passos.length) {
+        conteudo.appendChild(desenharTimeline(dados));
+      }
 
-      const descricao = document.createElement('p');
-      descricao.className = 'descricao';
-      descricao.textContent = dados.descricao;
+      if (!cancelado && dados.resumo) {
+        const resumo = desenharResumo(dados.resumo);
+        if (resumo) conteudo.appendChild(resumo);
+      }
 
-      conteudo.append(codigo, titulo, descricao);
+      iniciarPrevisao(cancelado ? null : dados.previsao);
 
-      if (!dados.cancelado) {
-        const lista = document.createElement('ol');
-        dados.passos.forEach((nome, i) => {
-          const item = document.createElement('li');
-          const bola = document.createElement('span');
-          bola.className = 'bola';
-          const finalizado = dados.status === 'entregue';
-          if (i < dados.passo_atual || (finalizado && i === dados.passo_atual)) {
-            item.className = 'feito';
-            bola.textContent = '✓';
-          } else if (i === dados.passo_atual) {
-            item.className = 'atual';
-            bola.textContent = String(i + 1);
-          } else {
-            bola.textContent = String(i + 1);
-          }
-          const texto = document.createElement('span');
-          texto.textContent = nome;
-          item.append(bola, texto);
-          lista.appendChild(item);
-        });
-        conteudo.appendChild(lista);
+      if (dados.status === 'entregue' || cancelado) {
+        pararContagem();
       }
     }
 
+        // ==========================================
+    // MODO DE DEMONSTRAÇÃO
+    // Não consulta API nem grava dados.
+    // ==========================================
+
+    function criarDadosDemo(status) {
+      const retirada = ['pronto_retirada', 'retirado'].includes(status);
+
+      const passosEntrega = [
+        'Pedido recebido',
+        'Em preparo',
+        'Saiu para entrega',
+        'Entregue'
+      ];
+
+      const passosRetirada = [
+        'Pedido recebido',
+        'Em preparo',
+        'Pronto para retirar',
+        'Retirado'
+      ];
+
+      const estados = {
+        pendente_pagamento: {
+          titulo: 'Aguardando pagamento',
+          descricao: 'Estamos aguardando a confirmação do pagamento para iniciar seu pedido.',
+          passo_atual: 0,
+          previsao: null,
+          cancelado: false
+        },
+
+        preparando: {
+          titulo: 'Seu pedido está sendo preparado!',
+          descricao: 'Nossa equipe já está cuidando do seu pedido. Em breve teremos novidades.',
+          passo_atual: 1,
+          previsao: { minimo: 25, maximo: 35 },
+          cancelado: false
+        },
+
+         saiu_entrega: {
+          titulo: 'Seu pedido saiu para entrega!',
+          descricao: 'Seu pedido está a caminho. Prepare-se para recebê-lo!',
+          passo_atual: 2,
+          previsao: { minimo: 8, maximo: 15 },
+          cancelado: false
+        },
+
+        pronto_retirada: {
+          titulo: 'Seu pedido está pronto!',
+          descricao: 'Pode vir retirar seu pedido. Estamos esperando por você!',
+          passo_atual: 2,
+          previsao: null,
+          cancelado: false
+        },
+
+        retirado: {
+          titulo: 'Pedido retirado!',
+          descricao: 'Seu pedido foi retirado com sucesso. Obrigado pela preferência!',
+          passo_atual: 3,
+          previsao: null,
+          cancelado: false
+        },
+
+        entregue: {
+          titulo: 'Pedido entregue!',
+          descricao: 'Seu pedido chegou. Esperamos que aproveite cada mordida!',
+          passo_atual: 3,
+          previsao: null,
+          cancelado: false
+        },
+
+        cancelado: {
+          titulo: 'Pedido cancelado',
+          descricao: 'Este pedido foi cancelado. Se precisar de ajuda, entre em contato com a loja.',
+          passo_atual: 0,
+          previsao: null,
+          cancelado: true
+        }
+      };
+
+      const estado = estados[status] || estados.preparando;
+
+      return {
+        sucesso: true,
+        codigo: 'D3MO',
+        status: status === 'retirado' ? 'entregue' : status,
+        titulo: estado.titulo,
+        descricao: estado.descricao,
+        passo_atual: estado.passo_atual,
+        passos: retirada ? passosRetirada : passosEntrega,
+        cancelado: estado.cancelado,
+        previsao: estado.previsao,
+        resumo: {
+          subtotal: 32.90,
+          taxa_entrega: retirada ? 0 : 5.99,
+          total: retirada ? 32.90 : 38.89,
+          forma_pagamento: 'pix'
+        }
+      };
+    }
+
+    function iniciarDemo() {
+      const controles = document.getElementById('demo-controles');
+      const seletor = document.getElementById('demo-status');
+
+      controles.hidden = false;
+
+      const statusValido = [
+        'pendente_pagamento',
+        'preparando',
+        'saiu_entrega',
+        'pronto_retirada',
+        'retirado',
+        'entregue',
+        'cancelado'
+      ];
+
+      const status = statusValido.includes(statusInicialDemo)
+        ? statusInicialDemo
+        : 'preparando';
+
+      seletor.value = status;
+
+      function atualizarDemo() {
+        desenhar(criarDadosDemo(seletor.value));
+        rodape.textContent = 'Modo de demonstração ativo. Dados fictícios.';
+      }
+
+      seletor.addEventListener('change', atualizarDemo);
+      atualizarDemo();
+    }
+
+    function mostrarMensagem(titulo, texto, icone = 'info') {
+      pararContagem();
+      conteudo.replaceChildren();
+
+      const cartao = criar('section', 'cartao estado');
+      const simbolo = criar('div', 'estado-icone');
+      adicionarIcone(simbolo, icone);
+
+      cartao.append(
+        simbolo,
+        criar('strong', '', titulo),
+        criar('p', '', texto)
+      );
+
+      conteudo.appendChild(cartao);
+    }
+
     async function consultar() {
-      if (consultando) return;
+      if (consultando || consultaEncerrada || document.hidden) return;
+
       consultando = true;
 
       if (primeiraVez) {
-        // O servidor pode estar descansando: avisa se demorar
-        setTimeout(() => {
-          if (primeiraVez) rodape.textContent = 'O servidor estava descansando, pode levar até 1 minuto desta vez.';
+        timerAviso = setTimeout(() => {
+          if (primeiraVez) {
+            rodape.textContent =
+              'O servidor pode levar alguns instantes para responder. Estamos tentando.';
+          }
         }, 6000);
       }
 
@@ -131,14 +1058,20 @@
         );
 
         if (resposta.status === 404) {
-          mostrarMensagem('Não encontramos este pedido. Confira o link ou fale com a loja.');
+          consultaEncerrada = true;
+          mostrarMensagem(
+            'Pedido não encontrado',
+            'Confira se o link está correto ou entre em contato com a loja.',
+            'search_off'
+          );
           rodape.textContent = '';
           pararConsultas();
           return;
         }
 
         if (resposta.status === 429) {
-          rodape.textContent = 'Muitas consultas seguidas. Vamos tentar de novo em instantes.';
+          rodape.textContent =
+            'Muitas consultas em pouco tempo. Vamos tentar novamente em instantes.';
           agendar();
           return;
         }
@@ -146,7 +1079,8 @@
         const dados = await resposta.json().catch(() => null);
 
         if (!resposta.ok || !dados || dados.sucesso !== true) {
-          rodape.textContent = 'Não conseguimos atualizar agora. Tentando de novo...';
+          rodape.textContent =
+            'Não conseguimos atualizar agora. Tentando novamente...';
           agendar();
           return;
         }
@@ -155,32 +1089,48 @@
         desenhar(dados);
 
         if (dados.status === 'entregue' || dados.status === 'cancelado') {
-          rodape.textContent = '';
+          consultaEncerrada = true;
+          rodape.textContent = 'Pedido finalizado.';
           pararConsultas();
           return;
         }
 
-        rodape.textContent = 'Esta tela atualiza sozinha.';
+        rodape.textContent = 'Atualizamos as informações automaticamente.';
         agendar();
-      } catch (e) {
-        rodape.textContent = 'Sem conexão. Tentando de novo...';
+
+      } catch (erro) {
+        rodape.textContent = 'Sem conexão. Tentando atualizar novamente...';
         agendar();
+
       } finally {
         consultando = false;
+
+        if (timerAviso) {
+          clearTimeout(timerAviso);
+          timerAviso = null;
+        }
       }
     }
 
-    // Pausa quando a aba está escondida e consulta na hora ao voltar
     document.addEventListener('visibilitychange', () => {
+      if (modoDemo) return;
+
       if (document.hidden) {
         pararConsultas();
-      } else if (pedidoId) {
+      } else if (pedidoId && !consultaEncerrada) {
         consultar();
       }
     });
 
-    if (!pedidoId) {
-      mostrarMensagem('Link inválido. Peça o link do pedido à loja.');
+    if (modoDemo) {
+      iniciarDemo();
+    } else if (!pedidoId) {
+      consultaEncerrada = true;
+      mostrarMensagem(
+        'Link inválido',
+        'Peça à loja o link correto para acompanhar seu pedido.',
+        'link_off'
+      );
     } else {
       consultar();
     }
