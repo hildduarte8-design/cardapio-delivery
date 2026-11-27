@@ -14,7 +14,18 @@ body{background:#fff8f5}
 /* ---------- Topo (hero da loja) ---------- */
 #app-container .vs-topo{margin:16px 0 0;padding:20px;border:0;border-radius:20px;overflow:hidden;color:var(--vs-on-primary);
   background:linear-gradient(135deg,var(--vs-primary),color-mix(in srgb,var(--vs-primary) 68%,#000));box-shadow:var(--vs-shadow)}
-#app-container .vs-loja{display:flex;align-items:center;gap:14px;position:static;margin:0;padding:0;background:none}
+#app-container .vs-loja{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  position:static;
+  margin:0;
+  padding:0;
+  background:none;
+  border:0;
+  border-radius:0;
+  box-shadow:none;
+}
 #app-container .vs-logo{position:relative;top:auto;left:auto;transform:none;width:64px;height:64px;border:0;box-shadow:none;background:#fff}
 #app-container .vs-logo .ini{color:var(--vs-primary)}
 #app-container .vs-loja h1{margin:0;font:600 26px/1.15 Fraunces,Georgia,serif;color:inherit}
