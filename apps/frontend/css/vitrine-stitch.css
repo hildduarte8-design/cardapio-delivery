@@ -1,0 +1,76 @@
+/* Cardápio Delivery: vitrine Stitch. Carrega DEPOIS do CSS legado do index.html.
+   A cor de destaque continua vindo de --cor / --cor-texto (cadastro do restaurante). */
+.material-symbols-outlined{font-family:'Material Symbols Outlined';font-weight:400;font-style:normal;font-size:24px;line-height:1;letter-spacing:normal;text-transform:none;display:inline-block;white-space:nowrap;direction:ltr;font-feature-settings:'liga';-webkit-font-smoothing:antialiased}
+
+#app-container{
+  --vs-primary:var(--cor,#9f3c16);--vs-on-primary:var(--cor-texto,#fff);
+  --vs-surface:#fff8f5;--vs-cont:#fbebe1;--vs-cont-low:#fff1e9;
+  --vs-text:#221a14;--vs-muted:#57423b;--vs-line:#dec0b7;
+  --vs-shadow:0 4px 16px rgba(34,26,20,.06);
+  font-family:Manrope,system-ui,sans-serif;color:var(--vs-text);background:var(--vs-surface);
+}
+body{background:#fff8f5}
+
+/* ---------- Topo (hero da loja) ---------- */
+#app-container .vs-topo{margin:16px 0 0;padding:20px;border:0;border-radius:20px;overflow:hidden;color:var(--vs-on-primary);
+  background:linear-gradient(135deg,var(--vs-primary),color-mix(in srgb,var(--vs-primary) 68%,#000));box-shadow:var(--vs-shadow)}
+#app-container .vs-loja{display:flex;align-items:center;gap:14px;position:static;margin:0;padding:0;background:none}
+#app-container .vs-logo{position:relative;top:auto;left:auto;transform:none;width:64px;height:64px;border:3px solid rgba(255,255,255,.85);box-shadow:none;background:#fff}
+#app-container .vs-logo .ini{color:var(--vs-primary)}
+#app-container .vs-loja h1{margin:0;font:600 26px/1.15 Fraunces,Georgia,serif;color:inherit}
+#app-container .vs-loja p{margin:4px 0 0;font-size:13px;opacity:.92;color:inherit}
+#app-container #area-banner:empty{display:none}
+#app-container #area-banner img{display:block;width:100%;margin-top:14px;border-radius:14px}
+
+/* ---------- Busca + categorias (sticky) ---------- */
+#app-container .vs-barra{position:sticky;top:0;z-index:30;padding:10px 0 8px;border:0;background:rgba(255,248,245,.95);backdrop-filter:blur(10px);box-shadow:0 4px 16px rgba(34,26,20,.04)}
+#app-container .vs-busca{position:relative}
+#app-container .vs-busca .material-symbols-outlined{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:20px;color:var(--vs-muted);pointer-events:none}
+#app-container .vs-busca .busca{width:100%;height:44px;padding:0 14px 0 44px;border:0;border-radius:12px;background:#fff;box-shadow:var(--vs-shadow);font:400 14px Manrope,sans-serif;color:var(--vs-text)}
+#app-container .vs-tabs{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+#app-container .vs-tabs::-webkit-scrollbar{display:none}
+#app-container .vs-tabs .chip{flex:none;border:0;border-radius:999px;padding:9px 16px;background:var(--vs-cont);color:var(--vs-muted);font:600 14px Manrope,sans-serif}
+#app-container .vs-tabs .chip[aria-pressed="true"]{background:var(--vs-primary);color:var(--vs-on-primary);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+
+/* ---------- Produtos ---------- */
+#app-container h3.cat{margin:24px 0 12px;font:600 24px/32px Fraunces,Georgia,serif;letter-spacing:-.01em;color:var(--vs-text);scroll-margin-top:120px}
+#app-container .vs-card{display:flex;align-items:stretch;gap:14px;margin:0 0 14px;padding:12px;border:0;border-radius:12px;background:#fff;box-shadow:var(--vs-shadow)}
+#app-container .vs-card .foto,#app-container .vs-card .vs-foto{order:0;flex:none;width:112px;height:112px;border-radius:8px;object-fit:cover;background:var(--vs-cont)}
+#app-container .vs-foto-vazia{display:flex;align-items:center;justify-content:center;color:var(--vs-line)}
+#app-container .vs-info{order:1;flex:1;min-width:0;display:flex;flex-direction:column;justify-content:space-between}
+#app-container .vs-info h4{margin:0;font:500 20px/28px Fraunces,Georgia,serif;color:var(--vs-text);display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+#app-container .vs-info .desc{margin:4px 0 0;font:400 14px/20px Manrope,sans-serif;color:var(--vs-muted);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+#app-container .vs-baixo{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px}
+#app-container .vs-baixo .preco{margin:0;font:600 16px Manrope,sans-serif;font-variant-numeric:tabular-nums;color:var(--vs-text)}
+#app-container .vs-baixo .preco s{font-weight:400;font-size:13px;color:var(--vs-muted)}
+#app-container .vs-baixo .promo{color:var(--vs-primary)}
+#app-container .vs-baixo .add{order:0;position:relative;display:flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:var(--vs-primary);color:var(--vs-on-primary);box-shadow:0 1px 3px rgba(0,0,0,.2)}
+#app-container .vs-baixo .add .material-symbols-outlined{font-size:20px}
+#app-container .vs-baixo .add .badge{position:absolute;top:-6px;right:-6px}
+
+/* ---------- Blocos, formulários, pagamento ---------- */
+#app-container .bloco{margin:16px 0;padding:16px;border:0;border-radius:16px;background:#fff;box-shadow:var(--vs-shadow)}
+#app-container .bloco h2{margin:0 0 12px;font:500 20px/28px Fraunces,Georgia,serif;color:var(--vs-text)}
+#app-container .campo{font:600 12px Manrope,sans-serif;color:var(--vs-muted)}
+#app-container .entrada{border:1px solid var(--vs-line);border-radius:10px;background:var(--vs-cont-low);font-family:Manrope,sans-serif;color:var(--vs-text)}
+#app-container .entrada:focus{outline:2px solid var(--vs-primary);border-color:transparent}
+#app-container .opcao{border:1px solid var(--vs-line);border-radius:12px;background:#fff}
+
+/* ---------- Carrinho ---------- */
+#app-container .vs-item{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--vs-cont)}
+#app-container .vs-cart-foto{flex:none;width:64px;height:64px;border-radius:8px;object-fit:cover;background:var(--vs-cont)}
+#app-container .vs-item-info{flex:1;min-width:0}
+#app-container .vs-item-info strong{display:block;font:600 16px Manrope,sans-serif}
+#app-container .vs-item-info small{font-size:12px;color:var(--vs-muted)}
+#app-container .vs-qtd{display:flex;align-items:center;gap:6px;padding:4px;border-radius:999px;background:var(--vs-cont)}
+#app-container .vs-qtd button{display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#fff;color:var(--vs-text)}
+#app-container .vs-qtd button[data-mais]{background:var(--vs-primary);color:var(--vs-on-primary)}
+#app-container .vs-qtd button .material-symbols-outlined{font-size:16px}
+#app-container .vs-qtd span{min-width:22px;text-align:center;font:600 14px Manrope,sans-serif}
+
+/* ---------- Barra inferior e toast ---------- */
+#app-container .carrinho-barra{border-top:0;background:rgba(255,248,245,.92);backdrop-filter:blur(16px);box-shadow:0 -1px 8px rgba(0,0,0,.06)}
+#app-container .carrinho-barra .rot{font:500 12px Manrope,sans-serif;color:var(--vs-muted)}
+#app-container .carrinho-barra .tot{font:600 22px Fraunces,Georgia,serif;color:var(--vs-primary)}
+#app-container #btn-enviar{height:52px;border-radius:12px;background:var(--vs-primary);color:var(--vs-on-primary);font:700 16px Manrope,sans-serif}
+.toast{border-radius:999px;background:#382f28;color:#feeee3;font:600 14px Manrope,sans-serif}
