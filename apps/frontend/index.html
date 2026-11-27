@@ -172,88 +172,14 @@
     .acomp-link a{color:var(--suave);text-decoration:underline}
     .acomp-topo .acomp-previsao{margin-top:8px;font-weight:700;color:var(--texto)}
   </style>
-
-    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/vitrine-stitch.css">
-  
 </head>
 <body>
 
   <div id="app-container">
-    # Trocas no apps/frontend/index.html (4 pontos, numeração do seu arquivo atual)
-
-Faça de baixo para cima (4 → 1) pra os números de linha não se mexerem.
-
-## 4) renderCarrinho (~linha 788)
-Troque SÓ o `$('lista-carrinho').innerHTML = carrinho.map(...).join('');` por:
-
-```js
-      $('lista-carrinho').innerHTML = carrinho.map((i) => {
-        const p = produtos.find((x) => String(x.id) === String(i.id));
-        const foto = p && urlImagemValida(p.imagem_url)
-          ? `<img class="vs-cart-foto" src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async" width="64" height="64">`
-          : '';
-        return `
-        <div class="linha-item vs-item">
-          ${foto}
-          <div class="vs-item-info">
-            <strong>${esc(i.nome)}</strong>
-            <small>${brl.format(i.preco)} cada</small>
-          </div>
-          <div class="qtd vs-qtd">
-            <button type="button" data-menos="${esc(i.id)}" aria-label="Diminuir ${esc(i.nome)}"><span class="material-symbols-outlined" aria-hidden="true">remove</span></button>
-            <span>${i.qtd}</span>
-            <button type="button" data-mais="${esc(i.id)}" aria-label="Aumentar ${esc(i.nome)}"><span class="material-symbols-outlined" aria-hidden="true">add</span></button>
-          </div>
-        </div>`;
-      }).join('');
-```
-
-## 3) renderProdutos (linhas ~722 a ~747)
-Troque tudo de `$('chips').innerHTML = ...` até `container.innerHTML = html;` por:
-
-```js
-      $('chips').innerHTML = [...grupos.keys()].map((cat, i) =>
-        `<button type="button" class="chip vs-tab" data-cat="${i}" aria-pressed="${cat === categoriaAtiva}">${esc(cat)}</button>`).join('');
-
-      let html = termo ? '' : htmlDestaques(), i = 0;
-      for (const [cat, lista] of grupos) {
-        html += `<h3 class="cat" id="cat-${i}">${esc(cat)}</h3>`;
-        for (const p of lista) {
-          const foto = urlImagemValida(p.imagem_url)
-            ? `<img class="foto vs-foto" src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async" width="112" height="112">`
-            : `<div class="vs-foto vs-foto-vazia" aria-hidden="true"><span class="material-symbols-outlined">restaurant</span></div>`;
-          html += `
-            <article class="card vs-card">
-              ${foto}
-              <div class="info vs-info">
-                <div>
-                  <h4>${esc(p.nome)}</h4>
-                  ${p.descricao ? `<p class="desc">${esc(p.descricao)}</p>` : ''}
-                </div>
-                <div class="vs-baixo">
-                  <p class="preco">${p.preco_original ? `<s>${brl.format(parseFloat(p.preco_original))}</s> <span class="promo">${brl.format(parseFloat(p.preco) || 0)}</span>` : brl.format(parseFloat(p.preco) || 0)}</p>
-                  <button type="button" class="add" data-add="${esc(p.id)}" aria-label="Adicionar ${esc(p.nome)} ao carrinho">
-                    <span class="material-symbols-outlined" aria-hidden="true">add</span><span class="badge hidden" data-badge="${esc(p.id)}"></span>
-                  </button>
-                </div>
-              </div>
-            </article>`;
-        }
-        i++;
-      }
-      container.innerHTML = html;
-```
-
-## 2) HTML do topo + busca (linhas 312 a 336)
-Troque tudo entre `<div class="wrap">` (312) e o `</div>` que fecha `#barra-busca` (336) por:
-
-```html
     <div class="wrap">
-      <header class="topo vs-topo" id="topo">
-        <div class="loja vs-loja">
-          <div class="logo-box vs-logo" id="logo-box">
+      <header class="topo" id="topo">
+        <div class="loja">
+          <div class="logo-box" id="logo-box">
             <span class="ini" id="rest-ini" aria-hidden="true"></span>
           </div>
           <div>
@@ -268,27 +194,13 @@ Troque tudo entre `<div class="wrap">` (312) e o `</div>` que fecha `#barra-busc
       </header>
     </div>
 
-    <div class="barra vs-barra" id="barra-busca">
+    <div class="barra" id="barra-busca">
       <div class="wrap">
         <label for="busca" class="sr-only">Buscar no cardápio</label>
-        <div class="vs-busca">
-          <span class="material-symbols-outlined" aria-hidden="true">search</span>
-          <input id="busca" class="busca" type="search" placeholder="Buscar pratos, ingredientes..." autocomplete="off" />
-        </div>
-        <div id="chips" class="chips vs-tabs" role="group" aria-label="Categorias"></div>
+        <input id="busca" class="busca" type="search" placeholder="Buscar no cardápio" autocomplete="off" />
+        <div id="chips" class="chips" role="group" aria-label="Categorias"></div>
       </div>
     </div>
-```
-
-## 1) <head>: logo depois do `</style>` da linha 307 (antes do `</head>`)
-
-```html
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/vitrine-stitch.css">
-```
-
-Depois: copie `vitrine-stitch.css` para `apps/frontend/css/` e, no `sw.js`, suba a versão do cache (e inclua `css/vitrine-stitch.css` se ele tiver lista de arquivos pré-cacheados).
 
     <main class="wrap" id="conteudo">
       <section id="lista-produtos" aria-live="polite">
@@ -674,31 +586,27 @@ Depois: copie `vitrine-stitch.css` para `apps/frontend/css/` e, no `sw.js`, suba
       }
       if (!grupos.has(categoriaAtiva)) categoriaAtiva = '';
 
-           $('chips').innerHTML = [...grupos.keys()].map((cat, i) =>
-        `<button type="button" class="chip vs-tab" data-cat="${i}" aria-pressed="${cat === categoriaAtiva}">${esc(cat)}</button>`).join('');
+      $('chips').innerHTML = [...grupos.keys()].map((cat, i) =>
+        `<button type="button" class="chip" data-cat="${i}" aria-pressed="${cat === categoriaAtiva}">${esc(cat)}</button>`).join('');
 
-      let html = termo ? '' : htmlDestaques(), i = 0;
+     let html = termo ? '' : htmlDestaques(), i = 0;
       for (const [cat, lista] of grupos) {
         html += `<h3 class="cat" id="cat-${i}">${esc(cat)}</h3>`;
         for (const p of lista) {
           const foto = urlImagemValida(p.imagem_url)
-            ? `<img class="foto vs-foto" src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async" width="112" height="112">`
-            : `<div class="vs-foto vs-foto-vazia" aria-hidden="true"><span class="material-symbols-outlined">restaurant</span></div>`;
+            ? `<img class="foto" src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async" width="84" height="84">`
+            : '';
           html += `
-            <article class="card vs-card">
-              ${foto}
-              <div class="info vs-info">
-                <div>
-                  <h4>${esc(p.nome)}</h4>
-                  ${p.descricao ? `<p class="desc">${esc(p.descricao)}</p>` : ''}
-                </div>
-                <div class="vs-baixo">
-                  <p class="preco">${p.preco_original ? `<s>${brl.format(parseFloat(p.preco_original))}</s> <span class="promo">${brl.format(parseFloat(p.preco) || 0)}</span>` : brl.format(parseFloat(p.preco) || 0)}</p>
-                  <button type="button" class="add" data-add="${esc(p.id)}" aria-label="Adicionar ${esc(p.nome)} ao carrinho">
-                    <span class="material-symbols-outlined" aria-hidden="true">add</span><span class="badge hidden" data-badge="${esc(p.id)}"></span>
-                  </button>
-                </div>
+                           <article class="card">
+              <div class="info">
+                <h4>${esc(p.nome)}</h4>
+                ${p.descricao ? `<p class="desc">${esc(p.descricao)}</p>` : ''}
+                                <p class="preco">${p.preco_original ? `<s>${brl.format(parseFloat(p.preco_original))}</s> <span class="promo">${brl.format(parseFloat(p.preco) || 0)}</span>` : brl.format(parseFloat(p.preco) || 0)}</p>
               </div>
+              ${foto}
+              <button type="button" class="add" data-add="${esc(p.id)}" aria-label="Adicionar ${esc(p.nome)} ao carrinho">
+                +<span class="badge hidden" data-badge="${esc(p.id)}"></span>
+              </button>
             </article>`;
         }
         i++;
@@ -744,25 +652,18 @@ Depois: copie `vitrine-stitch.css` para `apps/frontend/css/` e, no `sw.js`, suba
 
     function renderCarrinho() {
       $('secao-carrinho').classList.toggle('hidden', carrinho.length === 0);
-            $('lista-carrinho').innerHTML = carrinho.map((i) => {
-        const p = produtos.find((x) => String(x.id) === String(i.id));
-        const foto = p && urlImagemValida(p.imagem_url)
-          ? `<img class="vs-cart-foto" src="${esc(p.imagem_url)}" alt="" loading="lazy" decoding="async" width="64" height="64">`
-          : '';
-        return `
-        <div class="linha-item vs-item">
-          ${foto}
-          <div class="vs-item-info">
+      $('lista-carrinho').innerHTML = carrinho.map((i) => `
+        <div class="linha-item">
+          <div>
             <strong>${esc(i.nome)}</strong>
             <small>${brl.format(i.preco)} cada</small>
           </div>
-          <div class="qtd vs-qtd">
-            <button type="button" data-menos="${esc(i.id)}" aria-label="Diminuir ${esc(i.nome)}"><span class="material-symbols-outlined" aria-hidden="true">remove</span></button>
+          <div class="qtd">
+            <button type="button" data-menos="${esc(i.id)}" aria-label="Diminuir ${esc(i.nome)}">−</button>
             <span>${i.qtd}</span>
-            <button type="button" data-mais="${esc(i.id)}" aria-label="Aumentar ${esc(i.nome)}"><span class="material-symbols-outlined" aria-hidden="true">add</span></button>
+            <button type="button" data-mais="${esc(i.id)}" aria-label="Aumentar ${esc(i.nome)}">+</button>
           </div>
-        </div>`;
-      }).join('');
+        </div>`).join('');
       atualizarBadges();
       atualizarTotal();
     }
