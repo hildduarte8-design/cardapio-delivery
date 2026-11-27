@@ -135,3 +135,63 @@ body{background:#fff8f5}
 #app-container .opcao small{display:block;font:400 14px Manrope,sans-serif;color:var(--vs-muted)}
 #app-container .opcao:has(input:checked){background:#ffdbcf;box-shadow:none}
 #app-container .opcao:has(input:checked) small{color:#822801}
+/* ==========================================================================
+   ETAPA 2: modal de adicionais, itens do carrinho, Entrega/Retirada, pagamento
+   Cole no FINAL de css/vitrine-stitch.css. Não precisa mexer em nenhum JS.
+   ========================================================================== */
+
+/* Tema creme fixo também para o que o vitrine-adicionais.js desenha (o modal fica fora do #app-container) */
+#app-container,#vt-modal{--fundo:#fff8f5;--texto:#221a14;--suave:#57423b;--borda:#dec0b7}
+
+/* ---------- Modal de detalhes / adicionais (estilo "Detalhes do Prato") ---------- */
+#vt-modal.dt-fundo{align-items:flex-end;padding:0;background:rgba(34,26,20,.55)}
+#vt-modal .dt-folha{max-width:480px;max-height:92vh;border-radius:20px 20px 0 0;background:#fff8f5;color:#221a14;box-shadow:0 -8px 30px rgba(34,26,20,.25)}
+#vt-modal .dt-fechar{top:20px;right:28px;width:40px;height:40px;background:rgba(255,248,245,.92);color:#221a14;font-size:18px;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+#vt-modal .dt-foto{width:calc(100% - 32px);height:220px;max-height:none;margin:16px 16px 0;border-radius:12px;object-fit:cover;background:#fbebe1}
+#vt-modal .dt-corpo{display:grid;grid-template-columns:1fr auto;column-gap:12px;row-gap:8px;padding:16px}
+#vt-modal .dt-corpo>*{grid-column:1/-1}
+#vt-modal .dt-corpo h2{grid-column:1;grid-row:1;font:600 24px/32px Fraunces,Georgia,serif;letter-spacing:-.01em;color:#221a14;margin:0}
+#vt-modal .dt-corpo .dt-preco{grid-column:2;grid-row:1;margin:0;font:700 18px/32px Manrope,sans-serif;color:var(--cor,#9f3c16);font-variant-numeric:tabular-nums}
+#vt-modal .dt-corpo .dt-desc{grid-row:2;margin:0;font:400 14px/20px Manrope,sans-serif;color:#57423b}
+#vt-modal .dt-titulo-ad{margin:16px 0 0;font:600 16px/24px Manrope,sans-serif;color:#221a14}
+#vt-modal .dt-ad{min-height:52px;margin:0;padding:10px 12px;border:0;border-radius:8px;background:#fff1e9;box-shadow:none}
+#vt-modal .dt-ad:has(input:checked){border:0;box-shadow:inset 0 0 0 1.5px var(--cor,#9f3c16);background:#ffdbcf}
+#vt-modal .dt-ad input{appearance:none;-webkit-appearance:none;display:grid;place-items:center;width:20px;height:20px;border-radius:4px;background:#f0dfd5;flex:none}
+#vt-modal .dt-ad input:checked{background:var(--cor,#9f3c16)}
+#vt-modal .dt-ad input:checked::after{content:"";width:10px;height:5px;border-left:2px solid var(--cor-texto,#fff);border-bottom:2px solid var(--cor-texto,#fff);transform:rotate(-45deg) translate(1px,-1px)}
+#vt-modal .dt-ad-nome{font:400 14px Manrope,sans-serif;color:#221a14}
+#vt-modal .dt-ad-preco{font:600 14px Manrope,sans-serif;color:var(--cor,#9f3c16);font-variant-numeric:tabular-nums}
+#vt-modal .dt-rodape{gap:10px;border-top:0;background:rgba(255,248,245,.96);box-shadow:0 -4px 20px rgba(35,27,21,.08)}
+#vt-modal .dt-rodape .qtd{display:flex;align-items:center;flex:none;padding:4px;border-radius:999px;background:#fbebe1}
+#vt-modal .dt-rodape .qtd button{display:flex;align-items:center;justify-content:center;width:40px;height:40px;padding:0;border:0;border-radius:50%;background:transparent;color:#221a14;font-size:22px}
+#vt-modal .dt-rodape .qtd span{min-width:28px;text-align:center;font:600 16px Manrope,sans-serif;color:#221a14}
+#vt-modal .dt-add{height:48px;border-radius:999px;background:var(--cor,#9f3c16);color:var(--cor-texto,#fff);font:600 14px Manrope,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,.18)}
+
+/* ---------- Itens do carrinho (desenhados pelo vitrine-adicionais.js) ---------- */
+#app-container .it{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:12px;border:0;border-radius:12px;background:#fff;box-shadow:var(--vs-shadow)}
+#app-container .it img{flex:none;width:72px;height:72px;border-radius:8px;object-fit:cover;background:var(--vs-cont)}
+#app-container .it-info{flex:1;min-width:0}
+#app-container .it-info strong{display:block;font:600 16px/24px Manrope,sans-serif;color:var(--vs-text)}
+#app-container .it-info small{display:block;font:500 12px/16px Manrope,sans-serif;color:var(--vs-muted)}
+#app-container .it-pr{margin-top:6px;font:600 16px Manrope,sans-serif;color:var(--vs-text);font-variant-numeric:tabular-nums}
+#app-container .qtd{display:flex;align-items:center;gap:6px;padding:4px;border-radius:999px;background:var(--vs-cont)}
+#app-container .qtd button{display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:50%;background:#fff;color:var(--vs-text);font-size:18px;line-height:1}
+#app-container .qtd button[data-mais]{background:var(--vs-primary);color:var(--vs-on-primary)}
+#app-container .qtd span{min-width:22px;text-align:center;font:600 14px Manrope,sans-serif;color:var(--vs-text)}
+
+/* ---------- Resumo de valores ---------- */
+#app-container #resumo .res-l{color:var(--vs-muted);font:400 14px Manrope,sans-serif}
+#app-container #resumo .res-l.tot{border-top:1px solid var(--vs-cont);color:var(--vs-text)}
+#app-container #resumo .res-l.tot span:last-child{font:600 24px Fraunces,Georgia,serif;color:var(--vs-primary)}
+
+/* ---------- Entrega / Retirada (estilo "Finalizar Pedido") ---------- */
+#app-container #abas-ent{display:flex;gap:4px;margin:0 0 14px;padding:4px;border-radius:999px;background:#f5e5db}
+#app-container #abas-ent button{flex:1;height:44px;border:0;border-radius:999px;background:transparent;font:600 14px Manrope,sans-serif;color:var(--vs-muted)}
+#app-container #abas-ent button[aria-pressed="true"]{background:#fff;color:var(--vs-text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+
+/* ---------- Forma de pagamento ---------- */
+#app-container .opcao{padding:14px;border:0;border-radius:12px;background:#fff;box-shadow:var(--vs-shadow)}
+#app-container .opcao strong{font:600 16px Manrope,sans-serif;color:var(--vs-text)}
+#app-container .opcao small{display:block;font:400 14px Manrope,sans-serif;color:var(--vs-muted)}
+#app-container .opcao:has(input:checked){background:#ffdbcf;box-shadow:none}
+#app-container .opcao:has(input:checked) small{color:#822801}
