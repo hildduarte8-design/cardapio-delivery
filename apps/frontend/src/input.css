@@ -1,3 +1,82 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --st-surface: #fff8f5;
+    --st-surface-low: #fff1e9;
+    --st-surface-container: #fbebe1;
+    --st-surface-high: #f5e5db;
+    --st-surface-highest: #f0dfd5;
+    --st-surface-card: #ffffff;
+    --st-on-surface: #221a14;
+    --st-on-surface-variant: #57423b;
+    --st-outline: #8a726a;
+    --st-outline-variant: #dec0b7;
+    --st-primary: #9f3c16;
+    --st-primary-container: #bf542c;
+    --st-on-primary: #ffffff;
+    --st-secondary: #904d00;
+    --st-secondary-fixed: #ffdcc3;
+    --st-tertiary: #735c00;
+    --st-tertiary-container: #cca830;
+    --st-tertiary-fixed: #ffe088;
+    --st-error: #ba1a1a;
+    --st-error-container: #ffdad6;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overscroll-behavior: none;
+  }
+}
+
+@layer components {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 20px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-smoothing: antialiased;
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
+  .stitch-card {
+    @apply bg-surface-container-lowest rounded-lg shadow-stitch-sm border border-outline-variant/30;
+  }
+
+  .stitch-btn-primary {
+    @apply inline-flex items-center justify-center gap-2 bg-primary text-on-primary px-4 py-2 rounded-DEFAULT font-label-lg text-label-lg shadow-stitch-sm hover:bg-primary-container transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .stitch-btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 bg-transparent text-on-surface border border-outline-variant px-4 py-2 rounded-DEFAULT font-label-lg text-label-lg hover:bg-surface-container-high transition-colors;
+  }
+
+  .stitch-input {
+    @apply w-full bg-surface-container-lowest text-on-surface border border-outline-variant rounded-DEFAULT px-3.5 py-2.5 text-body-md placeholder:text-outline focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all;
+  }
+
+  .stitch-nav-tab {
+    @apply flex items-center gap-3 w-full px-4 py-2.5 rounded-DEFAULT font-label-lg text-label-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-all text-left;
+  }
+
+  .stitch-nav-tab.ativa {
+    @apply bg-primary-container text-on-primary-container font-bold shadow-stitch-sm;
+  }
+}
